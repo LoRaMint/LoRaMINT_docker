@@ -1,0 +1,49 @@
+services:
+  webhooklistener:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_USERNAME=${DB_USERNAME}
+      - DB_HOST=db
+      - DB_PORT=3306
+      - DB_DATABASE=${DB_DATABASE}
+      - APP_KEY=${APP_KEY}
+      - WEBHOOK_HOST=0.0.0.0
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.webhooklistener.rule=Host(`webhook.loramint.sfz-ox.de`)"
+      - "traefik.http.routers.webhooklistener.entrypoints=websecure"
+      - "traefik.http.routers.webhooklistener.tls=true"
+      - "traefik.http.routers.webhooklistener.tls.certResolver=http_resolver"
+      - "traefik.http.services.webhooklistener.loadbalancer.server.port=8090"
+      - "traefik.docker.network=traefik"
+    depends_on:
+      - db
+    restart: unless-stopped
+    networks:
+      - traefik
+      - internal
+
+  db:
+    image: mariadb:latest
+    environment:
+      - MARIADB_ROOT_PASSWORD=${MARIADB_ROOT_PASSWORD}
+      - MARIADB_DATABASE=${DB_DATABASE}
+      - MARIADB_USER=${DB_USERNAME}
+      - MARIADB_PASSWORD=${DB_PASSWORD}
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
+    restart: unless-stopped
+    networks:
+      - internal
+
+networks:
+  traefik:
+    external: true
+  internal:
+
+volumes:
+  db_data:
