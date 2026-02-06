@@ -2,6 +2,8 @@
 
 LoRaWAN measurement data collection service. Receives webhook messages from The Things Network (TTN) and stores sensor measurements and device log entries in PostgreSQL.
 
+**Production:** [loramint.sfz-ox.de](https://loramint.sfz-ox.de)
+
 ## Setup
 
 ```bash

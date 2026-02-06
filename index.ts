@@ -178,6 +178,7 @@ app.get(
 
 const root = new Hono();
 root.route("/api/v1", app);
+root.get("/", (c) => c.redirect("https://github.com/LoRaMint/LoRaMINT_docker"));
 
 console.log(`LoRaMINT listening on port ${config.port}`);
 
