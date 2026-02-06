@@ -1,24 +1,32 @@
-# LoRaMINT Docker
+# LoRaMINT
 
-Docker-Stack für das LoRaMINT-Projekt mit Traefik als Reverse-Proxy.
+LoRaWAN measurement data collection service. Receives webhook messages from The Things Network (TTN) and stores sensor measurements and device log entries in PostgreSQL.
 
-## Struktur
+## Setup
 
+```bash
+docker compose -f compose.dev.yml up -d
+cp .env.example .env
+bun install
+bun run migrate
+bun run dev
 ```
-LoRaMINT_docker/
-├── WebhookListener/     # TTN Webhook-Empfänger + MariaDB
-└── Tests/               # Test-Webseite (Flask)
-```
 
-## WebhookListener
+## Endpoints
 
-Empfängt Webhook-Nachrichten von The Things Network und speichert Messwerte in einer MariaDB-Datenbank.
+All endpoints are under `/api/v1`.
 
-- **URL:** `https://webhook.loramint.sfz-ox.de`
-- **Datenbank:** `db.loramint.sfz-ox.de:3306`
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/api/v1/webhook` | TTN webhook receiver |
+| `GET` | `/api/v1/measurements` | Paginated measurements (`?page=1&per_page=20`) |
+| `GET` | `/api/v1/measurements/export` | CSV export of all measurements |
+| `GET` | `/api/v1/log-entries` | Paginated log entries (`?page=1&per_page=20`) |
+| `GET` | `/api/v1/health` | Health check |
+| `GET` | `/api/v1/docs` | Interactive API docs |
+| `GET` | `/api/v1/openapi.json` | OpenAPI spec |
+| `GET` | `/api/v1/llms.txt` | API docs as markdown |
 
-Details siehe [WebhookListener/README.md](WebhookListener/README.md)
+## Tech Stack
 
-## Deployment
-
-Alle Stacks werden über Portainer deployt und nutzen das externe `traefik`-Netzwerk.
+Bun, TypeScript, Hono, PostgreSQL, Zod

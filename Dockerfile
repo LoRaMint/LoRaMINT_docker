@@ -1,26 +1,21 @@
-# Build-Stage
-FROM python:3.11-slim AS builder
+FROM oven/bun:1 AS base
+WORKDIR /usr/src/app
 
+FROM base AS install
+RUN mkdir -p /temp/prod
+COPY package.json bun.lock /temp/prod/
+RUN cd /temp/prod && bun install --frozen-lockfile --production
 
+FROM base AS release
+COPY --from=install /temp/prod/node_modules node_modules
+COPY package.json .
+COPY index.ts config.ts types.ts migrate.ts ./
+COPY services ./services
+COPY migrations ./migrations
+COPY lib ./lib
+COPY scripts/entrypoints.sh ./entrypoint.sh
+RUN chmod +x ./entrypoint.sh
 
-# Set labels
-LABEL maintainer="Matthias Ruf <matthias.ruf@uni-ulm.de>"
-LABEL version="1.0.0"
-LABEL description="This is the official Docker image for the LoRaMINT WebhookListener."
-
-RUN echo "Container is being built"
-
-WORKDIR /app
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Runner-Stage
-FROM python:3.11-slim AS runner
-
-WORKDIR /app
-
-COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
-COPY . .
-
-ENTRYPOINT ["python"]
-CMD ["Webhook.py"]
+USER bun
+EXPOSE 8090/tcp
+ENTRYPOINT ["./entrypoint.sh"]
