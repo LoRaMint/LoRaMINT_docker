@@ -1,20 +1,38 @@
 # python classes
 import json
+import logging
 import os
+import sys
 import time
 
 # "pip install webhook_listener" necessary
 import webhook_listener
+
+# Load .env file for local development
+from dotenv import load_dotenv
+
+load_dotenv()
+
 from DatabaseHandler import DatabaseHandler
 
 # self written classes
 from MintValue import MintValue
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    handlers=[logging.StreamHandler(sys.stdout)],
+)
+logger = logging.getLogger(__name__)
 
 
 # The class webhook handles incoming webhook messages. It uses environment variables for configuration.
 class Webhook(object):
     # Instantiates a webhook object and starts the webhook listener
     def __init__(self):
+        logger.info("Initializing WebhookListener...")
+
         # read configuration from environment variables
         self.password = os.environ.get("DB_PASSWORD", "")
         self.username = os.environ.get("DB_USERNAME", "")
@@ -24,44 +42,62 @@ class Webhook(object):
         self.ip = os.environ.get("WEBHOOK_HOST", "0.0.0.0")
         self.database = os.environ.get("DB_DATABASE", "")
 
+        logger.info(f"Database host: {self.db_host}:{self.db_port}")
+        logger.info(f"Database name: {self.database}")
+        logger.info(f"Webhook host: {self.ip}")
+
         if (
             not self.password
             or not self.username
             or not self.database
             or not self.app_key
         ):
-            print(
+            logger.error(
                 "Missing required environment variables (DB_PASSWORD, DB_USERNAME, DB_DATABASE, APP_KEY)"
             )
             self.listen = False
             return
 
+        # Run database migrations on startup
+        logger.info("Connecting to database...")
+        db = DatabaseHandler(
+            self.username,
+            self.password,
+            self.db_host,
+            self.db_port,
+            self.database,
+        )
+        if db.established:
+            logger.info("Database connection established")
+            db.run_migrations()
+            db.close()
+        else:
+            logger.warning("Could not connect to database - migrations skipped")
+
         # everything works fine -> start the listener
         self.listen = True
+        logger.info(f"Starting webhook listener on {self.ip}:8090...")
         webhooks = webhook_listener.Listener(
             handlers={"POST": self.process_post_request}
         )
         webhooks.host = self.ip
         webhooks.start()
+        logger.info("Webhook listener started successfully")
 
     # Handles incoming messages. Is called up automatically as soon as a message is received.
     def process_post_request(self, request, *args, **kwargs):
+        logger.info("Received POST request")
         try:
             # --- check the application key ---
             request_appkey = request.headers.get("X-Downlink-Apikey")
             if request_appkey is None:
-                print("Received request has no application key. ")  # no app key
+                logger.warning("Request rejected: missing application key")
                 return
-            elif (
-                request.headers.get("X-Downlink-Apikey") != self.app_key
-            ):  # not the correct app key
-                print(
-                    "Received request with non suitable application key: "
-                    + request.headers.get("X-Downlink-Apikey")
-                )
+            elif request.headers.get("X-Downlink-Apikey") != self.app_key:
+                logger.warning(f"Request rejected: invalid application key")
                 return
-            else:
-                pass  # everything is fine
+
+            logger.debug("Application key validated")
 
             # --- read the request body ---
             try:
@@ -70,12 +106,10 @@ class Webhook(object):
                         request.body.read(int(request.headers["Content-Length"]))
                     )
                 else:
-                    print("Received request with content-length lower equal 0.")
-                    return  # no message
+                    logger.warning("Request rejected: content-length is 0")
+                    return
             except ValueError:
-                print(
-                    "Received request with non numerical content length. "
-                )  # no app key
+                logger.warning("Request rejected: non-numeric content-length")
                 return
 
             # --- parse the request body ---
@@ -84,6 +118,9 @@ class Webhook(object):
             )  # body of the message starts with "b`" and remaining part is json
 
             payload = json_body["uplink_message"]["decoded_payload"]
+            dev_eui = json_body["end_device_ids"]["dev_eui"]
+
+            logger.info(f"Processing message from device {dev_eui}")
 
             # --- Determine attributes from the payload section ---
 
@@ -104,18 +141,16 @@ class Webhook(object):
                     try:
                         time_value = int(payload["timevalue"])
                     except ValueError:
-                        print("Received message with not numeric timestamp-value")
+                        logger.error(f"Invalid timestamp value for device {dev_eui}")
                         return
                 else:
-                    print("Unsupported time format: " + time_methode)
+                    logger.error(
+                        f"Unsupported time format '{time_methode}' for device {dev_eui}"
+                    )
                     return
 
-                # --- Determine more attributes from the metadata --
-
-                dev_eui = json_body["end_device_ids"]["dev_eui"]
-
                 # --- create a MintValue object
-                value = MintValue(
+                mint_value = MintValue(
                     datatype,
                     location,
                     measurand,
@@ -127,8 +162,9 @@ class Webhook(object):
                     dev_eui,
                 )
 
-                # --- store the value object into the database
+                logger.info(f"Messwert: {measurand}={value}{unit} from {dev_eui}")
 
+                # --- store the value object into the database
                 db = DatabaseHandler(
                     self.username,
                     self.password,
@@ -137,21 +173,18 @@ class Webhook(object):
                     self.database,
                 )
                 if db.established:
-                    # everything is fine
-                    db.store_value(value)
+                    db.store_value(mint_value)
+                    db.close()
+                    logger.info(f"Messwert stored successfully")
                 else:
-                    # exception in the constructor class of db
+                    logger.error("Failed to connect to database for storing value")
                     return
 
             elif payload["messagetyp"] == "LogEintrag":
                 message = payload["message"]
-                dev_eui = json_body["end_device_ids"]["dev_eui"]
                 time_unix = int(time.time())
-                print(
-                    "LogEntry:\n\tdevice: {0} \n\ttime: {1}\n\tmessage: {2}".format(
-                        dev_eui, time_unix, message
-                    )
-                )
+
+                logger.info(f"LogEintrag from {dev_eui}: {message}")
 
                 db = DatabaseHandler(
                     self.username,
@@ -162,22 +195,40 @@ class Webhook(object):
                 )
 
                 if db.established:
-                    # everything is fine
                     db.store_log(message, time_unix, dev_eui)
+                    db.close()
+                    logger.info("LogEintrag stored successfully")
                 else:
-                    # exception in the constructor class of db
+                    logger.error("Failed to connect to database for storing log")
                     return
+            else:
+                logger.warning(f"Unknown message type: {payload.get('messagetyp')}")
 
+        except KeyError as e:
+            logger.error(f"Missing key in payload: {e}")
+            return
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse JSON: {e}")
+            return
         except Exception as exception:
-            print("Received message with errors: " + str(exception))
+            logger.error(f"Error processing request: {exception}")
             return
 
+
+if __name__ == "__main__":
+    logger.info("=" * 50)
+    logger.info("LoRaMINT WebhookListener starting...")
+    logger.info("=" * 50)
 
 while True:
     try:
         webhook = Webhook()
         while webhook.listen:
-            print("Still alive...")
+            logger.info("Heartbeat - still alive...")
             time.sleep(300)
+    except KeyboardInterrupt:
+        logger.info("Shutting down...")
+        break
     except Exception as e:
-        print(e)
+        logger.error(f"Error in main loop: {e}")
+        time.sleep(5)

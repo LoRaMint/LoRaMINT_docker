@@ -1,46 +1,114 @@
-# "pip3 install mysql-connector-python" necessary
+# "pip3 install psycopg2-binary" necessary
+import logging
+
+import psycopg2
+
 import MintValue
-import mysql.connector as sql_con
+
+logger = logging.getLogger(__name__)
 
 
 class DatabaseHandler(object):
     # Creates a database handler object and connects directly to the database
     def __init__(self, username, password, host, port, database):
         try:
-            self.connection = sql_con.connect(
+            self.connection = psycopg2.connect(
                 user=username,
                 password=password,
                 host=host,
                 port=port,
-                database=database,
+                dbname=database,
             )
-            self.cursor = self.connection.cursor(prepared=True)
+            self.cursor = self.connection.cursor()
             self.established = True
+            logger.debug(f"Connected to database {database} at {host}:{port}")
 
-        except sql_con.Error:
+        except psycopg2.Error as e:
+            logger.error(f"Failed to connect to database: {e}")
             self.established = False
 
-    # Sends the measured value to the database
+    def run_migrations(self):
+        """Runs idempotent database migrations (creates tables if not exist)."""
+        if not self.established:
+            logger.error("Cannot run migrations: database connection not established")
+            return False
+
+        logger.info("Running database migrations...")
+
+        migrations = [
+            """
+            CREATE TABLE IF NOT EXISTS measured_value(
+                uuid VARCHAR(36) NOT NULL PRIMARY KEY,
+                geraete_id VARCHAR(16) NOT NULL,
+                groesse VARCHAR(40) NOT NULL,
+                einheit VARCHAR(40) NOT NULL,
+                datentyp VARCHAR(10) NOT NULL CHECK (datentyp IN ('float', 'integer', 'string')),
+                sensor VARCHAR(40) NOT NULL,
+                ort VARCHAR(40) NOT NULL,
+                zeitmethode VARCHAR(10) NOT NULL CHECK (zeitmethode IN ('custom', 'server', 'none')),
+                unix_time INT
+            )
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS LogNachricht(
+                uuid VARCHAR(36) NOT NULL PRIMARY KEY,
+                geraete_id VARCHAR(16) NOT NULL,
+                message VARCHAR(200) NOT NULL,
+                unix_time INT
+            )
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS IntegerValue(
+                uuid VARCHAR(36) NOT NULL PRIMARY KEY REFERENCES measured_value(uuid) ON DELETE CASCADE,
+                value INT NOT NULL
+            )
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS FloatValue(
+                uuid VARCHAR(36) NOT NULL PRIMARY KEY REFERENCES measured_value(uuid) ON DELETE CASCADE,
+                value FLOAT NOT NULL
+            )
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS StringValue(
+                uuid VARCHAR(36) NOT NULL PRIMARY KEY REFERENCES measured_value(uuid) ON DELETE CASCADE,
+                value VARCHAR(20) NOT NULL
+            )
+            """,
+        ]
+
+        try:
+            for i, migration in enumerate(migrations, 1):
+                self.cursor.execute(migration)
+                logger.debug(f"Migration {i}/{len(migrations)} executed")
+            self.connection.commit()
+            logger.info("Database migrations completed successfully")
+            return True
+        except psycopg2.Error as e:
+            logger.error(f"Error running migrations: {e}")
+            self.connection.rollback()
+            return False
 
     def get_uuid(self):
         try:
-            statement = "SELECT UUID();"
-            self.cursor.execute(statement)
-
-            return self.cursor.fetchone()[0]
-        except sql_con.Error as e:
-            print("mysql.connector.Error in methode get_uuid" + str(e))
-
-        return None
+            self.cursor.execute("SELECT gen_random_uuid()::text;")
+            uuid = self.cursor.fetchone()[0]
+            logger.debug(f"Generated UUID: {uuid}")
+            return uuid
+        except psycopg2.Error as e:
+            logger.error(f"Error generating UUID: {e}")
+            return None
 
     def store_value(self, value: MintValue):
         uuid = self.get_uuid()
 
         if uuid is None:
+            logger.error("Cannot store value: UUID generation failed")
             return
 
         try:
-            statement = "INSERT INTO measured_value(uuid,geraete_id,groesse,einheit,datentyp,sensor,ort,zeitmethode,unix_time) VALUE (%s, %s, %s, %s, %s, %s, %s, %s, %s);"
+            statement = """INSERT INTO measured_value(uuid,geraete_id,groesse,einheit,datentyp,sensor,ort,zeitmethode,unix_time)
+                          VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s);"""
             data = (
                 uuid,
                 value.get_device_eui(),
@@ -55,42 +123,45 @@ class DatabaseHandler(object):
             self.cursor.execute(statement, data)
 
             if value.get_datatype() == "float":
-                statement = "INSERT INTO FloatValue(uuid,value) VALUE (%s, %s);"
-
+                statement = "INSERT INTO FloatValue(uuid,value) VALUES (%s, %s);"
             elif value.get_datatype() == "integer":
-                statement = "INSERT INTO IntegerValue(uuid,value) VALUE (%s, %s);"
+                statement = "INSERT INTO IntegerValue(uuid,value) VALUES (%s, %s);"
             else:
-                statement = "INSERT INTO StringValue(uuid,value) VALUE (%s, %s);"
+                statement = "INSERT INTO StringValue(uuid,value) VALUES (%s, %s);"
 
             data = (uuid, value.get_value())
             self.cursor.execute(statement, data)
             self.connection.commit()
 
-        except sql_con.Error as e:
-            print("mysql.connector.Error in methode store_value: " + str(e))
+            logger.debug(f"Stored value with UUID {uuid}")
 
-        print(value)
-
-    # Sends log messages to the database
+        except psycopg2.Error as e:
+            logger.error(f"Error storing value: {e}")
+            self.connection.rollback()
 
     def store_log(self, message, time, device_eui):
         uuid = self.get_uuid()
 
         if uuid is None:
+            logger.error("Cannot store log: UUID generation failed")
             return
 
         try:
-            statement = "INSERT INTO LogNachricht(uuid, geraete_id, unix_time, message) VALUE (%s, %s, %s, %s);"
+            statement = "INSERT INTO LogNachricht(uuid, geraete_id, unix_time, message) VALUES (%s, %s, %s, %s);"
             data = (uuid, device_eui, time, message)
             self.cursor.execute(statement, data)
             self.connection.commit()
 
-        except sql_con.Error as e:
-            print("mysql.connector.Error in methode store_log: " + str(e))
+            logger.debug(f"Stored log with UUID {uuid}")
 
-    # closes the connection to the database
+        except psycopg2.Error as e:
+            logger.error(f"Error storing log: {e}")
+            self.connection.rollback()
+
     def close(self):
         try:
+            self.cursor.close()
             self.connection.close()
-        except sql_con.Error as e:
-            print(e)
+            logger.debug("Database connection closed")
+        except psycopg2.Error as e:
+            logger.error(f"Error closing connection: {e}")
