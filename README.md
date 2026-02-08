@@ -58,7 +58,7 @@ docker compose -f compose.prod.yml --env-file .env.prod up -d
 
 ### 1.4 Tech Stack
 
-Bun, TypeScript, Hono, PostgreSQL, Zod
+Bun, TypeScript, Hono, PostgreSQL, Zod, SolidJS, TailwindCSS v4, DaisyUI v5
 
 ---
 
@@ -147,6 +147,12 @@ migrate.ts               Database migration runner
 services/
   measurement.ts         Measurement logic (validation, storage, queries, CSV export)
   log-entry.ts           Log entry logic (validation, storage, queries)
+config/
+  ssr.ts                 SSR configuration and HTML template
+public/
+  global.css             TailwindCSS + DaisyUI imports
+  logo_loramint.svg      LoRaMINT logo
+  logo_sfz.svg           SFZ logo
 lib/
   openapi.ts             OpenAPI helper functions
   pagination.ts          Pagination utilities
