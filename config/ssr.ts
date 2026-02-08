@@ -14,7 +14,7 @@ export const { config, plugin, html } = createConfig<PageOptions>({
 
   template: ({ body, scripts, title, description }) => {
     return `<!DOCTYPE html>
-<html lang="de" data-theme="corporate">
+<html lang="de" data-theme="loramint">
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">

@@ -60,6 +60,20 @@ docker compose -f compose.prod.yml --env-file .env.prod up -d
 
 Bun, TypeScript, Hono, PostgreSQL, Zod, SolidJS, TailwindCSS v4, DaisyUI v5
 
+### 1.5 Color Scheme
+
+Custom DaisyUI theme `loramint`, based on a split-complementary scheme derived from the LoRaMINT and SFZ logos.
+
+| Role | Hex | Usage |
+|------|-----|-------|
+| **Primary** | `#143C55` | Petrol blue (LoRaMINT logo) – headers, buttons, links |
+| **Secondary** | `#A81C13` | Strong red – highlights, call-to-action |
+| **Accent** | `#723437` | Dark wine red – subtle accents |
+| **Neutral** | `#51707A` | Blue-grey – borders, muted text |
+| **Success** | `#86B94C` | Green (SFZ logo) – success states |
+
+Defined in `frontend/styles/global.css`.
+
 ---
 
 ## 2 Development Setup
