@@ -1,0 +1,29 @@
+\documentclass[tikz,border=5pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{calc}
+\usepackage{xcolor}
+% Sans-Serif als Standardschrift
+\renewcommand{\familydefault}{\sfdefault}
+% Farbe
+\definecolor{loramint}{RGB}{20,60,85}
+\begin{document}
+\begin{tikzpicture}[baseline]
+  % Schriftzug
+  \node[anchor=base west, text=loramint] (text) at (0,0)
+    {LoRa{\bfseries MINT}};
+  % Parameter
+  \def\lw{0.7pt}
+  % Gemeinsamer Mittelpunkt der Bögen
+  \coordinate (C) at ($(text.east)+(-6pt,2pt)$);
+  % Drei konzentrische Bögen
+  \draw[line width=\lw, color=loramint]
+    (C) ++(3.5pt,0)
+    arc[start angle=5, end angle=80, radius=3.5pt];
+  \draw[line width=\lw, color=loramint]
+    (C) ++(5.5pt,0)
+    arc[start angle=5, end angle=80, radius=5.5pt];
+  \draw[line width=\lw, color=loramint]
+    (C) ++(7.5pt,0)
+    arc[start angle=5, end angle=80, radius=7.5pt];
+\end{tikzpicture}
+\end{document}

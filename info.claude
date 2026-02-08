@@ -100,3 +100,37 @@ Multi-stage Bun build (oven/bun:1):
 - New endpoints: Add route in `index.ts`, business logic in `services/`, document with `describeRoute()`.
 - New tables: Add migration file in `migrations/`, run `bun run migrate`.
 - Dev scripts: Place in `dev_scripts/`.
+
+---
+
+## 3 Web UI Roadmap
+
+### 3.1 Shared Layout
+- Header with navigation
+- Footer with links to Impressum and Datenschutz
+- Used by all pages
+
+### 3.2 Landing Page
+- SFZ logo
+- Measurement system logo
+- Link to API documentation (/api/v1/docs)
+- Link to GitHub repository
+- Links to future services (add as they become available)
+
+### 3.3 Legal Pages
+- Impressum (template, fill in later)
+- Datenschutzerklaerung (template, fill in later)
+- Linked from footer on every page
+
+### 3.4 Device Overview
+- List of all devices (device_eui) that have sent data
+- Last measurement timestamp per device
+- Total measurement count per device
+
+### 3.5 Filtered Export
+- Filter by device, measurand, time range
+- Download as CSV
+
+### 3.6 Charts
+- Visualize measurements over time
+- Filter by device and measurand
