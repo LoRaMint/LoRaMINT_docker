@@ -5,12 +5,21 @@ import { Scalar } from "@scalar/hono-api-reference";
 import { createMarkdownFromOpenApi } from "@scalar/openapi-to-markdown";
 import { z } from "zod";
 import { config } from "./config";
-import { openApiMeta, jsonResponse } from "./lib/openapi";
-import { v } from "./lib/validator";
-import { parsePagination, createPagination, PaginationResponseSchema } from "./lib/pagination";
-import { measurements } from "./services/measurement";
-import { logEntries } from "./services/log-entry";
-import { TtnPayloadSchema, MeasurementSchema, LogEntrySchema, PaginationQuerySchema } from "./types";
+import {
+  openApiMeta,
+  jsonResponse,
+  v,
+  parsePagination,
+  createPagination,
+  PaginationResponseSchema,
+} from "./lib";
+import { measurements, logEntries } from "./services";
+import {
+  TtnPayloadSchema,
+  MeasurementSchema,
+  LogEntrySchema,
+  PaginationQuerySchema,
+} from "./types";
 
 const app = new Hono();
 
@@ -49,7 +58,8 @@ app.post(
   describeRoute({
     tags: ["Webhook"],
     summary: "Receive TTN webhook",
-    description: "Receives uplink messages from The Things Network and stores measurements or log entries.",
+    description:
+      "Receives uplink messages from The Things Network and stores measurements or log entries.",
     responses: {
       200: jsonResponse(WebhookResponseSchema, "Successfully stored"),
       400: jsonResponse(WebhookResponseSchema, "Validation error"),
@@ -71,7 +81,9 @@ app.post(
     if (messageType === "Messwert") {
       const result = await measurements.ingest(payload, deviceEui);
       if (!result.ok) return c.json({ ok: false, error: result.error }, 400);
-      console.log(`Measurement stored: ${payload.measurand}=${payload.value} from ${deviceEui}`);
+      console.log(
+        `Measurement stored: ${payload.measurand}=${payload.value} from ${deviceEui}`,
+      );
       return c.json({ ok: true, id: result.data.id });
     }
 
@@ -82,7 +94,10 @@ app.post(
       return c.json({ ok: true, id: result.data.id });
     }
 
-    return c.json({ ok: false, error: `Unknown message type: ${messageType}` }, 400);
+    return c.json(
+      { ok: false, error: `Unknown message type: ${messageType}` },
+      400,
+    );
   },
 );
 
@@ -92,9 +107,13 @@ app.get(
   describeRoute({
     tags: ["Measurements"],
     summary: "List measurements",
-    description: "Returns a paginated list of stored measurements, ordered by most recent first.",
+    description:
+      "Returns a paginated list of stored measurements, ordered by most recent first.",
     responses: {
-      200: jsonResponse(MeasurementListResponseSchema, "Paginated list of measurements"),
+      200: jsonResponse(
+        MeasurementListResponseSchema,
+        "Paginated list of measurements",
+      ),
     },
   }),
   v("query", PaginationQuerySchema),
@@ -137,9 +156,13 @@ app.get(
   describeRoute({
     tags: ["Log Entries"],
     summary: "List log entries",
-    description: "Returns a paginated list of stored log entries, ordered by most recent first.",
+    description:
+      "Returns a paginated list of stored log entries, ordered by most recent first.",
     responses: {
-      200: jsonResponse(LogEntryListResponseSchema, "Paginated list of log entries"),
+      200: jsonResponse(
+        LogEntryListResponseSchema,
+        "Paginated list of log entries",
+      ),
     },
   }),
   v("query", PaginationQuerySchema),
