@@ -24,8 +24,8 @@ export const { config, plugin, html } = createConfig<PageOptions>({
   </head>
   <body>
     ${body}
+    ${scripts}
   </body>
-  ${scripts}
 </html>`;
   },
 });

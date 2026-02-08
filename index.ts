@@ -3,6 +3,7 @@ import { logger } from "hono/logger";
 import { serveStatic } from "hono/bun";
 import { routes } from "@valentinkolb/ssr/hono";
 import { config as ssrConfig } from "./config/ssr";
+import pages from "./frontend/pages";
 import { describeRoute, generateSpecs } from "hono-openapi";
 import { Scalar } from "@scalar/hono-api-reference";
 import { createMarkdownFromOpenApi } from "@scalar/openapi-to-markdown";
@@ -206,7 +207,7 @@ const root = new Hono();
 root.route("/_ssr", routes(ssrConfig));
 root.use("/public/*", serveStatic({ root: "./" }));
 root.route("/api/v1", app);
-root.get("/", (c) => c.redirect("https://github.com/LoRaMint/LoRaMINT_docker"));
+root.route("/", pages);
 
 console.log(`LoRaMINT listening on port ${config.port}`);
 
