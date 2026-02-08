@@ -17,8 +17,13 @@
     "@hono/standard-validator": "^0.2.2",
     "@scalar/hono-api-reference": "^0.9.40",
     "@scalar/openapi-to-markdown": "^0.3.39",
+    "@valentinkolb/ssr": "^0.6.2",
+    "bun-plugin-tailwind": "^0.1.2",
+    "daisyui": "^5.5.18",
     "hono": "^4.11.8",
     "hono-openapi": "^1.2.0",
+    "solid-js": "^1.9.11",
+    "tailwindcss": "^4.1.18",
     "zod": "^4.3.6"
   }
 }
