@@ -29,3 +29,6 @@ coverage
 
 # Claude
 .claude
+
+# Generated assets
+public/global.css

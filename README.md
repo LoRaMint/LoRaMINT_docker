@@ -183,7 +183,13 @@ migrations/
   001-initial-schema.ts  Database schema
 scripts/
   entrypoints.sh         Docker entrypoint (migration + start)
+dev_scripts/
+  test-webhook.sh        Development helper (send sample TTN payload)
 ```
+
+Notes:
+- `scripts/` contains production/runtime scripts used by Docker images.
+- `dev_scripts/` contains development-only helpers for local testing.
 
 ### 2.5 Development Workflow
 
