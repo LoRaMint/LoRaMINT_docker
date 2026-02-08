@@ -59,6 +59,8 @@ Development (.env):
   DATABASE_URL=postgres://loramint:loramint@localhost:5432/loramint
   TTN_APP_KEY=<key>
   PORT=8090
+  LEGAL_IMPRESSUM=<optional text override>
+  LEGAL_DATENSCHUTZ=<optional text override>
 
 Production (.env.prod):
   DB_NAME, DB_USER, DB_PASSWORD, TTN_APP_KEY

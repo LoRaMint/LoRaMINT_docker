@@ -10,19 +10,28 @@ export default function Layout(props: { children: JSX.Element }) {
             <img src="/public/logo_loramint.svg" alt="LoRaMINT" class="h-14" />
           </a>
         </div>
-        <nav class="flex gap-4">
-          <a href="/" class="link link-hover">
+        <nav class="tabs tabs-bordered">
+          <a
+            href="/"
+            class="tab tab-lifted [--tab-border-color:theme(colors.base-300)] text-base-content/80 hover:text-base-content hover:[--tab-border-color:theme(colors.primary)]"
+          >
             Home
           </a>
-          <a href="/api/v1/docs" class="link link-hover">
+          <a
+            href="/api/v1/docs"
+            class="tab tab-lifted [--tab-border-color:theme(colors.base-300)] text-base-content/80 hover:text-base-content hover:[--tab-border-color:theme(colors.primary)]"
+          >
             API Docs
           </a>
-          <a href="https://sfz-bw.de" class="link link-hover">
+          <a
+            href="https://sfz-bw.de"
+            class="tab tab-lifted [--tab-border-color:theme(colors.base-300)] text-base-content/80 hover:text-base-content hover:[--tab-border-color:theme(colors.primary)]"
+          >
             SFZ
           </a>
           <a
             href="https://github.com/LoRaMint/LoRaMINT_docker"
-            class="link link-hover"
+            class="tab tab-lifted [--tab-border-color:theme(colors.base-300)] text-base-content/80 hover:text-base-content hover:[--tab-border-color:theme(colors.primary)]"
           >
             GitHub
           </a>
@@ -43,7 +52,7 @@ export default function Layout(props: { children: JSX.Element }) {
             Datenschutz
           </a>
         </div>
-        <img src="/public/logo_sfz.svg" alt="SFZ" class="h-14" />
+        <img src="/public/logo_sfz.svg" alt="SFZ" class="h-10" />
       </footer>
     </div>
   );

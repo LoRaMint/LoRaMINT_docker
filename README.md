@@ -107,6 +107,8 @@ The `.env` file contains:
 | `DATABASE_URL` | PostgreSQL connection string | `postgres://loramint:loramint@localhost:5432/loramint` |
 | `TTN_APP_KEY` | API key for TTN webhook authentication | `your-ttn-api-key` |
 | `PORT` | Server port | `8090` |
+| `LEGAL_IMPRESSUM` | Optional: Impressum text (overrides template) | _empty_ |
+| `LEGAL_DATENSCHUTZ` | Optional: Datenschutz text (overrides template) | _empty_ |
 
 The defaults work for local development. You can set `TTN_APP_KEY` to any value (it is only checked on the webhook endpoint).
 
@@ -167,6 +169,12 @@ public/
   global.css             TailwindCSS + DaisyUI imports
   logo_loramint.svg      LoRaMINT logo
   logo_sfz.svg           SFZ logo
+frontend/
+  pages/
+    index.tsx            Route definitions (Hono router)
+    home/page.tsx         Landing page
+    impressum/page.tsx    Impressum (template or env override)
+    datenschutz/page.tsx  Datenschutz (template or env override)
 lib/
   openapi.ts             OpenAPI helper functions
   pagination.ts          Pagination utilities
