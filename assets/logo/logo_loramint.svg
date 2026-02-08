@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   version="1.1"
+   id="svg1"
+   width="91.334663"
+   height="34.388"
+   viewBox="0 0 91.334663 34.388"
+   sodipodi:docname="logo.svg"
+   inkscape:export-filename="logo.svg"
+   inkscape:export-xdpi="96"
+   inkscape:export-ydpi="96"
+   inkscape:version="1.4.3 (0d15f75, 2025-12-25)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs1">
+    <rect
+       x="12.123029"
+       y="16.360204"
+       width="73.20897"
+       height="30.366422"
+       id="rect2" />
+    <rect
+       x="11.652232"
+       y="12.829225"
+       width="64.970019"
+       height="13.417722"
+       id="rect1" />
+  </defs>
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:zoom="12.058065"
+     inkscape:cx="57.430441"
+     inkscape:cy="29.150614"
+     inkscape:window-width="2560"
+     inkscape:window-height="1382"
+     inkscape:window-x="1470"
+     inkscape:window-y="30"
+     inkscape:window-maximized="0"
+     inkscape:current-layer="svg1">
+    <inkscape:page
+       x="0"
+       y="0"
+       inkscape:label="1"
+       id="page1"
+       width="91.334663"
+       height="34.388"
+       margin="0"
+       bleed="0" />
+  </sodipodi:namedview>
+  <text
+     xml:space="preserve"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:13.3333px;line-height:1;font-family:Rubik;-inkscape-font-specification:'Rubik Bold';letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;direction:ltr;fill:#143c55;fill-opacity:1;stroke:#143c55;stroke-width:0.796008;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1"
+     x="13.888518"
+     y="23.775259"
+     id="text2"
+     inkscape:label="text_LoRaMINT"><tspan
+       sodipodi:role="line"
+       id="tspan2"
+       x="13.888518"
+       y="23.775259"><tspan
+         style="font-style:normal;font-variant:normal;font-weight:300;font-stretch:normal;font-family:Rubik;-inkscape-font-specification:'Rubik Light';fill:#8a949c;fill-opacity:1;stroke:#8a949c;stroke-width:0.796008;stroke-dasharray:none;stroke-opacity:1"
+         id="tspan3">LoRa</tspan><tspan
+         style="font-style:normal;font-variant:normal;font-weight:500;font-stretch:normal;font-family:Rubik;-inkscape-font-specification:'Rubik Medium';fill:#143c55;fill-opacity:1;stroke:#143c55;stroke-width:0.796008;stroke-dasharray:none;stroke-opacity:1"
+         id="tspan4">MINT</tspan></tspan></text>
+  <g
+     id="g1"
+     inkscape:groupmode="layer"
+     inkscape:label="logo"
+     transform="translate(4.3168442,-3.467629)">
+    <g
+       id="g8"
+       inkscape:label="funk">
+      <path
+         id="path4"
+         d="m 74.768729,19.28391 c -0.183373,-2.095986 -1.75216,-3.808146 -3.824226,-4.17348"
+         style="fill:none;stroke:#8a949c;stroke-width:0.925213;stroke-linecap:round;stroke-linejoin:miter;stroke-miterlimit:10;stroke-dasharray:none;stroke-opacity:1"
+         inkscape:label="l_funk" />
+      <path
+         id="path5"
+         d="m 77.425463,19.28391 c -0.288174,-3.29368 -2.7534,-5.984213 -6.009507,-6.55832"
+         style="fill:none;stroke:#8a949c;stroke-width:0.925213;stroke-linecap:round;stroke-linejoin:miter;stroke-miterlimit:10;stroke-dasharray:none;stroke-opacity:1"
+         inkscape:label="n_funk" />
+      <path
+         id="path6"
+         d="m 80.082196,19.28391 c -0.39296,-4.491386 -3.75464,-8.16028 -8.194773,-8.943173"
+         style="fill:none;stroke:#8a949c;stroke-width:0.925213;stroke-linecap:round;stroke-linejoin:miter;stroke-miterlimit:10;stroke-dasharray:none;stroke-opacity:1"
+         inkscape:label="g_funk" />
+    </g>
+  </g>
+</svg>
