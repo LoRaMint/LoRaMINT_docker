@@ -32,3 +32,6 @@ coverage
 
 # Generated assets
 public/global.css
+
+# Diagrams
+diagrams/

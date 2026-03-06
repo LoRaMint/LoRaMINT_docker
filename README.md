@@ -207,3 +207,97 @@ docker compose -f compose.dev.yml down -v   # Removes the volume
 docker compose -f compose.dev.yml up -d      # Restart
 bun run migrate                              # Recreate schema
 ```
+
+---
+
+## 3 Arduino Library
+
+The repository includes an Arduino library for programming LoRaMINT sensor nodes. It handles encoding measurement values and sending them via LoRaWAN (Dragino LA66 shield) to TTN, which forwards them to the LoRaMINT backend via webhook.
+
+### 3.1 Location
+
+```
+arduino/
+├── LoRaMINT/                    # Main library (custom)
+├── Adafruit_BME280_Library/     # BME280 sensor driver
+├── Adafruit_BusIO/              # I2C/SPI abstraction (dependency)
+└── Adafruit_Unified_Sensor/     # Sensor abstraction (dependency)
+```
+
+### 3.2 Installation
+
+**Option A – ZIP import (recommended)**
+
+Use the pre-built archive `arduino/LoRaMINT_arduino_libraries.zip`:
+
+1. Arduino IDE → **Sketch → Include Library → Add .ZIP Library...**
+2. Select `arduino/LoRaMINT_arduino_libraries.zip`
+3. Repeat for each library (Arduino IDE only imports one folder per ZIP — see note below)
+
+> **Note:** The ZIP contains all four library folders. If your Arduino IDE version does not support multi-folder ZIPs, extract the archive and import each folder individually via **Add .ZIP Library...** or copy them manually (Option B).
+
+**Option B – Manual copy**
+
+Copy all four folders from `arduino/` into your Arduino libraries directory:
+
+- **Windows:** `Documents\Arduino\libraries\`
+- **macOS:** `~/Documents/Arduino/libraries/`
+- **Linux:** `~/Arduino/libraries/`
+
+Then restart the Arduino IDE. The libraries appear under **File → Examples → LoRaMINT**.
+
+### 3.3 Hardware
+
+- Arduino (Uno or compatible)
+- [Dragino LA66 LoRaWAN Shield](https://wiki.dragino.com/xwiki/bin/view/Main/User%20Manual%20for%20LoRaWAN%20End%20Nodes/LA66%20LoRaWAN%20Shield/)
+- Adafruit BME280 breakout (for temperature/humidity/pressure examples), connected via I2C at address `0x76`
+
+### 3.4 Usage
+
+**Send a measurement value:**
+
+```cpp
+#include "LoRaMINT.h"
+#include "MintValue.h"
+
+LoRaMINT loramint = LoRaMINT();
+
+void loop() {
+  float temperature = 21.5;
+  MintValue value = MintValue(temperature, "*C", "Raum 101", "Temperatur", "BME280");
+  loramint.sendValue(value);
+  delay(20000);
+}
+```
+
+**MintValue constructor signature:**
+
+```cpp
+MintValue(value, unit, location, measurand, sensor)
+MintValue(value, unit, location, measurand, sensor, time)  // with custom Unix timestamp
+```
+
+| Parameter | Max length | Description |
+|-----------|-----------|-------------|
+| `value` | — | Measured value (`byte`, `int`, `long`, `float`, `double`, or `String`) |
+| `unit` | 10 chars | Unit of measurement (e.g. `"*C"`, `"hPa"`, `"%"`) |
+| `location` | 30 chars | Location identifier (e.g. `"Raum 101"`) |
+| `measurand` | 15 chars | What is measured (e.g. `"Temperatur"`) |
+| `sensor` | 10 chars | Sensor identifier (e.g. `"BME280"`) |
+| `time` | — | Optional Unix timestamp (`long`) |
+
+**Send a log message:**
+
+```cpp
+loramint.sendLog("Sensor gestartet");  // max 140 characters
+```
+
+### 3.5 Examples
+
+| Example | Description |
+|---------|-------------|
+| `sendValue` | Minimal example sending a string value |
+| `sendTemperature` | Reads temperature from BME280, sends every 20 s |
+| `sendHumidity` | Reads humidity from BME280, sends every 20 s |
+| `sendPressure` | Reads air pressure from BME280, sends every 20 s |
+| `logMessage` | Sends a text log message every 20 s |
