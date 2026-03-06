@@ -228,13 +228,12 @@ arduino/
 
 **Option A – ZIP import (recommended)**
 
-Use the pre-built archive `arduino/LoRaMINT_arduino_libraries.zip`:
+Each library has its own ZIP file in `arduino/`. Import all four via **Sketch → Include Library → Add .ZIP Library...**:
 
-1. Arduino IDE → **Sketch → Include Library → Add .ZIP Library...**
-2. Select `arduino/LoRaMINT_arduino_libraries.zip`
-3. Repeat for each library (Arduino IDE only imports one folder per ZIP — see note below)
-
-> **Note:** The ZIP contains all four library folders. If your Arduino IDE version does not support multi-folder ZIPs, extract the archive and import each folder individually via **Add .ZIP Library...** or copy them manually (Option B).
+1. `arduino/LoRaMINT.zip`
+2. `arduino/Adafruit_BME280_Library.zip`
+3. `arduino/Adafruit_BusIO.zip`
+4. `arduino/Adafruit_Unified_Sensor.zip`
 
 **Option B – Manual copy**
 
