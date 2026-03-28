@@ -184,33 +184,39 @@ const ingest = async (payload: TtnDecodedPayload, deviceEui: string): Promise<Mu
   return store(validated.data);
 };
 
-/** Returns all measurements as CSV string. */
-const exportCsv = async () => {
-  const rows = await sql`
-    SELECT id, device_eui, measurand, unit, datatype, sensor, location, value, time_method, recorded_at, created_at
-    FROM measurements
-    ORDER BY created_at DESC
-  `;
+/** Streams all measurements as CSV using chunked transfer encoding. */
+const exportCsvStream = () => {
+  const encoder = new TextEncoder();
+  const header = "id,device_eui,measurand,unit,datatype,sensor,location,value,time_method,recorded_at,created_at\n";
 
-  const header = "id,device_eui,measurand,unit,datatype,sensor,location,value,time_method,recorded_at,created_at";
-  const csvRows = rows.map((r: Record<string, unknown>) => {
-    const fields = [
-      r.id,
-      r.device_eui,
-      r.measurand,
-      r.unit,
-      r.datatype,
-      r.sensor,
-      r.location,
-      r.value,
-      r.time_method,
-      r.recorded_at ? (r.recorded_at as Date).toISOString() : "",
-      (r.created_at as Date).toISOString(),
-    ];
-    return fields.map((f) => `"${String(f ?? "").replace(/"/g, '""')}"`).join(",");
+  return new ReadableStream({
+    async start(controller) {
+      controller.enqueue(encoder.encode(header));
+      const rows = await sql`
+        SELECT id, device_eui, measurand, unit, datatype, sensor, location, value, time_method, recorded_at, created_at
+        FROM measurements
+        ORDER BY created_at DESC
+      `;
+      for (const r of rows as Record<string, unknown>[]) {
+        const fields = [
+          r.id,
+          r.device_eui,
+          r.measurand,
+          r.unit,
+          r.datatype,
+          r.sensor,
+          r.location,
+          r.value,
+          r.time_method,
+          r.recorded_at ? (r.recorded_at as Date).toISOString() : "",
+          (r.created_at as Date).toISOString(),
+        ];
+        const line = fields.map((f) => `"${String(f ?? "").replace(/"/g, '""')}"`).join(",") + "\n";
+        controller.enqueue(encoder.encode(line));
+      }
+      controller.close();
+    },
   });
-
-  return [header, ...csvRows].join("\n");
 };
 
-export const measurements = { validate, store, ingest, list, exportCsv };
+export const measurements = { validate, store, ingest, list, exportCsvStream };

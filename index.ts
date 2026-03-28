@@ -123,11 +123,11 @@ app.get(
       },
     },
   }),
-  async (c) => {
-    const csv = await measurements.exportCsv();
+  (c) => {
+    const stream = measurements.exportCsvStream();
     c.header("Content-Type", "text/csv");
     c.header("Content-Disposition", "attachment; filename=measurements.csv");
-    return c.body(csv);
+    return c.body(stream);
   },
 );
 
