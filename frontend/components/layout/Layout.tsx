@@ -43,15 +43,23 @@ export default function Layout(props: { children: JSX.Element }) {
 
       {/* Footer */}
       <footer class="bg-base-200 p-4 text-base-content flex flex-col items-center gap-2">
-        <div class="flex gap-4">
-          <a href="/impressum" class="link link-hover">
-            Impressum
-          </a>
-          <span> </span>
-          <a href="/datenschutz" class="link link-hover">
-            Datenschutz
-          </a>
-        </div>
+        {(Bun.env.LEGAL_IMPRESSUM || Bun.env.LEGAL_DATENSCHUTZ) && (
+          <div class="flex gap-4">
+            {Bun.env.LEGAL_IMPRESSUM && (
+              <a href="/impressum" class="link link-hover">
+                Impressum
+              </a>
+            )}
+            {Bun.env.LEGAL_IMPRESSUM && Bun.env.LEGAL_DATENSCHUTZ && (
+              <span> </span>
+            )}
+            {Bun.env.LEGAL_DATENSCHUTZ && (
+              <a href="/datenschutz" class="link link-hover">
+                Datenschutz
+              </a>
+            )}
+          </div>
+        )}
         <img src="/public/logo_sfz.svg" alt="SFZ" class="h-10" />
       </footer>
     </div>

@@ -14,20 +14,24 @@ pages.get(
   }),
 );
 
-pages.get(
-  "/impressum",
-  ...ssr((c) => {
-    c.get("page").title = "Impressum";
-    return <ImpressumPage />;
-  }),
-);
+if (Bun.env.LEGAL_IMPRESSUM) {
+  pages.get(
+    "/impressum",
+    ...ssr((c) => {
+      c.get("page").title = "Impressum";
+      return <ImpressumPage />;
+    }),
+  );
+}
 
-pages.get(
-  "/datenschutz",
-  ...ssr((c) => {
-    c.get("page").title = "Datenschutz";
-    return <DatenschutzPage />;
-  }),
-);
+if (Bun.env.LEGAL_DATENSCHUTZ) {
+  pages.get(
+    "/datenschutz",
+    ...ssr((c) => {
+      c.get("page").title = "Datenschutz";
+      return <DatenschutzPage />;
+    }),
+  );
+}
 
 export default pages;
