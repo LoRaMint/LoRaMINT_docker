@@ -17,7 +17,7 @@ COPY services ./services
 COPY migrations ./migrations
 COPY lib ./lib
 COPY scripts/entrypoints.sh ./entrypoint.sh
-RUN chmod +x ./entrypoint.sh
+RUN chmod +x ./entrypoint.sh && chown -R bun:bun /usr/src/app
 
 USER bun
 EXPOSE 8090/tcp
