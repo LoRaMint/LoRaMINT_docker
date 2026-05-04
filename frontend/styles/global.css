@@ -1,0 +1,44 @@
+@import "tailwindcss";
+@plugin "daisyui";
+@plugin "daisyui/theme" {
+    name: "loramint";
+    default: true;
+    color-scheme: light;
+
+    /* Primary: Petrol-Blau aus Logo #143C55 */
+    --color-primary: #143c55;
+    --color-primary-content: #ffffff;
+
+    /* Secondary: Kraeftiges Rot #A81C13 */
+    --color-secondary: #a81c13;
+    --color-secondary-content: #ffffff;
+
+    /* Accent: Dunkles Weinrot #723437 */
+    --color-accent: #723437;
+    --color-accent-content: #ffffff;
+
+    /* Neutral: Blaugrau #51707A */
+    --color-neutral: #51707a;
+    --color-neutral-content: #ffffff;
+
+    /* Base: Helle Toene abgeleitet vom Blaugrau */
+    --color-base-100: #f8f9fa;
+    --color-base-200: #e9ecef;
+    --color-base-300: #dee2e6;
+    --color-base-content: #1a1a2e;
+
+    /* Semantic */
+    --color-success: #86b94c;
+    --color-success-content: #ffffff;
+    --color-warning: #e6a817;
+    --color-warning-content: #1a1a2e;
+    --color-error: #a81c13;
+    --color-error-content: #ffffff;
+    --color-info: #51707a;
+    --color-info-content: #ffffff;
+
+    --radius-box: 0.5rem;
+    --radius-field: 0.25rem;
+    --border: 1px;
+}
+@source "../../frontend";
