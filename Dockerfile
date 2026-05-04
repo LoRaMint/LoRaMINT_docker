@@ -16,8 +16,9 @@ COPY public ./public
 COPY services ./services
 COPY migrations ./migrations
 COPY lib ./lib
+COPY scripts/build-css.ts ./
 COPY scripts/entrypoints.sh ./entrypoint.sh
-RUN chmod +x ./entrypoint.sh && chown -R bun:bun /usr/src/app
+RUN bun run build-css.ts && chmod +x ./entrypoint.sh
 
 USER bun
 EXPOSE 8090/tcp
