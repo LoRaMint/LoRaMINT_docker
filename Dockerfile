@@ -8,8 +8,11 @@ RUN cd /temp/prod && bun install --frozen-lockfile --production
 
 FROM base AS release
 COPY --from=install /temp/prod/node_modules node_modules
-COPY package.json .
-COPY index.ts config.ts types.ts migrate.ts ./
+COPY package.json bunfig.toml ./
+COPY index.ts config.ts types.ts migrate.ts preload.ts ./
+COPY config ./config
+COPY frontend ./frontend
+COPY public ./public
 COPY services ./services
 COPY migrations ./migrations
 COPY lib ./lib
