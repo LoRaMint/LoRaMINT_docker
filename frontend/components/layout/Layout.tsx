@@ -24,12 +24,6 @@ export default function Layout(props: { children: JSX.Element }) {
             API Docs
           </a>
           <a
-            href="https://sfz-bw.de"
-            class="tab tab-lifted [--tab-border-color:theme(colors.base-300)] text-base-content/80 hover:text-base-content hover:[--tab-border-color:theme(colors.primary)]"
-          >
-            SFZ
-          </a>
-          <a
             href="https://github.com/LoRaMint/LoRaMINT_docker"
             class="tab tab-lifted [--tab-border-color:theme(colors.base-300)] text-base-content/80 hover:text-base-content hover:[--tab-border-color:theme(colors.primary)]"
           >
@@ -60,7 +54,7 @@ export default function Layout(props: { children: JSX.Element }) {
             )}
           </div>
         )}
-        <img src="/public/logo_sfz.svg" alt="SFZ" class="h-10" />
+        <img src="/public/logo_loramint.svg" alt="LoRaMINT" class="h-10" />
       </footer>
     </div>
   );

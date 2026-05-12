@@ -7,7 +7,7 @@ const ImpressumPage = () => {
         Impressum
       </h1>
       <div class="whitespace-pre-wrap leading-relaxed text-base">
-        {Bun.env.LEGAL_IMPRESSUM}
+        {(Bun.env.LEGAL_IMPRESSUM ?? "").replace(/\\n/g, "\n")}
       </div>
     </Layout>
   );
