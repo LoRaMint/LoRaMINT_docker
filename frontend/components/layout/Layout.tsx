@@ -1,4 +1,5 @@
 import type { JSX } from "solid-js";
+import { legal } from "../../../config";
 
 export default function Layout(props: { children: JSX.Element }) {
   return (
@@ -37,17 +38,17 @@ export default function Layout(props: { children: JSX.Element }) {
 
       {/* Footer */}
       <footer class="bg-base-200 p-4 text-base-content flex flex-col items-center gap-2">
-        {(Bun.env.LEGAL_IMPRESSUM || Bun.env.LEGAL_DATENSCHUTZ) && (
+        {(legal.impressum || legal.datenschutz) && (
           <div class="flex gap-4">
-            {Bun.env.LEGAL_IMPRESSUM && (
+            {legal.impressum && (
               <a href="/impressum" class="link link-hover">
                 Impressum
               </a>
             )}
-            {Bun.env.LEGAL_IMPRESSUM && Bun.env.LEGAL_DATENSCHUTZ && (
+            {legal.impressum && legal.datenschutz && (
               <span> </span>
             )}
-            {Bun.env.LEGAL_DATENSCHUTZ && (
+            {legal.datenschutz && (
               <a href="/datenschutz" class="link link-hover">
                 Datenschutz
               </a>

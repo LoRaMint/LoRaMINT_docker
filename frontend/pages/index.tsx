@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { ssr } from "../../config/ssr";
+import { legal } from "../../config";
 import HomePage from "./home/page";
 import ImpressumPage from "./impressum/page";
 import DatenschutzPage from "./datenschutz/page";
@@ -14,7 +15,7 @@ pages.get(
   }),
 );
 
-if (Bun.env.LEGAL_IMPRESSUM) {
+if (legal.impressum) {
   pages.get(
     "/impressum",
     ...ssr((c) => {
@@ -24,7 +25,7 @@ if (Bun.env.LEGAL_IMPRESSUM) {
   );
 }
 
-if (Bun.env.LEGAL_DATENSCHUTZ) {
+if (legal.datenschutz) {
   pages.get(
     "/datenschutz",
     ...ssr((c) => {

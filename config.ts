@@ -8,3 +8,8 @@ export const config = {
   appKey: requireEnv("TTN_APP_KEY"),
   port: parseInt(Bun.env.PORT ?? "8090", 10),
 };
+
+export const legal = {
+  impressum: Bun.env.LEGAL_IMPRESSUM ?? null,
+  datenschutz: Bun.env.LEGAL_DATENSCHUTZ ?? null,
+};
