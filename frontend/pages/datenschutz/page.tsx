@@ -7,7 +7,7 @@ const DatenschutzPage = () => {
         Datenschutz
       </h1>
       <div class="whitespace-pre-wrap leading-relaxed text-base">
-        {Bun.env.LEGAL_DATENSCHUTZ}
+        {(Bun.env.LEGAL_DATENSCHUTZ ?? "").replace(/\\n/g, "\n")}
       </div>
     </Layout>
   );
