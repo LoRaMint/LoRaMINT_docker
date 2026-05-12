@@ -1,4 +1,5 @@
 import Layout from "../../components/layout/Layout";
+import { legal } from "../../../config";
 
 const DatenschutzPage = () => {
   return (
@@ -7,7 +8,7 @@ const DatenschutzPage = () => {
         Datenschutz
       </h1>
       <div class="whitespace-pre-wrap leading-relaxed text-base">
-        {(Bun.env.LEGAL_DATENSCHUTZ ?? "").replace(/\\n/g, "\n")}
+        {(legal.datenschutz ?? "").replace(/\\n/g, "\n")}
       </div>
     </Layout>
   );
