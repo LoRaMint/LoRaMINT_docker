@@ -102,20 +102,19 @@ Nach jeder Phase muss das Projekt weiterhin baubar/lauffähig sein.
 - [x] **Keine** `package.json` nötig (kein Bun/JS hier).
 
 ### Phase 4 – Docker & CI anpassen
-- [ ] `Dockerfile` bleibt bei der API: `packages/api/Dockerfile`.
-- [ ] **Build-Context = `packages/api`** (nicht Root!). Dadurch liegt
-      `bun.lock` direkt im Context → COPY-Pfade im Dockerfile bleiben fast
-      unverändert.
-- [ ] `.github/workflows/publish.yml` anpassen:
-      ```yaml
-      with:
-        context: packages/api
-        file: packages/api/Dockerfile
-      ```
-- [ ] `compose.prod.yml` / `compose.dev.yml` prüfen (Image-Name bleibt
-      `ghcr.io/loramint/loramint_docker`, nur Build-Kontext ändert sich).
-- [ ] Lokaler Docker-Build testen:
-      `docker build -f packages/api/Dockerfile packages/api`.
+- [x] `Dockerfile` per git mv nach `packages/api/Dockerfile` (Inhalt **unverändert** –
+      COPY-Pfade stimmen, da Context = `packages/api`).
+- [x] **Build-Context = `packages/api`** (nicht Root!). Dadurch liegt
+      `bun.lock` direkt im Context → COPY-Pfade im Dockerfile bleiben unverändert.
+- [x] `packages/api/.dockerignore` ergänzt (node_modules, .env, generierte
+      `public/global.css` etc. raus aus dem Context).
+- [x] `.github/workflows/publish.yml` angepasst: `context: packages/api`,
+      `file: packages/api/Dockerfile`.
+- [x] `compose.prod.yml` (nutzt fertiges Image, kein `build:`) und
+      `compose.dev.yml` (nur Postgres) geprüft → keine Pfadänderung nötig.
+- [x] Lokaler Docker-Build erfolgreich
+      (`docker build -f packages/api/Dockerfile packages/api`); Container-Smoke-Test:
+      `/api/v1/health` ok, `/api/v1/docs` 200.
 
 ### Phase 5 – Doku & Aufräumen
 - [ ] Root-`README.md` umschreiben: Repo-Übersicht, Verweise auf
@@ -171,7 +170,7 @@ Nach jeder Phase muss das Projekt weiterhin baubar/lauffähig sein.
 - [x] Phase 1 – Ordnergerüst
 - [x] Phase 2 – API nach `packages/api/`
 - [x] Phase 3 – Arduino nach `packages/arduino/`
-- [ ] Phase 4 – Docker & CI
+- [x] Phase 4 – Docker & CI
 - [ ] Phase 5 – Doku & Aufräumen
 - [ ] Phase 6 – esp32 MicroPython-Lib befüllen (später)
 - [ ] Phase 7 – SDK + ggf. Workspace (optional)
