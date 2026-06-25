@@ -117,13 +117,23 @@ Nach jeder Phase muss das Projekt weiterhin baubar/lauffähig sein.
       `/api/v1/health` ok, `/api/v1/docs` 200.
 
 ### Phase 5 – Doku & Aufräumen
-- [ ] Root-`README.md` umschreiben: Repo-Übersicht, Verweise auf
-      `packages/api/README.md` und `packages/arduino/README.md`.
-- [ ] Package-spezifische READMEs anlegen/aufteilen.
-- [ ] `diagrams/`, `docs/` einsortieren.
-- [ ] Alte, nun leere Pfade/Configs entfernen.
-- [ ] `.env`-Handling: zieht mit nach `packages/api/` (bzw. compose-Pfade
-      anpassen).
+Aufgeteilt in Zwischenschritte 5.1–5.6.
+
+- [x] **5.1 `.env`-Handling:** `.env` + `.env.example` → `packages/api/`
+      (Bun lädt `.env` aus CWD); `.env.prod.example` + `matthias.env` (Prod-
+      Credentials) bleiben Root bei `compose.prod.yml`. `matthias.env` ist
+      nicht getrackt / nie committed (verifiziert).
+- [x] **5.2 `packages/api/README.md`** aus Root-Abschnitten 1+2 (Pfade
+      angepasst); `dev_scripts/` als Phase-2-Nachzügler nach `packages/api/`.
+- [x] **5.3 `packages/arduino/README.md`** aus Root-Abschnitt 3 (package-relativ).
+- [x] **5.4 Root-`README.md`** zu Monorepo-Übersicht umgeschrieben
+      (Architektur-Diagramm, Package-Tabelle, Quick-Start, Deploy-Kurzabschnitt).
+- [x] **5.5 `docs/` → `packages/api/docs/`** (API/TS-bezogen); `diagrams/`
+      unangetastet (gitignored, lokales Python-Analyse-Tool).
+- [x] **5.6 Aufräumen:** verwaistes Root-`node_modules/` gelöscht;
+      `monorepo_plan.md` bleibt im Root (Umbau-Protokoll). Finaler E2E-Check:
+      Server bootet aus `packages/api/`, `/health`, `/docs`, `/`, `/openapi.json`
+      alle 200/ok.
 
 ### Phase 6 (später) – esp32 MicroPython-Lib befüllen
 - [ ] `packages/esp32/` mit der eigentlichen MicroPython-Lib füllen
@@ -171,6 +181,6 @@ Nach jeder Phase muss das Projekt weiterhin baubar/lauffähig sein.
 - [x] Phase 2 – API nach `packages/api/`
 - [x] Phase 3 – Arduino nach `packages/arduino/`
 - [x] Phase 4 – Docker & CI
-- [ ] Phase 5 – Doku & Aufräumen
+- [x] Phase 5 – Doku & Aufräumen
 - [ ] Phase 6 – esp32 MicroPython-Lib befüllen (später)
 - [ ] Phase 7 – SDK + ggf. Workspace (optional)
