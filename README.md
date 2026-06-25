@@ -217,7 +217,7 @@ The repository includes an Arduino library for programming LoRaMINT sensor nodes
 ### 3.1 Location
 
 ```
-arduino/
+packages/arduino/
 ├── LoRaMINT/                    # Main library (custom)
 ├── Adafruit_BME280_Library/     # BME280 sensor driver
 ├── Adafruit_BusIO/              # I2C/SPI abstraction (dependency)
@@ -228,16 +228,16 @@ arduino/
 
 **Option A – ZIP import (recommended)**
 
-Each library has its own ZIP file in `arduino/`. Import all four via **Sketch → Include Library → Add .ZIP Library...**:
+Each library has its own ZIP file in `packages/arduino/`. Import all four via **Sketch → Include Library → Add .ZIP Library...**:
 
-1. `arduino/LoRaMINT.zip`
-2. `arduino/Adafruit_BME280_Library.zip`
-3. `arduino/Adafruit_BusIO.zip`
-4. `arduino/Adafruit_Unified_Sensor.zip`
+1. `packages/arduino/LoRaMINT.zip`
+2. `packages/arduino/Adafruit_BME280_Library.zip`
+3. `packages/arduino/Adafruit_BusIO.zip`
+4. `packages/arduino/Adafruit_Unified_Sensor.zip`
 
 **Option B – Manual copy**
 
-Copy all four folders from `arduino/` into your Arduino libraries directory:
+Copy all four folders from `packages/arduino/` into your Arduino libraries directory:
 
 - **Windows:** `Documents\Arduino\libraries\`
 - **macOS:** `~/Documents/Arduino/libraries/`

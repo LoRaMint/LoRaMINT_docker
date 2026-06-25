@@ -93,10 +93,13 @@ Nach jeder Phase muss das Projekt weiterhin baubar/lauffähig sein.
       `packages/api/`. Für Dev muss `.env` mitziehen oder compose-Pfade anpassen.
 
 ### Phase 3 – Arduino-Libraries nach `packages/arduino/`
-- [ ] `arduino/*` nach `packages/arduino/` verschieben (git mv).
-- [ ] Arduino-README ggf. anpassen (Pfade).
-- [ ] ZIP-Erzeugung dokumentieren/automatisieren (optional Script).
-- [ ] **Keine** `package.json` nötig (kein Bun/JS hier).
+- [x] `arduino/*` nach `packages/arduino/` verschieben (git mv, inkl. ZIPs);
+      altes `arduino/` + `.gitkeep` entfernt.
+- [x] Root-README-Pfade von `arduino/` → `packages/arduino/` aktualisiert
+      (Verify: keine Alt-Verweise mehr via git grep).
+- [ ] ZIP-Erzeugung dokumentieren/automatisieren (optional Script) – offen,
+      ggf. Phase 5.
+- [x] **Keine** `package.json` nötig (kein Bun/JS hier).
 
 ### Phase 4 – Docker & CI anpassen
 - [ ] `Dockerfile` bleibt bei der API: `packages/api/Dockerfile`.
@@ -167,7 +170,7 @@ Nach jeder Phase muss das Projekt weiterhin baubar/lauffähig sein.
 - [x] Phase 0 – Branch erstellt
 - [x] Phase 1 – Ordnergerüst
 - [x] Phase 2 – API nach `packages/api/`
-- [ ] Phase 3 – Arduino nach `packages/arduino/`
+- [x] Phase 3 – Arduino nach `packages/arduino/`
 - [ ] Phase 4 – Docker & CI
 - [ ] Phase 5 – Doku & Aufräumen
 - [ ] Phase 6 – esp32 MicroPython-Lib befüllen (später)
