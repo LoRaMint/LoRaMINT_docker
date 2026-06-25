@@ -77,16 +77,20 @@ Nach jeder Phase muss das Projekt weiterhin baubar/lauffähig sein.
 - [x] (Kein Root-`package.json`/Workspace – bewusst ausgelassen.)
 
 ### Phase 2 – API als eigenständiges Projekt nach `packages/api/`
-- [ ] Code nach `packages/api/` verschieben (git mv, History erhalten):
+- [x] Code nach `packages/api/` verschieben (git mv, History erhalten):
       `index.ts`, `config.ts`, `types.ts`, `migrate.ts`, `preload.ts`,
       `config/`, `frontend/`, `lib/`, `services/`, `migrations/`,
       `public/`, `scripts/`.
-- [ ] **Mitverschieben** (NICHT im Root lassen): `package.json`, `bun.lock`,
+- [x] **Mitverschieben** (NICHT im Root lassen): `package.json`, `bun.lock`,
       `bunfig.toml`, `tsconfig.json`.
-- [ ] Relative Import-Pfade prüfen (sollten unverändert funktionieren, da
-      alles zusammen verschoben wird).
-- [ ] Verifizieren: `cd packages/api && bun install && bun run dev`,
-      Health-Check grün, `/api/v1/docs` lädt.
+- [x] Relative Import-Pfade geprüft – funktionieren unverändert (alles
+      zusammen verschoben).
+- [x] `.gitignore` angepasst: `public/global.css` → `**/public/global.css`
+      (Pfad-Anker greift sonst nach dem Verschieben nicht mehr).
+- [x] Verifiziert: `bun install` + `bun run scripts/build-css.ts` + Server-Start
+      aus `packages/api/` → `/api/v1/health` ok, `/api/v1/docs` 200, SSR `/` 200.
+- [ ] **Offen (Phase 5):** `.env` liegt noch im Root → Bun lädt es nicht aus
+      `packages/api/`. Für Dev muss `.env` mitziehen oder compose-Pfade anpassen.
 
 ### Phase 3 – Arduino-Libraries nach `packages/arduino/`
 - [ ] `arduino/*` nach `packages/arduino/` verschieben (git mv).
@@ -162,7 +166,7 @@ Nach jeder Phase muss das Projekt weiterhin baubar/lauffähig sein.
 ## Fortschritt
 - [x] Phase 0 – Branch erstellt
 - [x] Phase 1 – Ordnergerüst
-- [ ] Phase 2 – API nach `packages/api/`
+- [x] Phase 2 – API nach `packages/api/`
 - [ ] Phase 3 – Arduino nach `packages/arduino/`
 - [ ] Phase 4 – Docker & CI
 - [ ] Phase 5 – Doku & Aufräumen
