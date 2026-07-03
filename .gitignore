@@ -17,6 +17,10 @@ logs
 .cache
 *.tsbuildinfo
 
+# python
+__pycache__/
+*.pyc
+
 # coverage
 coverage
 *.lcov
