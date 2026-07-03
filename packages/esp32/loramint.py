@@ -40,6 +40,36 @@ class LoRaMINT:
     # Public API
     # ------------------------------------------------------------------ #
 
+    def check_connection(self, timeout_ms=3000):
+        """
+        Verify the UART link to the LA66 by querying its firmware version
+        (AT+VER=?). Prints a status message and returns True if the module
+        responded, False otherwise.
+        """
+        version = self.get_version(timeout_ms)
+        if version:
+            print("UART OK - LA66 version:", version)
+            return True
+        print("UART connection failed - no response to AT+VER=? "
+              "(check TX/RX wiring, common GND, UART pins and baud rate)")
+        return False
+
+    def get_version(self, timeout_ms=3000):
+        """
+        Query the LA66 firmware version (AT+VER=?).
+
+        Returns the version string, or None if the module did not respond
+        (which indicates a broken UART link).
+        """
+        self._drain()
+        self._send_at("AT+VER=?")
+        for line in self._read_response(timeout_ms):
+            upper = line.upper()
+            if upper == "OK" or upper.startswith("AT+VER"):
+                continue  # skip the command echo and the trailing OK
+            return line
+        return None
+
     def join(self, timeout_ms=60000):
         """
         Join the LoRaWAN network via OTAA (AT+JOIN).
@@ -105,6 +135,30 @@ class LoRaMINT:
         self._send_at("ATZ")
         time.sleep(2)
         self._drain()
+
+    def _read_response(self, timeout_ms=3000):
+        """
+        Read UART lines until a final "OK"/"ERROR" line or the timeout elapses.
+        Returns the non-empty lines received (including the terminating one).
+        An empty list means the module did not respond at all.
+        """
+        deadline = time.ticks_add(time.ticks_ms(), timeout_ms)
+        lines = []
+        while time.ticks_diff(deadline, time.ticks_ms()) > 0:
+            line = self._uart.readline()
+            if line:
+                try:
+                    text = line.decode().strip()
+                except Exception:
+                    text = str(line).strip()
+                if text:
+                    lines.append(text)
+                    upper = text.upper()
+                    if upper == "OK" or "ERROR" in upper:
+                        break
+            else:
+                time.sleep_ms(20)
+        return lines
 
     def _send_at(self, command):
         """Write an AT command to the LA66, terminated with CRLF."""

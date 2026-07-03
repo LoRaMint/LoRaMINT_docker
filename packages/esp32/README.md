@@ -100,6 +100,8 @@ lora = LoRaMINT(uart_id=1, tx=4, rx=5, baudrate=9600)
 | Method | Description |
 |--------|-------------|
 | `LoRaMINT(uart_id=2, tx=17, rx=16, baudrate=9600)` | Open the UART and reset the LA66 (`ATZ`). |
+| `check_connection(timeout_ms=3000)` | Verify the UART link via `AT+VER=?`. Prints a status message; returns `True` if the LA66 responded. |
+| `get_version(timeout_ms=3000)` | Query the LA66 firmware version (`AT+VER=?`). Returns the version string or `None`. |
 | `join(timeout_ms=60000)` | Join the network via OTAA. Returns `True` on success. |
 | `sendLog(message)` | Send a log entry (`LogEintrag`, max 140 chars). Returns `True` on `OK`. |
 | `sendValue(value)` | Send a `MintValue` (`Messwert`). Returns `True` on `OK`. |
@@ -122,6 +124,14 @@ MintValue(value, unit, location, measurand, sensor, datatype=None, time=None)
 
 Fields exceeding their length limit are replaced with `"too long"`; a string
 `value` is truncated to 20 characters (matching the Arduino library).
+
+### Spacing between uplinks
+
+Leave a delay (≈10 s or more) between consecutive uplinks. As a Class A device
+the LA66 opens its receive windows right after each transmission and will not
+accept a new uplink while it is still busy — sending `sendLog` and `sendValue`
+back to back makes the second one fail. `main.py` uses `UPLINK_INTERVAL = 20`
+seconds. This also keeps you within the TTN fair-use policy.
 
 ## Protocol
 
