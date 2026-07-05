@@ -184,6 +184,17 @@ const ingest = async (payload: TtnDecodedPayload, deviceEui: string): Promise<Mu
   return store(validated.data);
 };
 
+/**
+ * Escape a value for CSV output: wrap in quotes and double internal quotes, and
+ * neutralize spreadsheet formula injection by prefixing a leading =, +, -, @,
+ * tab or CR with a single quote.
+ */
+const escapeCsvField = (value: unknown) => {
+  let s = String(value ?? "");
+  if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
+  return `"${s.replace(/"/g, '""')}"`;
+};
+
 /** Streams all measurements as CSV using chunked transfer encoding. */
 const exportCsvStream = () => {
   const encoder = new TextEncoder();
@@ -211,7 +222,7 @@ const exportCsvStream = () => {
           r.recorded_at ? (r.recorded_at as Date).toISOString() : "",
           (r.created_at as Date).toISOString(),
         ];
-        const line = fields.map((f) => `"${String(f ?? "").replace(/"/g, '""')}"`).join(",") + "\n";
+        const line = fields.map(escapeCsvField).join(",") + "\n";
         controller.enqueue(encoder.encode(line));
       }
       controller.close();
