@@ -124,7 +124,8 @@ class LoRaMINT:
             raise ValueError(
                 "log message exceeds {} characters".format(self.MAX_LOG_CHARS)
             )
-        return bytes([self.LOG_MARKER]) + message.encode("ascii")
+        # "replace" keeps non-ASCII input from raising (it becomes "?").
+        return bytes([self.LOG_MARKER]) + message.encode("ascii", "replace")
 
     # ------------------------------------------------------------------ #
     # LA66 / UART helpers

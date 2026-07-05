@@ -92,8 +92,10 @@ class MintValue:
         buffer.append(self.DATA_SEPARATOR)
 
         # wire order: unit, measurand, location, sensor
+        # "replace" keeps non-ASCII input from raising (it becomes "?") - the
+        # protocol only carries ASCII.
         for field in (self._unit, self._measurand, self._location, self._sensor):
-            buffer += field.encode("ascii")
+            buffer += field.encode("ascii", "replace")
             buffer.append(self.DATA_SEPARATOR)
 
         if self._time is not None:
@@ -133,7 +135,7 @@ class MintValue:
             # IEEE-754 single, which is what the payload formatter decodes.
             return struct.pack(">f", float(value))
         if datatype == "string":
-            return value.encode("ascii")
+            return value.encode("ascii", "replace")
         raise ValueError("unknown datatype: " + datatype)
 
     @staticmethod
