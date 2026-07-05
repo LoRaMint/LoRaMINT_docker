@@ -46,6 +46,24 @@ mpremote cp main.py :
 
 `main.py` runs automatically on boot.
 
+## Provisioning the LA66 (OTAA keys)
+
+The LA66 ships with its DevEUI, AppEUI and AppKey already set. You normally just
+read them from the module and register those values in the TTN console — nothing
+needs to be set on the device.
+
+```text
+AT+CFG          # show all keys at once
+AT+DEUI=?       # DevEUI (unique per device)
+AT+APPEUI=?     # AppEUI / JoinEUI
+AT+APPKEY=?     # AppKey
+```
+
+(Only set them with `AT+DEUI=<hex>` etc. if you want to override the defaults.)
+
+If a join fails with `txTimeout`, the request was sent but no gateway answered —
+check that the keys match TTN and the antenna is connected.
+
 ## Usage
 
 ### Join and send a log entry

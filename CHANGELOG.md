@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - ESP32 MicroPython library (`packages/esp32`): `LoRaMINT` class with `join()`,
   `sendLog()`, `sendValue()` and a UART connection check via `AT+VER=?`, plus a
   `MintValue` encoder. Port of the Arduino library for ESP32 + Dragino LA66.
+- Draft `LICENSE` placeholder and `plan_v1.md` road-to-1.0 plan.
+- ESP32 README: LA66 OTAA provisioning section (read the device keys, register
+  them in TTN).
 
 ### Fixed
 - SSR dev overlay no longer leaks into production: dev mode is now opt-in
@@ -18,6 +21,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   missing or misconfigured `NODE_ENV` falls back to production. The `dev` script
   now sets `NODE_ENV=development` so local development is unaffected, and the
   Docker image defaults to `NODE_ENV=production`.
+- ESP32: sending a value or log with non-ASCII characters no longer raises; such
+  characters are replaced with `?` instead of crashing mid-send.
+
+### Security
+- CSV export now neutralizes spreadsheet formula injection: fields starting with
+  `=`, `+`, `-`, `@`, tab or CR are prefixed with a single quote.
 
 ## [0.1.9] - 2026-06-26
 

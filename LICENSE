@@ -1,0 +1,10 @@
+LoRaMINT — License (draft)
+
+The license for this project is still being worked out and will be added here hopefully before the 1.0 release.
+
+Until a license is chosen, no usage rights are granted: all rights are reserved by the authors. Please contact the maintainers before reusing this code.
+
+Note: third-party libraries bundled under packages/arduino (e.g. the Adafruit libraries) keep their own licenses, which are included in their respective
+directories.
+
+© 2026 LoRaMINT contributors
