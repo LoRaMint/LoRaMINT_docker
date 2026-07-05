@@ -136,12 +136,16 @@ Aufgeteilt in Zwischenschritte 5.1–5.6.
       alle 200/ok.
 
 ### Phase 6 (später) – esp32 MicroPython-Lib befüllen
-- [ ] `packages/esp32/` mit der eigentlichen MicroPython-Lib füllen
-      (Ordner existiert bereits aus Phase 1 als `.gitkeep`-Platzhalter).
-- [ ] `.gitkeep` entfernen, sobald echte Dateien vorhanden sind.
-- [ ] Eigene `README.md` mit Installations-/Flash-Anleitung.
-- [ ] **Kein Bun/JS** – analog zu `arduino/` reine Lib-Dateien.
-- [ ] Erst angehen, wenn die Lib programmiert wird.
+- [x] `packages/esp32/` mit der MicroPython-Lib gefüllt: `loramint.py`
+      (`join`, `sendLog`, `sendValue`), `mintvalue.py` (Wert-Kodierung) und
+      `main.py` (Beispiel). Nachbildung der Arduino-Library für ESP32 + LA66.
+- [x] `.gitkeep` entfernt.
+- [x] Eigene `README.md` mit Verdrahtung, Flash-Anleitung, API und Protokoll.
+- [x] **Kein Bun/JS** – reine MicroPython-Lib-Dateien (`__pycache__`/`*.pyc`
+      in `.gitignore` ergänzt).
+- [x] Verifiziert: `py_compile`-Syntaxcheck + Encode/Decode-Round-Trip gegen
+      einen Port des TTN-Payload-Formatters (17/17 Checks). Funkbetrieb mangels
+      Hardware nicht getestet.
 
 ### Phase 7 (optional, später) – SDK + ggf. Workspace
 - [ ] `packages/sdk/` als TypeScript-Client für die API anlegen
@@ -182,5 +186,5 @@ Aufgeteilt in Zwischenschritte 5.1–5.6.
 - [x] Phase 3 – Arduino nach `packages/arduino/`
 - [x] Phase 4 – Docker & CI
 - [x] Phase 5 – Doku & Aufräumen
-- [ ] Phase 6 – esp32 MicroPython-Lib befüllen (später)
+- [x] Phase 6 – esp32 MicroPython-Lib befüllen
 - [ ] Phase 7 – SDK + ggf. Workspace (optional)
