@@ -27,6 +27,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 - CSV export now neutralizes spreadsheet formula injection: fields starting with
   `=`, `+`, `-`, `@`, tab or CR are prefixed with a single quote.
+- Webhook API key is now compared in constant time (`verifyAppKey`, both sides
+  SHA-256 hashed) instead of `!==`, closing a timing side channel.
 
 ## [0.1.9] - 2026-06-26
 

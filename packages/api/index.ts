@@ -8,7 +8,7 @@ import { describeRoute, generateSpecs } from "hono-openapi";
 import { Scalar } from "@scalar/hono-api-reference";
 import { createMarkdownFromOpenApi } from "@scalar/openapi-to-markdown";
 import { z } from "zod";
-import { config } from "./config";
+import { config, verifyAppKey } from "./config";
 import {
   openApiMeta,
   jsonResponse,
@@ -73,7 +73,7 @@ app.post(
   v("json", TtnPayloadSchema),
   async (c) => {
     const apiKey = c.req.header("X-Downlink-Apikey");
-    if (apiKey !== config.appKey) {
+    if (!verifyAppKey(apiKey)) {
       return c.json({ ok: false, error: "Unauthorized" }, 401);
     }
 

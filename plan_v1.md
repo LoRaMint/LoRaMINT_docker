@@ -8,7 +8,7 @@ Hier wird der Ablaufplan zum Release von Version 1.0 des LoRaMINT-Repos notiert.
 - [ ] 2 – Test-Suite + Test-CI
 - [x] 3 – esp32: Absturz bei Nicht-ASCII beheben
 - [ ] 4 – Docker HEALTHCHECK (Entscheidung offen)
-- [ ] 5 – Timing-safe Webhook-Key-Vergleich (Entscheidung offen)
+- [x] 5 – Timing-safe Webhook-Key-Vergleich
 - [ ] 6 – Globaler Error-Handler (Entscheidung offen)
 - [x] 7 – CSV-Formel-Injection beheben
 - [x] 8 – LA66-Provisionierung dokumentieren
@@ -76,16 +76,17 @@ Erledigt? -> Nein (Entscheidung offen)
 
 ### Stichpunkt 5 – Timing-safe Webhook-Key-Vergleich
 
-Aktueller Stand: `apiKey !== config.appKey` (`index.ts`) bricht beim ersten
-abweichenden Zeichen ab (theoretischer Timing-Seitenkanal).
+Aktueller Stand: Behoben. `verifyAppKey()` in `config.ts` vergleicht den Kandidaten
+konstant-zeitig gegen `TTN_APP_KEY` (beide Seiten via SHA-256 auf feste Länge
+gehasht, dann `timingSafeEqual`). Die Webhook-Route nutzt `verifyAppKey(apiKey)`.
 
 Ziel: Konstant-zeitiger Vergleich des Webhook-Keys.
 
 ToDo:
-- Entscheidung, ob für 1.0 gewünscht (Risiko gering – Erklärung erfolgt).
-- Falls ja: konstant-zeitigen Vergleich einsetzen.
+- [x] `verifyAppKey`-Helper (gehashter, konstant-zeitiger Vergleich).
+- [x] Verifiziert: korrekter Key → 400 (Auth ok), falscher/Präfix/fehlender → 401.
 
-Erledigt? -> Nein (Entscheidung offen)
+Erledigt? -> Ja
 
 ### Stichpunkt 6 – Globaler Error-Handler
 
