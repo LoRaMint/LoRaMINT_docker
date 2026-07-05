@@ -6,7 +6,9 @@ type PageOptions = {
   description?: string;
 };
 
-const isDev = Bun.env.NODE_ENV !== "production";
+// Opt-in dev mode: only enabled when NODE_ENV is explicitly "development", so a
+// missing or misconfigured NODE_ENV falls back to production (no dev overlay).
+const isDev = Bun.env.NODE_ENV === "development";
 
 export const { config, plugin, html } = createConfig<PageOptions>({
   dev: isDev,

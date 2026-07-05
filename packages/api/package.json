@@ -4,7 +4,7 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "dev": "bun run --hot index.ts",
+    "dev": "NODE_ENV=development bun run --hot index.ts",
     "migrate": "bun --sql-preconnect migrate.ts"
   },
   "devDependencies": {
