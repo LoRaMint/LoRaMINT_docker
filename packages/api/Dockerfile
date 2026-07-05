@@ -7,6 +7,9 @@ COPY package.json bun.lock /temp/prod/
 RUN cd /temp/prod && bun install --frozen-lockfile --production
 
 FROM base AS release
+# Default the image to production so the SSR dev overlay never ships in a release,
+# regardless of how the container is started. Override with -e NODE_ENV=development.
+ENV NODE_ENV=production
 COPY --from=install /temp/prod/node_modules node_modules
 COPY package.json bunfig.toml ./
 COPY index.ts config.ts types.ts migrate.ts preload.ts ./

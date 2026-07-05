@@ -16,7 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - SSR dev overlay no longer leaks into production: dev mode is now opt-in
   (`NODE_ENV === "development"`) instead of "anything but production", so a
   missing or misconfigured `NODE_ENV` falls back to production. The `dev` script
-  now sets `NODE_ENV=development` so local development is unaffected.
+  now sets `NODE_ENV=development` so local development is unaffected, and the
+  Docker image defaults to `NODE_ENV=production`.
 
 ## [0.1.9] - 2026-06-26
 

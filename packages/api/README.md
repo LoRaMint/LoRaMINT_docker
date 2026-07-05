@@ -117,6 +117,7 @@ The `.env` file contains:
 | `DATABASE_URL` | PostgreSQL connection string | `postgres://loramint:loramint@localhost:5432/loramint` |
 | `TTN_APP_KEY` | API key for TTN webhook authentication | `your-ttn-api-key` |
 | `PORT` | Server port | `8090` |
+| `NODE_ENV` | `development` enables the SSR dev overlay (set automatically by `bun run dev`); any other value or unset = production | _unset_ |
 | `LEGAL_IMPRESSUM` | Optional: Impressum text (overrides template) | _empty_ |
 | `LEGAL_DATENSCHUTZ` | Optional: Datenschutz text (overrides template) | _empty_ |
 
