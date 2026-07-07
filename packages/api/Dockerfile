@@ -25,4 +25,6 @@ RUN bun run build-css.ts && chmod +x ./entrypoint.sh
 
 USER bun
 EXPOSE 8090/tcp
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+  CMD bun -e "fetch('http://localhost:'+(Bun.env.PORT??'8090')+'/api/v1/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 ENTRYPOINT ["./entrypoint.sh"]

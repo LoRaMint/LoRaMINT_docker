@@ -29,6 +29,13 @@ const app = new Hono();
 
 app.use(logger());
 
+// Catch any unhandled error in the API routes and return a consistent JSON 500
+// instead of leaking internals (e.g. a database outage in a service call).
+app.onError((err, c) => {
+  console.error("Unhandled error:", err);
+  return c.json({ ok: false, error: "Internal server error" }, 500);
+});
+
 //====================================
 // SCHEMAS
 //====================================

@@ -189,7 +189,7 @@ const ingest = async (payload: TtnDecodedPayload, deviceEui: string): Promise<Mu
  * neutralize spreadsheet formula injection by prefixing a leading =, +, -, @,
  * tab or CR with a single quote.
  */
-const escapeCsvField = (value: unknown) => {
+export const escapeCsvField = (value: unknown) => {
   let s = String(value ?? "");
   if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
   return `"${s.replace(/"/g, '""')}"`;
