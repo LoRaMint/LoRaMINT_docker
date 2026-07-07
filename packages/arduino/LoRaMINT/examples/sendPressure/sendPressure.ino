@@ -1,77 +1,52 @@
-/***************************************************************************
-  This sketch is part of the LoRaMINT-library. It's designed for the bme280 
-  humidity, temperature & pressure sensor. It measures the pressure and 
-  sends the measured value to the database via the measurement network.
- 
-  This sketch is inspired by a example of the Adafruit BME 280 library.
+/*
+  LoRaMINT example: read the air pressure from a BME280 and send it via
+  LoRaWAN (Dragino LA66) to the LoRaMINT backend.
 
-  Adafruit invests time and resources providing this open source code,
-  please support Adafruit andopen-source hardware by purchasing products
-  from Adafruit!
-  
-  Designed specifically to work with the Adafruit BME280 Breakout
-  ----> http://www.adafruit.com/products/2650
+  Wiring (I2C, BME280 at address 0x76 — Arduino Uno):
+    VIN -> 3.3V     SDA -> A4
+    GND -> GND      SCL -> A5
 
-  Modiefied by Matthias Ruf for the LoRaMINT measurment system. 
-
-  Original code written by Limor Fried & Kevin Townsend for Adafruit Industries.
-  BSD license, all text above must be included in any redistribution
-  See the LICENSE file for details.
- ***************************************************************************/
+  Adapted from an Adafruit BME280 example.
+  Original code (c) Limor Fried & Kevin Townsend, Adafruit Industries — BSD license.
+*/
 
 #include <Wire.h>
-#include <SPI.h>
+// Requires these Adafruit libraries — install them via the Arduino Library Manager:
+//   Adafruit BME280 Library, Adafruit Unified Sensor, Adafruit BusIO
+// (see packages/arduino/README.md for download links)
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BME280.h>
 #include "LoRaMINT.h"
 #include "MintValue.h"
 
-#define BME_SCK 13
-#define BME_MISO 12
-#define BME_MOSI 11
-#define BME_CS 10
-
-#define SEALEVELPRESSURE_HPA (1013.25)
-
-
-
 LoRaMINT loramint = LoRaMINT();
-
 Adafruit_BME280 bme;
-
-
-
-unsigned long delayTime;
 
 void setup() {
     Serial.begin(9600);
-    while(!Serial);    // time to get serial running
-    Serial.println(F("BME280 Temperature"));
+    while (!Serial);    // wait for the serial connection
 
-    unsigned status;  
-    status = bme.begin(0x76);
+    Serial.println(F("LoRaMINT – Pressure (BME280)"));
 
-    if (!status) {
-        Serial.println("Could not find a valid BME280 sensor, check wiring, address, sensor ID!");
-        Serial.print("SensorID was: 0x"); Serial.println(bme.sensorID(),16);
-        Serial.print("        ID of 0xFF probably means a bad address, a BMP 180 or BMP 085\n");
-        Serial.print("   ID of 0x56-0x58 represents a BMP 280,\n");
-        Serial.print("        ID of 0x60 represents a BME 280.\n");
-        Serial.print("        ID of 0x61 represents a BME 680.\n");
+    if (!bme.begin(0x76)) {
+        // No BME280 — a BMP280 can also measure pressure, so report it if present.
+        uint8_t id = bme.sensorID();
+        if (id >= 0x56 && id <= 0x58) {
+            Serial.println("A BMP280 is connected. It can measure temperature and "
+                           "pressure, but this example requires a BME280.");
+        } else {
+            Serial.println("No BME280 found — check wiring and the I2C address (0x76).");
+        }
         while (1) delay(10);
     }
-    
-    Serial.println("-- Send Pressure Example --");
+
+    Serial.println("LoRaMINT – Send Pressure Example");
 }
 
+void loop() {
+    float pressure = bme.readPressure() / 100.0F;
 
-void loop() { 
-
-  float pressure = bme.readPressure()/100.0F;
-  
-  MintValue value = MintValue(pressure,"hPa","Ort","Druck","BME 280");
-  loramint.sendValue(value);
-  delay(20000); // 20 seconds delay between two messages 
-
+    MintValue value = MintValue(pressure, "hPa", "Ort", "Druck", "BME 280");
+    loramint.sendValue(value);
+    delay(60000); // send once per minute
 }
-

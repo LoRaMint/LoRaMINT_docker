@@ -1,6 +1,6 @@
 /*
 	LoRaMINT.h - Library for sending Data via LoRaWAN using the Dragino
-	LA66 LoRaWAN Shield in conjunction with TheThingsNetwork and an MariaDB
+	LA66 LoRaWAN Shield in conjunction with TheThingsNetwork and a
 	database. All set up like the LoRaMINT-standard.
 	Created by Matthias Ruf, March, 2023
 

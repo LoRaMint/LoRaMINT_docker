@@ -1,7 +1,8 @@
 # LoRaMINT Arduino Library
 
-Arduino library for programming LoRaMINT sensor nodes. It handles encoding
-measurement values and sending them via LoRaWAN (Dragino LA66 shield) to TTN,
+Arduino library for programming the sensor nodes of **LoRaMINT** — a general-purpose,
+long-range measurement system for STEM education in schools. It encodes measurement
+values and sends them via LoRaWAN (Dragino LA66 shield) to The Things Network (TTN),
 which forwards them to the LoRaMINT backend via webhook.
 
 > This package is part of the [LoRaMINT monorepo](../../README.md). The backend
@@ -11,34 +12,33 @@ which forwards them to the LoRaMINT backend via webhook.
 ## 1 Contents
 
 ```
-LoRaMINT/                    # Main library (custom)
-Adafruit_BME280_Library/     # BME280 sensor driver
-Adafruit_BusIO/              # I2C/SPI abstraction (dependency)
-Adafruit_Unified_Sensor/     # Sensor abstraction (dependency)
+LoRaMINT/                    # Main library (custom): LoRaMINT + MintValue
 ```
 
-Each library is also provided as a `.ZIP` file in this directory for easy import.
+`LoRaMINT/` contains the `LoRaMINT` class (`sendValue` / `sendLog` over the LA66)
+and the `MintValue` class (encoding of a measurement per the LoRaMINT protocol).
+
+The BME280 examples additionally need three Adafruit libraries, which are **not**
+bundled here. Install them via the Arduino Library Manager or download them from
+Adafruit:
+
+- [Adafruit BME280 Library](https://github.com/adafruit/Adafruit_BME280_Library)
+- [Adafruit Unified Sensor](https://github.com/adafruit/Adafruit_Sensor)
+- [Adafruit BusIO](https://github.com/adafruit/Adafruit_BusIO)
 
 ## 2 Installation
 
-**Option A – ZIP import (recommended)**
+1. Copy the `LoRaMINT/` folder from this directory into your Arduino libraries
+   directory:
+   - **Windows:** `Documents\Arduino\libraries\`
+   - **macOS:** `~/Documents/Arduino/libraries/`
+   - **Linux:** `~/Arduino/libraries/`
+2. Install the Adafruit dependencies (only needed for the BME280 examples) via the
+   Arduino **Library Manager** — search for `Adafruit BME280 Library`,
+   `Adafruit Unified Sensor` and `Adafruit BusIO` — or download them from the
+   Adafruit repositories linked above.
 
-Each library has its own ZIP file in this directory. Import all four via **Sketch → Include Library → Add .ZIP Library...**:
-
-1. `LoRaMINT.zip`
-2. `Adafruit_BME280_Library.zip`
-3. `Adafruit_BusIO.zip`
-4. `Adafruit_Unified_Sensor.zip`
-
-**Option B – Manual copy**
-
-Copy all four folders from this directory into your Arduino libraries directory:
-
-- **Windows:** `Documents\Arduino\libraries\`
-- **macOS:** `~/Documents/Arduino/libraries/`
-- **Linux:** `~/Arduino/libraries/`
-
-Then restart the Arduino IDE. The libraries appear under **File → Examples → LoRaMINT**.
+Then restart the Arduino IDE. The library appears under **File → Examples → LoRaMINT**.
 
 ## 3 Hardware
 
