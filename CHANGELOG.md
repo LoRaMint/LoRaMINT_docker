@@ -11,9 +11,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - ESP32 MicroPython library (`packages/esp32`): `LoRaMINT` class with `join()`,
   `sendLog()`, `sendValue()` and a UART connection check via `AT+VER=?`, plus a
   `MintValue` encoder. Port of the Arduino library for ESP32 + Dragino LA66.
-- Draft `LICENSE` placeholder and `plan_v1.md` road-to-1.0 plan.
+- Custom non-commercial `LICENSE`, `plan_v1.md` road-to-1.0 plan and
+  `version_meilstones.md` roadmap.
 - ESP32 README: LA66 OTAA provisioning section (read the device keys, register
   them in TTN).
+- Docker `HEALTHCHECK` for the API image (checks `/api/v1/health`).
+- API test suite (`bun test`: validation, pagination, CSV escaping) and a CI
+  workflow (`ci.yml`) running typecheck + tests on push/PR.
+
+### Changed
+- Unhandled API errors now return a consistent JSON 500 via a global error
+  handler instead of leaking internals.
+- `packages/arduino` slimmed down: removed the bundled Adafruit libraries and the
+  committed `.zip` files (reference them via the Arduino Library Manager /
+  Adafruit instead), consolidated the READMEs, and modernized the examples
+  (BMP280 detection, 1-minute send interval, cleanup).
 
 ### Fixed
 - SSR dev overlay no longer leaks into production: dev mode is now opt-in

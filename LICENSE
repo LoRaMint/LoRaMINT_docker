@@ -1,10 +1,108 @@
-LoRaMINT — License (draft)
+LoRaMINT Non-Commercial License 1.0
 
-The license for this project is still being worked out and will be added here hopefully before the 1.0 release.
+Copyright (c) 2026 Matthias Ruf
 
-Until a license is chosen, no usage rights are granted: all rights are reserved by the authors. Please contact the maintainers before reusing this code.
+This is a source-available license. It is not an OSI-approved Open Source
+license.
 
-Note: third-party libraries bundled under packages/arduino (e.g. the Adafruit libraries) keep their own licenses, which are included in their respective
-directories.
+1. Definitions
 
-© 2026 LoRaMINT contributors
+"Software" means the source code, documentation, configuration files, and other
+materials authored by the Licensor, excluding Third-Party Components.
+
+"Third-Party Components" means software included in this repository that was not
+authored by the Licensor — for example, the libraries under packages/arduino —
+which remains subject to its own respective license terms.
+
+"Licensor" means Matthias Ruf.
+
+"You" means any individual or legal entity exercising permissions under this
+License.
+
+"Non-Commercial" means use that is not primarily intended for or directed toward
+commercial advantage or monetary compensation. Examples include personal use,
+education, research, experimentation, non-profit organizations, schools,
+universities, and public authorities.
+
+"Commercial Use" means use primarily intended for or directed toward commercial
+advantage or monetary compensation, including but not limited to:
+
+- selling the Software,
+- offering the Software as part of a paid service,
+- SaaS offerings,
+- paid consulting or integration,
+- distributing the Software with commercial hardware,
+- or any other use primarily intended for commercial advantage.
+
+2. License Grant
+
+Subject to this License, the Licensor grants You a worldwide, royalty-free,
+non-exclusive, non-transferable license to:
+
+- use,
+- copy,
+- modify,
+- and distribute
+
+the Software solely for Non-Commercial purposes.
+
+3. Conditions
+
+You must:
+
+(a) retain this License and all copyright notices;
+
+(b) provide appropriate attribution to the Licensor;
+
+(c) clearly indicate if You modified the Software;
+
+(d) not make any Commercial Use of the Software without prior written
+permission from the Licensor.
+
+4. Third-Party Components
+
+Third-party software included in this repository remains subject to its own
+license terms. This License applies only to the Software authored by the
+Licensor.
+
+5. Patents
+
+No patent rights are granted under this License.
+
+6. Trademarks
+
+This License does not grant permission to use the Licensor's trademarks,
+project name, logos, or branding except as reasonably required for attribution.
+
+7. Contributions
+
+Unless otherwise agreed in writing before submission, any contribution
+intentionally submitted for inclusion in the Software grants the Licensor a
+perpetual, worldwide, irrevocable, royalty-free license to use, modify,
+relicense, sublicense, distribute, and otherwise exploit that contribution as
+part of the Software or future versions of the Software.
+
+8. Future Versions
+
+The Licensor may publish future versions of the Software under different
+license terms or discontinue publication at any time.
+
+Copies already received remain licensed under the terms under which they were
+received.
+
+9. Disclaimer
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT.
+
+IN NO EVENT SHALL THE LICENSOR BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER
+LIABILITY ARISING FROM THE SOFTWARE OR ITS USE.
+
+10. Termination
+
+Any use outside the permissions granted by this License, or any failure to
+comply with its conditions, immediately terminates the rights granted under this
+License.
+
+For commercial licensing or other permissions, contact the Licensor.
