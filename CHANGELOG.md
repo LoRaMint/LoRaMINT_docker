@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-07-07
+
 ### Added
 - ESP32 MicroPython library (`packages/esp32`): `LoRaMINT` class with `join()`,
   `sendLog()`, `sendValue()` and a UART connection check via `AT+VER=?`, plus a
@@ -55,5 +57,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Releases up to and including [0.1.8] (2026-05-12) predate this changelog.
 
-[Unreleased]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v0.1.9...HEAD
+[Unreleased]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v0.1.9...v1.0.0
 [0.1.9]: https://github.com/LoRaMint/LoRaMINT_docker/releases/tag/v0.1.9
