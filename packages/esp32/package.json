@@ -1,0 +1,8 @@
+{
+  "version": "0.1.0",
+  "urls": [
+    ["loramint/__init__.py", "github:LoRaMint/LoRaMINT_docker/packages/esp32/loramint/__init__.py"],
+    ["loramint/loramint.py", "github:LoRaMint/LoRaMINT_docker/packages/esp32/loramint/loramint.py"],
+    ["loramint/mintvalue.py", "github:LoRaMint/LoRaMINT_docker/packages/esp32/loramint/mintvalue.py"]
+  ]
+}

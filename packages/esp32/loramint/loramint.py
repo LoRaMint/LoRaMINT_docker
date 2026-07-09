@@ -20,7 +20,7 @@ import time
 import ubinascii
 from machine import UART
 
-from mintvalue import MintValue
+from .mintvalue import MintValue
 
 
 class LoRaMINT:

@@ -12,9 +12,18 @@ forwards them to the LoRaMINT backend.
 ## Contents
 
 ```
-loramint.py     LoRaMINT class - join() the network, sendLog(), sendValue()
-mintvalue.py    MintValue class - describes and encodes one measurement value
-main.py         Example: join, send a log entry, send measurements
+loramint/                The library package
+  __init__.py              exports LoRaMINT and MintValue
+  loramint.py              LoRaMINT class - join(), sendLog(), sendValue()
+  mintvalue.py             MintValue class - encodes one measurement value
+examples/                Example programs
+  main.py                  join, send a log entry, then a value every minute
+  send_value.py            send a single measurement value
+  send_log.py              send a log entry
+  send_temperature.py      read a BME280 and send the temperature
+  send_humidity.py         read a BME280 and send the humidity
+  send_pressure.py         read a BME280 and send the air pressure
+package.json             mip manifest (used for installation, see below)
 ```
 
 ## Hardware
@@ -35,16 +44,33 @@ The DevEUI / AppEUI / AppKey must already be configured on the LA66 (OTAA join).
 
 ## Installation
 
-Upload the three files to the board (e.g. with
-[`mpremote`](https://docs.micropython.org/en/latest/reference/mpremote.html) or Thonny):
+**Option A – with `mip`** (recommended). Installs the `loramint` package from
+GitHub straight onto the board via
+[`mpremote`](https://docs.micropython.org/en/latest/reference/mpremote.html):
 
 ```bash
-mpremote cp loramint.py :
-mpremote cp mintvalue.py :
-mpremote cp main.py :
+mpremote mip install github:LoRaMint/LoRaMINT_docker/packages/esp32
 ```
 
-`main.py` runs automatically on boot.
+Or from within MicroPython on the board:
+
+```python
+import mip
+mip.install("github:LoRaMint/LoRaMINT_docker/packages/esp32")
+```
+
+**Option B – manual copy.** Copy the `loramint/` package folder to the board:
+
+```bash
+mpremote cp -r loramint :
+```
+
+Then pick an example from `examples/` and copy it to the board root as `main.py`
+so it runs automatically on boot:
+
+```bash
+mpremote cp examples/main.py :main.py
+```
 
 ## Provisioning the LA66 (OTAA keys)
 
@@ -80,8 +106,7 @@ if lora.join():                   # OTAA join (AT+JOIN)
 ### Send a measurement value
 
 ```python
-from loramint import LoRaMINT
-from mintvalue import MintValue
+from loramint import LoRaMINT, MintValue
 
 lora = LoRaMINT()
 lora.join()
@@ -148,7 +173,7 @@ Fields exceeding their length limit are replaced with `"too long"`; a string
 Leave a delay (≈10 s or more) between consecutive uplinks. As a Class A device
 the LA66 opens its receive windows right after each transmission and will not
 accept a new uplink while it is still busy — sending `sendLog` and `sendValue`
-back to back makes the second one fail. `main.py` uses `UPLINK_INTERVAL = 20`
+back to back makes the second one fail. `main.py` uses `UPLINK_INTERVAL = 60`
 seconds. This also keeps you within the TTN fair-use policy.
 
 ## Protocol

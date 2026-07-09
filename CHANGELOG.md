@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- ESP32 library restructured into a `loramint` package installable via `mip`
+  (`mpremote mip install github:LoRaMint/LoRaMINT_docker/packages/esp32`); the API
+  import becomes `from loramint import LoRaMINT, MintValue`. Added example
+  programs for value, log, temperature, humidity and pressure.
+
 ## [1.0.0] - 2026-07-07
 
 ### Added

@@ -1,19 +1,18 @@
 """
 Example: join the LoRaWAN network, send a log entry and measurement values.
 
-On an ESP32 running MicroPython, main.py runs automatically after boot.py.
-Upload this file together with loramint.py and mintvalue.py to the board.
+Install the loramint package on the board, then copy this file to the board root
+as main.py so it runs automatically after boot.py.
 """
 
 import time
 
-from loramint import LoRaMINT
-from mintvalue import MintValue
+from loramint import LoRaMINT, MintValue
 
 # Seconds to wait between uplinks. A delay is required: the LA66 must not be
 # given a new uplink while it is still busy with the previous one (Class A RX
 # windows). ~10 s or more works reliably; it also respects TTN fair use.
-UPLINK_INTERVAL = 20
+UPLINK_INTERVAL = 60
 
 # Open the UART to the LA66 (defaults: UART2, TX=GPIO17, RX=GPIO16, 9600 baud)
 lora = LoRaMINT()
