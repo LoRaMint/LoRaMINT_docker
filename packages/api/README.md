@@ -2,7 +2,7 @@
 
 IoT data collection service for LoRaWAN sensors. Receives measurement data from The Things Network (TTN) via webhook and stores it in PostgreSQL.
 
-**Production:** [loramint.sfz-ox.de](https://loramint.sfz-ox.de)
+**Production:** [www.loramint.de](https://www.loramint.de)
 
 > This package contains the backend API and the server-rendered web frontend.
 > It is part of the [LoRaMINT monorepo](../../README.md); the sensor libraries

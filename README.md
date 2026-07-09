@@ -4,7 +4,7 @@ IoT platform for LoRaWAN sensors. Sensor nodes send measurement data over
 LoRaWAN to The Things Network (TTN), which forwards it via webhook to the
 LoRaMINT backend, where it is validated and stored in PostgreSQL.
 
-**Production:** [loramint.sfz-ox.de](https://loramint.sfz-ox.de)
+**Production:** [www.loramint.de](https://www.loramint.de)
 
 ## Architecture
 
