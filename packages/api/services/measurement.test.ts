@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { TtnDecodedPayload } from "../types";
+import { MeasurementFilterSchema } from "../types";
 import { escapeCsvField, measurements } from "./measurement";
 
 const EUI = "A1B2C3D4E5F60001";
@@ -87,5 +88,36 @@ describe("escapeCsvField", () => {
   test("renders null/undefined as an empty field", () => {
     expect(escapeCsvField(null)).toBe('""');
     expect(escapeCsvField(undefined)).toBe('""');
+  });
+});
+
+describe("MeasurementFilterSchema", () => {
+  test("parses an empty object into all-undefined fields", () => {
+    const result = MeasurementFilterSchema.parse({});
+    expect(result).toEqual({});
+  });
+
+  test("accepts a plain date or a full ISO timestamp for from/to", () => {
+    const result = MeasurementFilterSchema.parse({ from: "2026-07-01", to: "2026-07-10T12:00:00Z" });
+    expect(result.from).toBe("2026-07-01");
+    expect(result.to).toBe("2026-07-10T12:00:00Z");
+  });
+
+  test("rejects a malformed from/to value", () => {
+    expect(() => MeasurementFilterSchema.parse({ from: "not-a-date" })).toThrow();
+  });
+
+  test("rejects an unknown datatype", () => {
+    expect(() => MeasurementFilterSchema.parse({ datatype: "boolean" })).toThrow();
+  });
+
+  test("rejects a device_eui that is not 16 hex chars", () => {
+    expect(() => MeasurementFilterSchema.parse({ device_eui: "XYZ" })).toThrow();
+    expect(() => MeasurementFilterSchema.parse({ device_eui: "A1B2C3D4E5F6000" })).toThrow();
+  });
+
+  test("accepts a valid device_eui", () => {
+    const result = MeasurementFilterSchema.parse({ device_eui: "A1B2C3D4E5F60001" });
+    expect(result.device_eui).toBe("A1B2C3D4E5F60001");
   });
 });

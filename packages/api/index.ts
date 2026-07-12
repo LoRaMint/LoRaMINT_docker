@@ -23,6 +23,8 @@ import {
   MeasurementSchema,
   LogEntrySchema,
   PaginationQuerySchema,
+  MeasurementListQuerySchema,
+  MeasurementFilterSchema,
 } from "./types";
 
 const app = new Hono();
@@ -119,7 +121,8 @@ app.get(
     tags: ["Measurements"],
     summary: "List measurements",
     description:
-      "Returns a paginated list of stored measurements, ordered by most recent first.",
+      "Returns a paginated list of stored measurements, ordered by most recent first. " +
+      "Optionally filtered by device_eui, measurand, sensor, location, datatype, and/or a from/to time range.",
     responses: {
       200: jsonResponse(
         MeasurementListResponseSchema,
@@ -127,11 +130,11 @@ app.get(
       ),
     },
   }),
-  v("query", PaginationQuerySchema),
+  v("query", MeasurementListQuerySchema),
   async (c) => {
-    const query = c.req.valid("query");
-    const pagination = parsePagination(query);
-    const { items, total } = await measurements.list(pagination);
+    const { page, per_page, ...filter } = c.req.valid("query");
+    const pagination = parsePagination({ page, per_page });
+    const { items, total } = await measurements.list(pagination, filter);
     return c.json({
       data: items,
       pagination: createPagination(pagination, total),
@@ -145,7 +148,9 @@ app.get(
   describeRoute({
     tags: ["Measurements"],
     summary: "Export measurements as CSV",
-    description: "Returns all stored measurements as a CSV file download.",
+    description:
+      "Returns stored measurements as a CSV file download, optionally filtered by " +
+      "device_eui, measurand, sensor, location, datatype, and/or a from/to time range.",
     responses: {
       200: {
         description: "CSV file",
@@ -153,8 +158,10 @@ app.get(
       },
     },
   }),
+  v("query", MeasurementFilterSchema),
   (c) => {
-    const stream = measurements.exportCsvStream();
+    const filter = c.req.valid("query");
+    const stream = measurements.exportCsvStream(filter);
     c.header("Content-Type", "text/csv");
     c.header("Content-Disposition", "attachment; filename=measurements.csv");
     return c.body(stream);

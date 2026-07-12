@@ -3,6 +3,7 @@ import type { PaginationParams } from "../lib/pagination";
 import type {
   Datatype,
   Measurement,
+  MeasurementFilter,
   MutationResult,
   TimeMethod,
   TtnDecodedPayload,
@@ -162,14 +163,36 @@ const mapRow = (row: Record<string, unknown>): Measurement => ({
   createdAt: row.created_at as Date,
 });
 
-const list = async (pagination: PaginationParams) => {
+/**
+ * Builds a `WHERE` fragment matching the given filter's fields; absent
+ * fields don't constrain the result (each clause is a tautology when its
+ * value is null). Safe from SQL injection: all values remain parameterized,
+ * only the fragment structure is assembled dynamically.
+ */
+const filterClause = (filter: MeasurementFilter) => {
+  const from = filter.from ? new Date(filter.from) : null;
+  const to = filter.to ? new Date(filter.to) : null;
+  return sql`
+    WHERE (${filter.device_eui ?? null}::text IS NULL OR device_eui = ${filter.device_eui ?? null})
+      AND (${filter.measurand ?? null}::text  IS NULL OR measurand  = ${filter.measurand  ?? null})
+      AND (${filter.sensor ?? null}::text     IS NULL OR sensor     = ${filter.sensor     ?? null})
+      AND (${filter.location ?? null}::text   IS NULL OR location   = ${filter.location   ?? null})
+      AND (${filter.datatype ?? null}::text   IS NULL OR datatype   = ${filter.datatype   ?? null})
+      AND (${from}::timestamptz IS NULL OR COALESCE(recorded_at, created_at) >= ${from})
+      AND (${to}::timestamptz   IS NULL OR COALESCE(recorded_at, created_at) <= ${to})
+  `;
+};
+
+const list = async (pagination: PaginationParams, filter: MeasurementFilter = {}) => {
+  const where = filterClause(filter);
   const rows = await sql`
     SELECT id, device_eui, measurand, unit, datatype, sensor, location, value, time_method, recorded_at, created_at
     FROM measurements
+    ${where}
     ORDER BY created_at DESC
     LIMIT ${pagination.perPage} OFFSET ${pagination.offset}
   `;
-  const [{ count }] = await sql`SELECT count(*)::int AS count FROM measurements`;
+  const [{ count }] = await sql`SELECT count(*)::int AS count FROM measurements ${where}`;
   return { items: rows.map(mapRow), total: count as number };
 };
 
@@ -195,8 +218,8 @@ export const escapeCsvField = (value: unknown) => {
   return `"${s.replace(/"/g, '""')}"`;
 };
 
-/** Streams all measurements as CSV using chunked transfer encoding. */
-const exportCsvStream = () => {
+/** Streams measurements matching the given filter as CSV using chunked transfer encoding. */
+const exportCsvStream = (filter: MeasurementFilter = {}) => {
   const encoder = new TextEncoder();
   const header = "id,device_eui,measurand,unit,datatype,sensor,location,value,time_method,recorded_at,created_at\n";
 
@@ -206,6 +229,7 @@ const exportCsvStream = () => {
       const rows = await sql`
         SELECT id, device_eui, measurand, unit, datatype, sensor, location, value, time_method, recorded_at, created_at
         FROM measurements
+        ${filterClause(filter)}
         ORDER BY created_at DESC
       `;
       for (const r of rows as Record<string, unknown>[]) {
@@ -230,4 +254,4 @@ const exportCsvStream = () => {
   });
 };
 
-export const measurements = { validate, store, ingest, list, exportCsvStream };
+export const measurements = { validate, store, ingest, list, exportCsvStream, filterClause };

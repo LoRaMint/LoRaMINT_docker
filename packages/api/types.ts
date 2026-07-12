@@ -98,6 +98,32 @@ export const PaginationQuerySchema = z.object({
   per_page: z.coerce.number().int().positive().max(100).optional().default(20),
 });
 
+/**
+ * Optional filters for the measurement list and CSV export. All fields are
+ * optional; an absent field means "do not filter on this column". String
+ * fields match exactly; `from`/`to` bound the measurement time
+ * (`recorded_at`, falling back to `created_at`) inclusively.
+ */
+export const MeasurementFilterSchema = z.object({
+  device_eui: z
+    .string()
+    .regex(/^[0-9A-Fa-f]{16}$/, "device_eui must be exactly 16 hex characters")
+    .optional(),
+  measurand: z.string().optional(),
+  sensor: z.string().optional(),
+  location: z.string().optional(),
+  datatype: z.enum(["float", "integer", "string"]).optional(),
+  from: z.union([z.iso.date(), z.iso.datetime({ offset: true })]).optional(),
+  to: z.union([z.iso.date(), z.iso.datetime({ offset: true })]).optional(),
+});
+
+export type MeasurementFilter = z.infer<typeof MeasurementFilterSchema>;
+
+/** Query schema for `GET /measurements`: pagination + optional filters. */
+export const MeasurementListQuerySchema = PaginationQuerySchema.merge(
+  MeasurementFilterSchema,
+);
+
 //====================================
 // VALIDATED INPUT TYPES
 //====================================

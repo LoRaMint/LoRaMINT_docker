@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `GET /measurements` and `GET /measurements/export` now accept optional query
+  filters (`device_eui`, `measurand`, `sensor`, `location`, `datatype`,
+  `from`/`to`) to narrow down results server-side, in preparation for the
+  upcoming dashboard.
+
 ### Changed
 - ESP32 library restructured into a `loramint` package installable via `mip`
   (`mpremote mip install github:LoRaMint/LoRaMINT_docker/packages/esp32`); the API
