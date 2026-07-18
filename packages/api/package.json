@@ -5,6 +5,9 @@
   "private": true,
   "scripts": {
     "dev": "NODE_ENV=development bun run --hot index.ts",
+    "build": "bun scripts/build-css.ts && bun scripts/build-islands.ts",
+    "build-css": "bun scripts/build-css.ts",
+    "build-islands": "bun scripts/build-islands.ts",
     "migrate": "bun --sql-preconnect migrate.ts",
     "test": "bun test",
     "typecheck": "tsc --noEmit"

@@ -8,6 +8,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Interactive `/export` page: pick a device, measurand, sensor, location,
+  datatype and a time range, see how many measurements match, and download the
+  filtered CSV. A configurable UI on top of the existing
+  `GET /measurements/export` endpoint (no API change), replacing the raw export
+  link on the home page.
+- Server-rendered `/status` board: a debugging overview showing the latest
+  measurement per device+sensor and the latest log entry per device, each with
+  how many rows that group has sent and how long ago it was last seen, ordered by
+  most recent activity. Auto-refreshes every 30 seconds; no client bundle. Backed
+  by new `measurements.status()` / `logEntries.status()` service queries.
+- Interactive `/plots` page: pick a device, measurands, sensors, location and a
+  time range to plot measurement series as connected lines with per-point
+  markers, rendered client-side with a self-hosted Plotly bundle (no third-party
+  requests). Switch between an overlaid multi-axis view and stacked per-measurand
+  charts, and export the chart as PNG (1–5× resolution factor) or SVG.
+- `GET /measurements/metadata` returns the distinct `device_eui`s, measurands,
+  sensors and locations present in the data (optionally narrowed by `device_eui`
+  for cascading dropdowns), used to populate the `/plots` filters.
 - `GET /measurements` and `GET /measurements/export` now accept optional query
   filters (`device_eui`, `measurand`, `sensor`, `location`, `datatype`,
   `from`/`to`) to narrow down results server-side, in preparation for the

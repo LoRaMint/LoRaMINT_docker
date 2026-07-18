@@ -6,6 +6,8 @@ services:
       - DATABASE_URL=postgres://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}
       - TTN_APP_KEY=${TTN_APP_KEY}
       - NODE_ENV=production
+      - LEGAL_IMPRESSUM=${LEGAL_IMPRESSUM}
+      - LEGAL_DATENSCHUTZ=${LEGAL_DATENSCHUTZ}
     depends_on:
       - db
     networks:

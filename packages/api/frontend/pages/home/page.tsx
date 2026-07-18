@@ -35,14 +35,34 @@ export default function HomePage() {
           <span>Interaktive Dokumentation der REST-API zum Ausprobieren.</span>
         </li>
         <li class="flex items-center gap-4 py-3">
+          <span class="text-xl">📈</span>
+          <a
+            href="/plots"
+            class="font-semibold text-primary hover:underline min-w-32"
+          >
+            Plots
+          </a>
+          <span>Messreihen interaktiv als Diagramm darstellen und exportieren.</span>
+        </li>
+        <li class="flex items-center gap-4 py-3">
+          <span class="text-xl">🩺</span>
+          <a
+            href="/status"
+            class="font-semibold text-primary hover:underline min-w-32"
+          >
+            Status
+          </a>
+          <span>Letzte Messwerte und Logs je Gerät auf einen Blick.</span>
+        </li>
+        <li class="flex items-center gap-4 py-3">
           <span class="text-xl">📊</span>
           <a
-            href="/api/v1/measurements/export"
+            href="/export"
             class="font-semibold text-primary hover:underline min-w-32"
           >
             CSV-Export
           </a>
-          <span>Alle Messdaten als Tabelle herunterladen.</span>
+          <span>Messdaten gefiltert als Tabelle herunterladen.</span>
         </li>
         <li class="flex items-center gap-4 py-3">
           <span class="text-xl">💻</span>

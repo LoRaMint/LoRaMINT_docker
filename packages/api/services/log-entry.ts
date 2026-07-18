@@ -1,6 +1,6 @@
 import { sql } from "bun";
 import type { PaginationParams } from "../lib/pagination";
-import type { LogEntry, MutationResult, TtnDecodedPayload, ValidatedLogEntry } from "../types";
+import type { LogEntry, LogStatus, MutationResult, TtnDecodedPayload, ValidatedLogEntry } from "../types";
 
 //====================================
 // CONSTANTS
@@ -70,6 +70,33 @@ const list = async (pagination: PaginationParams) => {
   return { items: rows.map(mapRow), total: count as number };
 };
 
+/**
+ * Status board data: the latest log entry per device_eui, plus how many log
+ * entries that device has sent, ordered by most recent activity first.
+ */
+const status = async (): Promise<LogStatus[]> => {
+  const rows = await sql`
+    SELECT device_eui, message, last_seen, n
+    FROM (
+      SELECT device_eui, message, created_at AS last_seen,
+             count(*) OVER (PARTITION BY device_eui) AS n,
+             row_number() OVER (
+               PARTITION BY device_eui
+               ORDER BY created_at DESC
+             ) AS rn
+      FROM log_entries
+    ) t
+    WHERE rn = 1
+    ORDER BY last_seen DESC
+  `;
+  return (rows as Record<string, unknown>[]).map((r) => ({
+    deviceEui: r.device_eui as string,
+    message: r.message as string,
+    lastSeen: r.last_seen as Date,
+    count: Number(r.n),
+  }));
+};
+
 //====================================
 // PUBLIC API
 //====================================
@@ -81,4 +108,4 @@ const ingest = async (payload: TtnDecodedPayload, deviceEui: string): Promise<Mu
   return store(validated.data);
 };
 
-export const logEntries = { validate, store, ingest, list };
+export const logEntries = { validate, store, ingest, list, status };

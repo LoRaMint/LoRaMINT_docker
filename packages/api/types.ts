@@ -35,6 +35,26 @@ export type LogEntry = {
   createdAt: Date;
 };
 
+/** One row of the status board: the latest measurement per device + sensor. */
+export type SensorStatus = {
+  deviceEui: string;
+  sensor: string;
+  location: string;
+  measurand: string;
+  unit: string;
+  value: string;
+  lastSeen: Date;
+  count: number;
+};
+
+/** One row of the log status board: the latest log entry per device. */
+export type LogStatus = {
+  deviceEui: string;
+  message: string;
+  lastSeen: Date;
+  count: number;
+};
+
 //====================================
 // ZOD SCHEMAS
 //====================================
@@ -123,6 +143,23 @@ export type MeasurementFilter = z.infer<typeof MeasurementFilterSchema>;
 export const MeasurementListQuerySchema = PaginationQuerySchema.merge(
   MeasurementFilterSchema,
 );
+
+/**
+ * Query schema for `GET /measurements/metadata`: only `device_eui` narrows the
+ * result (e.g. to list the sensors/measurands of a single device); all other
+ * filters are irrelevant for distinct-value listings.
+ */
+export const MeasurementMetadataQuerySchema = MeasurementFilterSchema.pick({
+  device_eui: true,
+});
+
+/** Response schema for `GET /measurements/metadata`: distinct values for dropdowns. */
+export const MeasurementMetadataSchema = z.object({
+  devices: z.array(z.string()),
+  measurands: z.array(z.string()),
+  sensors: z.array(z.string()),
+  locations: z.array(z.string()),
+});
 
 //====================================
 // VALIDATED INPUT TYPES

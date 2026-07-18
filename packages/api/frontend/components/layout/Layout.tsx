@@ -19,6 +19,24 @@ export default function Layout(props: { children: JSX.Element }) {
             Home
           </a>
           <a
+            href="/plots"
+            class="tab tab-lifted [--tab-border-color:theme(colors.base-300)] text-base-content/80 hover:text-base-content hover:[--tab-border-color:theme(colors.primary)]"
+          >
+            Plots
+          </a>
+          <a
+            href="/export"
+            class="tab tab-lifted [--tab-border-color:theme(colors.base-300)] text-base-content/80 hover:text-base-content hover:[--tab-border-color:theme(colors.primary)]"
+          >
+            Export
+          </a>
+          <a
+            href="/status"
+            class="tab tab-lifted [--tab-border-color:theme(colors.base-300)] text-base-content/80 hover:text-base-content hover:[--tab-border-color:theme(colors.primary)]"
+          >
+            Status
+          </a>
+          <a
             href="/api/v1/docs"
             class="tab tab-lifted [--tab-border-color:theme(colors.base-300)] text-base-content/80 hover:text-base-content hover:[--tab-border-color:theme(colors.primary)]"
           >

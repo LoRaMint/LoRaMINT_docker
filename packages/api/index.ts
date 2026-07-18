@@ -25,6 +25,8 @@ import {
   PaginationQuerySchema,
   MeasurementListQuerySchema,
   MeasurementFilterSchema,
+  MeasurementMetadataQuerySchema,
+  MeasurementMetadataSchema,
 } from "./types";
 
 const app = new Hono();
@@ -165,6 +167,27 @@ app.get(
     c.header("Content-Type", "text/csv");
     c.header("Content-Disposition", "attachment; filename=measurements.csv");
     return c.body(stream);
+  },
+);
+
+// Measurements - metadata (distinct filter values for dropdowns)
+app.get(
+  "/measurements/metadata",
+  describeRoute({
+    tags: ["Measurements"],
+    summary: "List available filter values",
+    description:
+      "Returns the distinct device_euis, measurands, sensors, and locations present in the " +
+      "stored measurements, for populating the filter dropdowns on the /plots page. " +
+      "Optionally narrowed to a single device_eui for cascading dropdowns.",
+    responses: {
+      200: jsonResponse(MeasurementMetadataSchema, "Distinct filter values"),
+    },
+  }),
+  v("query", MeasurementMetadataQuerySchema),
+  async (c) => {
+    const filter = c.req.valid("query");
+    return c.json(await measurements.metadata(filter));
   },
 );
 

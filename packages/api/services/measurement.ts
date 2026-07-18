@@ -5,6 +5,7 @@ import type {
   Measurement,
   MeasurementFilter,
   MutationResult,
+  SensorStatus,
   TimeMethod,
   TtnDecodedPayload,
   ValidatedMeasurement,
@@ -183,6 +184,65 @@ const filterClause = (filter: MeasurementFilter) => {
   `;
 };
 
+/**
+ * Distinct values present in the measurements table, for populating the
+ * filter dropdowns on the /plots page. An optional `device_eui` filter narrows
+ * the measurands/sensors/locations to those of a single device (cascading
+ * dropdowns); all other filter fields are ignored via `filterClause`'s
+ * null-tautology clauses.
+ */
+const metadata = async (filter: MeasurementFilter = {}) => {
+  const where = filterClause({ device_eui: filter.device_eui });
+  const [devices, measurands, sensors, locations] = await Promise.all([
+    sql`SELECT DISTINCT device_eui AS v FROM measurements ${where} ORDER BY v`,
+    sql`SELECT DISTINCT measurand  AS v FROM measurements ${where} ORDER BY v`,
+    sql`SELECT DISTINCT sensor     AS v FROM measurements ${where} ORDER BY v`,
+    sql`SELECT DISTINCT location   AS v FROM measurements ${where} ORDER BY v`,
+  ]);
+  const values = (rows: Record<string, unknown>[]) =>
+    rows.map((r) => r.v as string).filter((v) => v != null);
+  return {
+    devices: values(devices),
+    measurands: values(measurands),
+    sensors: values(sensors),
+    locations: values(locations),
+  };
+};
+
+/**
+ * Status board data: the latest measurement per (device_eui, sensor), together
+ * with how many measurements that pair has sent, ordered by most recent
+ * activity first. Uses window functions so the newest row and the count come
+ * from a single scan.
+ */
+const status = async (): Promise<SensorStatus[]> => {
+  const rows = await sql`
+    SELECT device_eui, sensor, location, measurand, unit, value, last_seen, n
+    FROM (
+      SELECT device_eui, sensor, location, measurand, unit, value,
+             COALESCE(recorded_at, created_at) AS last_seen,
+             count(*) OVER (PARTITION BY device_eui, sensor) AS n,
+             row_number() OVER (
+               PARTITION BY device_eui, sensor
+               ORDER BY COALESCE(recorded_at, created_at) DESC
+             ) AS rn
+      FROM measurements
+    ) t
+    WHERE rn = 1
+    ORDER BY last_seen DESC
+  `;
+  return (rows as Record<string, unknown>[]).map((r) => ({
+    deviceEui: r.device_eui as string,
+    sensor: r.sensor as string,
+    location: r.location as string,
+    measurand: r.measurand as string,
+    unit: r.unit as string,
+    value: r.value as string,
+    lastSeen: r.last_seen as Date,
+    count: Number(r.n),
+  }));
+};
+
 const list = async (pagination: PaginationParams, filter: MeasurementFilter = {}) => {
   const where = filterClause(filter);
   const rows = await sql`
@@ -254,4 +314,4 @@ const exportCsvStream = (filter: MeasurementFilter = {}) => {
   });
 };
 
-export const measurements = { validate, store, ingest, list, exportCsvStream, filterClause };
+export const measurements = { validate, store, ingest, list, metadata, status, exportCsvStream, filterClause };
