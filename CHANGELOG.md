@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-07-18
+
 ### Added
 - Interactive `/export` page: pick a device, measurand, sensor, location,
   datatype and a time range, see how many measurements match, and download the
@@ -91,7 +93,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Releases up to and including [0.1.8] (2026-05-12) predate this changelog.
 
-[Unreleased]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v0.1.9...v1.0.0
 [0.1.9]: https://github.com/LoRaMint/LoRaMINT_docker/releases/tag/v0.1.9
