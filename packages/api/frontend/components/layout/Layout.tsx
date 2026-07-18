@@ -5,7 +5,7 @@ export default function Layout(props: { children: JSX.Element }) {
   return (
     <div class="min-h-screen flex flex-col">
       {/* Header */}
-      <header class="navbar bg-base-200 px-4">
+      <header class="navbar bg-base-300 px-4">
         <div class="flex-1">
           <a href="/">
             <img src="/public/logo_loramint.svg" alt="LoRaMINT" class="h-14" />
@@ -18,24 +18,34 @@ export default function Layout(props: { children: JSX.Element }) {
           >
             Home
           </a>
-          <a
-            href="/plots"
-            class="tab tab-lifted [--tab-border-color:theme(colors.base-300)] text-base-content/80 hover:text-base-content hover:[--tab-border-color:theme(colors.primary)]"
-          >
-            Plots
-          </a>
-          <a
-            href="/export"
-            class="tab tab-lifted [--tab-border-color:theme(colors.base-300)] text-base-content/80 hover:text-base-content hover:[--tab-border-color:theme(colors.primary)]"
-          >
-            Export
-          </a>
-          <a
-            href="/status"
-            class="tab tab-lifted [--tab-border-color:theme(colors.base-300)] text-base-content/80 hover:text-base-content hover:[--tab-border-color:theme(colors.primary)]"
-          >
-            Status
-          </a>
+          <details class="dropdown dropdown-end group">
+            <summary class="tab tab-lifted list-none cursor-pointer gap-1 marker:content-none [&::-webkit-details-marker]:hidden [--tab-border-color:theme(colors.base-300)] text-base-content/80 hover:text-base-content hover:[--tab-border-color:theme(colors.primary)]">
+              Daten
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="h-3 w-3 transition-transform duration-200 group-open:rotate-180"
+              >
+                <path d="m6 9 6 6 6-6" />
+              </svg>
+            </summary>
+            <ul class="menu dropdown-content z-10 mt-2 w-44 gap-1 rounded-box bg-primary text-primary-content p-2 shadow-lg">
+              <li>
+                <a href="/plots" class="hover:bg-primary-content/15">Plots</a>
+              </li>
+              <li>
+                <a href="/export" class="hover:bg-primary-content/15">Export</a>
+              </li>
+              <li>
+                <a href="/status" class="hover:bg-primary-content/15">Status</a>
+              </li>
+            </ul>
+          </details>
           <a
             href="/api/v1/docs"
             class="tab tab-lifted [--tab-border-color:theme(colors.base-300)] text-base-content/80 hover:text-base-content hover:[--tab-border-color:theme(colors.primary)]"

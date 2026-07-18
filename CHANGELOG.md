@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-07-18
+
+### Added
+- Site favicon: a LoRaMINT icon served as SVG with a 32×32 PNG fallback for
+  browsers without SVG-favicon support.
+
+### Changed
+- Header navigation groups the `/plots`, `/export` and `/status` pages under a
+  single "Daten" dropdown (a no-JS `<details>` menu) instead of separate tabs,
+  with a chevron indicator and a high-contrast, brand-coloured panel.
+- Header bar uses a slightly stronger background (`base-300`) for better
+  contrast against the page content.
+
 ## [1.2.0] - 2026-07-18
 
 ### Added
@@ -93,7 +106,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Releases up to and including [0.1.8] (2026-05-12) predate this changelog.
 
-[Unreleased]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.3.0...HEAD
+[1.3.0]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v0.1.9...v1.0.0
