@@ -34,6 +34,7 @@ coverage
 
 # Claude
 .claude
+context.md
 
 # Generated assets
 **/public/global.css
