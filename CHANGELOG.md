@@ -25,7 +25,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   charts, and export the chart as PNG (1–5× resolution factor) or SVG.
 - `GET /measurements/metadata` returns the distinct `device_eui`s, measurands,
   sensors and locations present in the data (optionally narrowed by `device_eui`
-  for cascading dropdowns), used to populate the `/plots` filters.
+  for cascading dropdowns), used to populate the `/plots` and `/export` filters.
+
+## [1.1.0] - 2026-07-12
+
+### Added
 - `GET /measurements` and `GET /measurements/export` now accept optional query
   filters (`device_eui`, `measurand`, `sensor`, `location`, `datatype`,
   `from`/`to`) to narrow down results server-side, in preparation for the
@@ -87,6 +91,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Releases up to and including [0.1.8] (2026-05-12) predate this changelog.
 
-[Unreleased]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v0.1.9...v1.0.0
 [0.1.9]: https://github.com/LoRaMint/LoRaMINT_docker/releases/tag/v0.1.9
