@@ -13,7 +13,7 @@ jobs:
       run:
         working-directory: packages/api
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4.2.0
 
       - uses: oven-sh/setup-bun@v2
         with:
