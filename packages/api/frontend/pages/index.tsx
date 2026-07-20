@@ -6,6 +6,7 @@ import HomePage from "./home/page";
 import PlotsPage from "./plots/page";
 import ExportPage from "./export/page";
 import StatusPage from "./status/page";
+import Esp32GuidePage from "./guides/esp32/page";
 import ImpressumPage from "./impressum/page";
 import DatenschutzPage from "./datenschutz/page";
 
@@ -44,6 +45,14 @@ pages.get(
       logEntries.status(),
     ]);
     return <StatusPage sensors={sensors} logs={logs} />;
+  }),
+);
+
+pages.get(
+  "/guides/esp32",
+  ...ssr((c) => {
+    c.get("page").title = "Anleitung: ESP32 mit Thonny";
+    return <Esp32GuidePage />;
   }),
 );
 

@@ -1,6 +1,46 @@
 import type { JSX } from "solid-js";
 import { legal } from "../../../config";
 
+const tabClass =
+  "tab tab-lifted [--tab-border-color:theme(colors.base-300)] text-base-content/80 hover:text-base-content hover:[--tab-border-color:theme(colors.primary)]";
+
+/** A no-JS nav dropdown (daisyUI `<details>` menu) with a chevron indicator. */
+function NavDropdown(props: { label: string; children: JSX.Element }) {
+  return (
+    <details class="dropdown dropdown-end group">
+      <summary class={`${tabClass} list-none cursor-pointer gap-1 marker:content-none [&::-webkit-details-marker]:hidden`}>
+        {props.label}
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          class="h-3 w-3 transition-transform duration-200 group-open:rotate-180"
+        >
+          <path d="m6 9 6 6 6-6" />
+        </svg>
+      </summary>
+      <ul class="menu dropdown-content z-10 mt-2 w-44 gap-1 rounded-box bg-primary text-primary-content p-2 shadow-lg">
+        {props.children}
+      </ul>
+    </details>
+  );
+}
+
+/** A single entry inside a NavDropdown. */
+function NavItem(props: { href: string; children: JSX.Element }) {
+  return (
+    <li>
+      <a href={props.href} class="hover:bg-primary-content/15">
+        {props.children}
+      </a>
+    </li>
+  );
+}
+
 export default function Layout(props: { children: JSX.Element }) {
   return (
     <div class="min-h-screen flex flex-col">
@@ -12,52 +52,28 @@ export default function Layout(props: { children: JSX.Element }) {
           </a>
         </div>
         <nav class="tabs tabs-bordered">
-          <a
-            href="/"
-            class="tab tab-lifted [--tab-border-color:theme(colors.base-300)] text-base-content/80 hover:text-base-content hover:[--tab-border-color:theme(colors.primary)]"
-          >
-            Home
-          </a>
-          <details class="dropdown dropdown-end group">
-            <summary class="tab tab-lifted list-none cursor-pointer gap-1 marker:content-none [&::-webkit-details-marker]:hidden [--tab-border-color:theme(colors.base-300)] text-base-content/80 hover:text-base-content hover:[--tab-border-color:theme(colors.primary)]">
-              Daten
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2.5"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                class="h-3 w-3 transition-transform duration-200 group-open:rotate-180"
-              >
-                <path d="m6 9 6 6 6-6" />
-              </svg>
-            </summary>
-            <ul class="menu dropdown-content z-10 mt-2 w-44 gap-1 rounded-box bg-primary text-primary-content p-2 shadow-lg">
-              <li>
-                <a href="/plots" class="hover:bg-primary-content/15">Plots</a>
-              </li>
-              <li>
-                <a href="/export" class="hover:bg-primary-content/15">Export</a>
-              </li>
-              <li>
-                <a href="/status" class="hover:bg-primary-content/15">Status</a>
-              </li>
-            </ul>
-          </details>
-          <a
-            href="/api/v1/docs"
-            class="tab tab-lifted [--tab-border-color:theme(colors.base-300)] text-base-content/80 hover:text-base-content hover:[--tab-border-color:theme(colors.primary)]"
-          >
-            API Docs
-          </a>
-          <a
-            href="https://github.com/LoRaMint/LoRaMINT_docker"
-            class="tab tab-lifted [--tab-border-color:theme(colors.base-300)] text-base-content/80 hover:text-base-content hover:[--tab-border-color:theme(colors.primary)]"
-          >
-            GitHub
-          </a>
+          <NavDropdown label="Daten">
+            <NavItem href="/plots">Plots</NavItem>
+            <NavItem href="/export">Export</NavItem>
+            <NavItem href="/status">Status</NavItem>
+          </NavDropdown>
+          <NavDropdown label="HowTo">
+            <NavItem href="/guides/esp32">ESP32</NavItem>
+          </NavDropdown>
+          <NavDropdown label="Code">
+            <NavItem href="/api/v1/docs">API Docs</NavItem>
+            <NavItem href="https://github.com/LoRaMint/LoRaMINT_docker">
+              GitHub
+            </NavItem>
+          </NavDropdown>
+          {(legal.impressum || legal.datenschutz) && (
+            <NavDropdown label="Kontakt">
+              {legal.impressum && <NavItem href="/impressum">Impressum</NavItem>}
+              {legal.datenschutz && (
+                <NavItem href="/datenschutz">Datenschutz</NavItem>
+              )}
+            </NavDropdown>
+          )}
         </nav>
       </header>
 
@@ -85,6 +101,27 @@ export default function Layout(props: { children: JSX.Element }) {
         )}
         <img src="/public/logo_loramint.svg" alt="LoRaMINT" class="h-10" />
       </footer>
+
+      {/* Keep the nav dropdowns mutually exclusive so their panels never
+          overlap, and close them on outside click / Escape. */}
+      <script>{`
+        (function () {
+          var menus = Array.prototype.slice.call(
+            document.querySelectorAll("header details.dropdown")
+          );
+          menus.forEach(function (d) {
+            d.addEventListener("toggle", function () {
+              if (d.open) menus.forEach(function (o) { if (o !== d) o.open = false; });
+            });
+          });
+          document.addEventListener("click", function (e) {
+            menus.forEach(function (d) { if (!d.contains(e.target)) d.open = false; });
+          });
+          document.addEventListener("keydown", function (e) {
+            if (e.key === "Escape") menus.forEach(function (d) { d.open = false; });
+          });
+        })();
+      `}</script>
     </div>
   );
 }

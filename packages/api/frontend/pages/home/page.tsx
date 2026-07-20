@@ -19,63 +19,6 @@ export default function HomePage() {
         </p>
       </div>
 
-      {/* Services */}
-      <h2 class="text-xl font-bold border-b border-base-300 pb-2 mb-4 mt-12">
-        Services
-      </h2>
-      <ul class="divide-y divide-base-300">
-        <li class="flex items-center gap-4 py-3">
-          <span class="text-xl">📖</span>
-          <a
-            href="/api/v1/docs"
-            class="font-semibold text-primary hover:underline min-w-32"
-          >
-            API Docs
-          </a>
-          <span>Interaktive Dokumentation der REST-API zum Ausprobieren.</span>
-        </li>
-        <li class="flex items-center gap-4 py-3">
-          <span class="text-xl">📈</span>
-          <a
-            href="/plots"
-            class="font-semibold text-primary hover:underline min-w-32"
-          >
-            Plots
-          </a>
-          <span>Messreihen interaktiv als Diagramm darstellen und exportieren.</span>
-        </li>
-        <li class="flex items-center gap-4 py-3">
-          <span class="text-xl">🩺</span>
-          <a
-            href="/status"
-            class="font-semibold text-primary hover:underline min-w-32"
-          >
-            Status
-          </a>
-          <span>Letzte Messwerte und Logs je Gerät auf einen Blick.</span>
-        </li>
-        <li class="flex items-center gap-4 py-3">
-          <span class="text-xl">📊</span>
-          <a
-            href="/export"
-            class="font-semibold text-primary hover:underline min-w-32"
-          >
-            CSV-Export
-          </a>
-          <span>Messdaten gefiltert als Tabelle herunterladen.</span>
-        </li>
-        <li class="flex items-center gap-4 py-3">
-          <span class="text-xl">💻</span>
-          <a
-            href="https://github.com/LoRaMint/LoRaMINT_docker"
-            class="font-semibold text-primary hover:underline min-w-32"
-          >
-            GitHub
-          </a>
-          <span>Quellcode, Issues und Dokumentation.</span>
-        </li>
-      </ul>
-
       {/* Wie funktioniert es? */}
       <h2 class="text-xl font-bold border-b border-base-300 pb-2 mb-4 mt-12">
         Wie funktioniert es?
@@ -152,6 +95,7 @@ export default function HomePage() {
           </details>
         </div>
       </div>
+
     </Layout>
   );
 }

@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-07-20
+
+### Added
+- Guides section behind a new "HowTo" nav dropdown, starting with
+  `/guides/esp32`: a beginner-friendly ESP32 + Thonny getting-started guide
+  rendered from the `packages/esp32` how-to, with copy-to-clipboard code blocks,
+  click-to-zoom images, an accordion for troubleshooting, and downloadable
+  example code plus the `loramint` library as a ZIP. Structured so further
+  guides (Arduino, …) can be added as more dropdown entries.
+
+### Changed
+- Header navigation reorganised into topic dropdowns: "Daten"
+  (Plots/Export/Status), "HowTo" (guides), "Code" (API Docs, GitHub) and
+  "Kontakt" (Impressum, Datenschutz, when enabled). The dropdowns close each
+  other on open and close on outside click / Escape so their panels never
+  overlap. The redundant "Home" tab was dropped (the logo already links home).
+- Home page no longer lists the data/service links directly; they now live in
+  the header navigation.
+
 ## [1.3.0] - 2026-07-18
 
 ### Added
@@ -106,7 +125,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Releases up to and including [0.1.8] (2026-05-12) predate this changelog.
 
-[Unreleased]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.3.0...HEAD
+[Unreleased]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.4.0...HEAD
+[1.4.0]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.0.0...v1.1.0

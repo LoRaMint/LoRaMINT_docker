@@ -4,6 +4,7 @@
 const islands = [
   { entry: "frontend/pages/plots/client.ts", name: "plots" },
   { entry: "frontend/pages/export/client.ts", name: "export" },
+  { entry: "frontend/pages/guides/esp32/client.ts", name: "guide-esp32" },
 ];
 
 for (const { entry, name } of islands) {
