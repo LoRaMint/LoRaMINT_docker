@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- ESP32 example `send_temperature_ds18b20.py`: reads a DS18B20 over 1-Wire using
+  MicroPython's built-in `onewire`/`ds18x20` modules (no extra driver needed).
+
 ## [1.4.0] - 2026-07-20
 
 ### Added

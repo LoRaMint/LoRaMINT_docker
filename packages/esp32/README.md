@@ -23,6 +23,7 @@ examples/                Example programs
   send_temperature.py      read a BME280 and send the temperature
   send_humidity.py         read a BME280 and send the humidity
   send_pressure.py         read a BME280 and send the air pressure
+  send_temperature_ds18b20.py  read a DS18B20 (1-Wire) and send the temperature
 package.json             mip manifest (used for installation, see below)
 ```
 
