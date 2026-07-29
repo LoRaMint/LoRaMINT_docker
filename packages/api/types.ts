@@ -77,7 +77,11 @@ export const TtnPayloadSchema = z.object({
     dev_eui: z.string(),
   }),
   uplink_message: z.object({
-    decoded_payload: TtnDecodedPayloadSchema,
+    // Optional: TTN also forwards uplinks that carry no application payload at
+    // all (empty MAC-only frames, ADR answers) or that the payload formatter
+    // could not decode. Those have no decoded_payload and are acknowledged and
+    // ignored rather than rejected - see the /webhook handler.
+    decoded_payload: TtnDecodedPayloadSchema.optional(),
   }),
 });
 

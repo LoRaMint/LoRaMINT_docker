@@ -3,7 +3,7 @@ MintValue - describes a single measurement value and encodes it according to the
 LoRaMINT message protocol (version 1). MicroPython port of the Arduino MintValue
 class.
 
-Wire format of an encoded value (always padded to 99 bytes):
+Wire format of an encoded value (variable length, at most 99 bytes):
 
     byte 0        _option[0] = 0x06  (protocol v1 + "measured value")
     byte 1        _option[1] = (datatype << 2) | timeflag
@@ -11,7 +11,13 @@ Wire format of an encoded value (always padded to 99 bytes):
     0x1E          record separator
     unit  0x1E  measurand  0x1E  location  0x1E  sensor  0x1E
     [4 bytes]     Unix time, big-endian (only if a custom time is given)
-    0x00 ...      zero padding up to 99 bytes
+
+The payload is not padded: every byte costs airtime, and in EU868 the maximum
+application payload is only 51 bytes at DR0-DR2 (SF12-SF10). A padded 99-byte
+message cannot be transmitted at all on a weak link - the module drops the
+payload and sends an empty frame. The TTN uplink formatter parses the fields by
+their 0x1E separators and never depended on the padding (see
+packages/ttn/uplink-formatter.js).
 
 Note the field order on the wire is unit, measurand, location, sensor - the
 constructor takes them in the Arduino order (unit, location, measurand, sensor)
@@ -107,7 +113,6 @@ class MintValue:
             raise ValueError(
                 "encoded message exceeds {} bytes".format(self.MAX_MESSAGE_SIZE)
             )
-        buffer += bytes(self.MAX_MESSAGE_SIZE - len(buffer))  # zero padding
         return bytes(buffer)
 
     def to_byte_string(self):

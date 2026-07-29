@@ -10,6 +10,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - ESP32 example `send_temperature_ds18b20.py`: reads a DS18B20 over 1-Wire using
   MicroPython's built-in `onewire`/`ds18x20` modules (no extra driver needed).
+- `packages/ttn/uplink-formatter.js`: the TTN uplink payload formatter is now
+  version-controlled alongside the encoders it mirrors, with a README covering
+  installation, the wire format and its known rough edges. It previously existed
+  only inside the TTN Console.
+
+### Fixed
+- ESP32: measurement uplinks are no longer zero-padded to a fixed 99 bytes. In
+  EU868 the maximum application payload is 51 bytes at DR0–DR2 (SF12–SF10), so a
+  padded message could not be transmitted on a weak link at all — the LA66
+  acknowledged the `AT+SENDB` command but sent an empty frame, and no
+  measurement ever arrived. A typical value now encodes to 31–39 bytes and fits
+  every data rate. `sendValue()` also sends the real payload length instead of
+  the hardcoded maximum, matching what `sendLog()` already did. The TTN formatter
+  locates every field by its `0x1E` separator and decodes padded and unpadded
+  payloads identically, so this is backwards compatible with the Arduino senders.
+- The `loramint.zip` offered for download on `/guides/esp32` shipped a stale copy
+  of the library and would have handed out the unsendable padded version; it is
+  rebuilt from the current sources.
+- Webhook: uplinks without a `decoded_payload` are acknowledged with
+  `200 {ok: true, ignored: true}` instead of being rejected with `400`. Empty
+  MAC-only frames (for example ADR answers) are normal LoRaWAN traffic; failing
+  them made TTN log delivery errors and risked it disabling the webhook, which
+  would have taken the working devices down with it.
 
 ## [1.4.0] - 2026-07-20
 

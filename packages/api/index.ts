@@ -47,6 +47,7 @@ app.onError((err, c) => {
 const WebhookResponseSchema = z.object({
   ok: z.boolean(),
   id: z.string().uuid().optional(),
+  ignored: z.boolean().optional(),
   error: z.string().optional(),
 });
 
@@ -74,9 +75,11 @@ app.post(
     tags: ["Webhook"],
     summary: "Receive TTN webhook",
     description:
-      "Receives uplink messages from The Things Network and stores measurements or log entries.",
+      "Receives uplink messages from The Things Network and stores measurements or log entries. " +
+      "Uplinks without a decoded payload (empty MAC-only frames, undecodable payloads) are " +
+      "acknowledged with `ignored: true` instead of being rejected.",
     responses: {
-      200: jsonResponse(WebhookResponseSchema, "Successfully stored"),
+      200: jsonResponse(WebhookResponseSchema, "Stored, or acknowledged and ignored"),
       400: jsonResponse(WebhookResponseSchema, "Validation error"),
       401: jsonResponse(WebhookResponseSchema, "Unauthorized"),
     },
@@ -91,6 +94,15 @@ app.post(
     const body = c.req.valid("json");
     const deviceEui = body.end_device_ids.dev_eui;
     const payload = body.uplink_message.decoded_payload;
+
+    // Not every uplink carries application data: empty MAC-only frames (ADR
+    // answers) and payloads the formatter could not decode arrive without a
+    // decoded_payload. Acknowledge them so TTN does not count them as delivery
+    // failures and eventually disable the webhook.
+    if (!payload) {
+      return c.json({ ok: true, ignored: true });
+    }
+
     const messageType = payload.messagetyp;
 
     if (messageType === "Messwert") {

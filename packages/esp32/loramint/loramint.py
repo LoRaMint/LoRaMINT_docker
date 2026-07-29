@@ -20,8 +20,6 @@ import time
 import ubinascii
 from machine import UART
 
-from .mintvalue import MintValue
-
 
 class LoRaMINT:
     # LoRaMINT protocol constants (must match the TTN payload formatter / server)
@@ -104,11 +102,17 @@ class LoRaMINT:
         """
         Send a measurement value ("Messwert") to the LoRaMINT backend.
 
-        `value` is a MintValue instance. Its 99-byte payload is hex-encoded and
-        sent via AT+SENDB. Returns True if the LA66 acknowledged with "OK".
+        `value` is a MintValue instance. Its payload is hex-encoded and sent via
+        AT+SENDB. Returns True if the LA66 acknowledged with "OK".
+
+        Note that "OK" only means the LA66 accepted the command, not that the
+        frame went out: if the payload exceeds what the current data rate allows
+        (51 bytes at DR0-DR2), the module transmits an empty frame instead.
         """
+        payload = value.to_bytes()
+        hex_payload = ubinascii.hexlify(payload).decode().upper()
         command = "AT+SENDB={},{},{},{}".format(
-            self.CONFIRM, self.FPORT, MintValue.MAX_MESSAGE_SIZE, value.to_byte_string()
+            self.CONFIRM, self.FPORT, len(payload), hex_payload
         )
         self._drain()
         self._send_at(command)
