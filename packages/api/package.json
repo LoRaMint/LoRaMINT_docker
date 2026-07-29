@@ -8,6 +8,7 @@
     "build": "bun scripts/build-css.ts && bun scripts/build-islands.ts",
     "build-css": "bun scripts/build-css.ts",
     "build-islands": "bun scripts/build-islands.ts",
+    "sync-guide-assets": "bun scripts/sync-guide-assets.ts",
     "migrate": "bun --sql-preconnect migrate.ts",
     "test": "bun test",
     "typecheck": "tsc --noEmit"

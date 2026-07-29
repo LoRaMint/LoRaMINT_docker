@@ -27,3 +27,10 @@ jobs:
 
       - name: Tests
         run: bun test
+
+      # The guide assets under public/guides/esp32 are committed copies of files
+      # in packages/esp32 (the API image cannot reach that package at build
+      # time). Regenerate them and fail if the result differs from what is
+      # committed, so the copies cannot silently go stale.
+      - name: Guide assets in sync
+        run: bun run sync-guide-assets && git diff --exit-code

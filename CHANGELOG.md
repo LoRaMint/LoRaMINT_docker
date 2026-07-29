@@ -10,6 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - ESP32 example `send_temperature_ds18b20.py`: reads a DS18B20 over 1-Wire using
   MicroPython's built-in `onewire`/`ds18x20` modules (no extra driver needed).
+- `bun run sync-guide-assets` regenerates the guide assets under
+  `public/guides/esp32` (images, example programs and the `loramint.zip`) from
+  `packages/esp32`, which the API image cannot reach at build time. CI runs it
+  and fails on any difference, so the committed copies can no longer go stale
+  the way `loramint.zip` did. The archive is written with fixed timestamps and
+  stored entries to keep that check byte-exact.
 - `packages/ttn/uplink-formatter.js`: the TTN uplink payload formatter is now
   version-controlled alongside the encoders it mirrors, with a README covering
   installation, the wire format and its known rough edges. It previously existed
