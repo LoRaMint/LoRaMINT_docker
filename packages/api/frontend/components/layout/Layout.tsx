@@ -1,5 +1,6 @@
 import type { JSX } from "solid-js";
-import { legal } from "../../../config";
+import { legal, auth, sqlConsole } from "../../../config";
+import { currentUser, hasRole } from "../../../lib";
 
 const tabClass =
   "tab tab-lifted [--tab-border-color:theme(colors.base-300)] text-base-content/80 hover:text-base-content hover:[--tab-border-color:theme(colors.primary)]";
@@ -41,40 +42,198 @@ function NavItem(props: { href: string; children: JSX.Element }) {
   );
 }
 
+/** Person icon used by both the login button and the signed-in indicator. */
+function UserIcon() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      class="h-4 w-4"
+    >
+      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+      <circle cx="12" cy="7" r="4" />
+    </svg>
+  );
+}
+
+/**
+ * Sign-in control at the right-hand end of the header: the login button when
+ * anonymous, the display name plus a sign-out button when signed in. Reads the
+ * user from the request context, so no page has to pass it down.
+ */
+function AuthControl() {
+  const user = currentUser();
+
+  if (!user) {
+    return (
+      <a href="/login" class="btn btn-primary btn-sm ml-4 gap-1.5">
+        <UserIcon />
+        Login
+      </a>
+    );
+  }
+
+  return (
+    <div class="flex items-center gap-2 ml-4">
+      {/* The name is the way to the profile - there is no other entry point. */}
+      <a
+        href="/profile"
+        class="flex items-center gap-1.5 text-sm text-base-content/80 hover:text-base-content"
+        title="Profil anzeigen"
+      >
+        <UserIcon />
+        {user.displayName}
+      </a>
+      {/* POST so a cross-site link cannot sign the user out. */}
+      <form method="post" action="/logout">
+        <button type="submit" class="btn btn-ghost btn-sm">
+          Abmelden
+        </button>
+      </form>
+    </div>
+  );
+}
+
 export default function Layout(props: { children: JSX.Element }) {
+  const user = currentUser();
+  const dataUser = hasRole(user, "data", auth);
+  const managementUser = hasRole(user, "management", auth);
+
+  /**
+   * The navigation as data, so the wide and the narrow header render the same
+   * thing. Duplicating the markup would mean every future entry has to be added
+   * twice, and the one that gets forgotten is always the one nobody tests.
+   *
+   * The menu only decides what is worth showing; every route checks the role
+   * again for itself.
+   */
+  const sections: { label: string; items: { href: string; label: string }[] }[] = [
+    {
+      label: "Daten",
+      items: [
+        { href: "/plots", label: "Plots" },
+        { href: "/export", label: "Export" },
+        { href: "/status", label: "Status" },
+        ...(sqlConsole.enabled && dataUser ? [{ href: "/sql", label: "SQL" }] : []),
+      ],
+    },
+    ...(managementUser
+      ? [
+          {
+            label: "Verwaltung",
+            items: [
+              { href: "/management/data", label: "Daten verwalten" },
+              { href: "/management/devices", label: "Geräte verwalten" },
+              { href: "/management/data/audit", label: "Änderungsprotokoll" },
+            ],
+          },
+        ]
+      : []),
+    { label: "HowTo", items: [{ href: "/guides/esp32", label: "ESP32" }] },
+    {
+      label: "Code",
+      items: [
+        { href: "/api/v1/docs", label: "API Docs" },
+        { href: "https://github.com/LoRaMint/LoRaMINT_docker", label: "GitHub" },
+      ],
+    },
+  ];
+
   return (
     <div class="min-h-screen flex flex-col">
       {/* Header */}
-      <header class="navbar bg-base-300 px-4">
-        <div class="flex-1">
+      <header class="navbar bg-base-300 px-3 sm:px-4 gap-2">
+        <div class="flex-1 min-w-0">
           <a href="/">
-            <img src="/public/logo_loramint.svg" alt="LoRaMINT" class="h-14" />
+            {/* Smaller on a phone, where the header competes with the content. */}
+            <img
+              src="/public/logo_loramint.svg"
+              alt="LoRaMINT"
+              class="h-9 sm:h-14"
+            />
           </a>
         </div>
-        <nav class="tabs tabs-bordered">
-          <NavDropdown label="Daten">
-            <NavItem href="/plots">Plots</NavItem>
-            <NavItem href="/export">Export</NavItem>
-            <NavItem href="/status">Status</NavItem>
-          </NavDropdown>
-          <NavDropdown label="HowTo">
-            <NavItem href="/guides/esp32">ESP32</NavItem>
-          </NavDropdown>
-          <NavDropdown label="Code">
-            <NavItem href="/api/v1/docs">API Docs</NavItem>
-            <NavItem href="https://github.com/LoRaMint/LoRaMINT_docker">
-              GitHub
-            </NavItem>
-          </NavDropdown>
-          {(legal.impressum || legal.datenschutz) && (
-            <NavDropdown label="Kontakt">
-              {legal.impressum && <NavItem href="/impressum">Impressum</NavItem>}
-              {legal.datenschutz && (
-                <NavItem href="/datenschutz">Datenschutz</NavItem>
-              )}
+
+        {/* Wide screens: one dropdown per section, side by side. */}
+        <nav class="tabs tabs-bordered hidden md:flex">
+          {sections.map((section) => (
+            <NavDropdown label={section.label}>
+              {section.items.map((item) => (
+                <NavItem href={item.href}>{item.label}</NavItem>
+              ))}
             </NavDropdown>
-          )}
+          ))}
         </nav>
+
+        {/* Narrow screens: everything behind one button. Still a <details>, so
+            it needs no JavaScript, and the existing script that closes the other
+            menus picks it up along with them. */}
+        <details class="dropdown dropdown-end group md:hidden">
+          <summary
+            class={`${tabClass} list-none cursor-pointer marker:content-none [&::-webkit-details-marker]:hidden px-2`}
+            aria-label="Menü"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              class="h-6 w-6"
+            >
+              <path d="M4 6h16M4 12h16M4 18h16" class="group-open:hidden" />
+              <path d="M6 6l12 12M18 6L6 18" class="hidden group-open:block" />
+            </svg>
+          </summary>
+          <ul class="menu dropdown-content z-10 mt-2 w-[min(18rem,calc(100vw-1.5rem))] gap-1 rounded-box bg-primary text-primary-content p-2 shadow-lg max-h-[calc(100vh-5rem)] overflow-y-auto">
+            {sections.map((section) => (
+              <>
+                <li class="menu-title text-primary-content/60">{section.label}</li>
+                {section.items.map((item) => (
+                  <NavItem href={item.href}>{item.label}</NavItem>
+                ))}
+              </>
+            ))}
+            {auth.enabled && (
+              <>
+                <li class="menu-title text-primary-content/60">Konto</li>
+                {user ? (
+                  <>
+                    <NavItem href="/profile">{user.displayName}</NavItem>
+                    <li>
+                      {/* POST so a cross-site link cannot sign the user out. */}
+                      <form method="post" action="/logout" class="p-0">
+                        <button
+                          type="submit"
+                          class="w-full text-left px-4 py-2 rounded-lg hover:bg-primary-content/15"
+                        >
+                          Abmelden
+                        </button>
+                      </form>
+                    </li>
+                  </>
+                ) : (
+                  <NavItem href="/login">Login</NavItem>
+                )}
+              </>
+            )}
+          </ul>
+        </details>
+
+        {/* The account control has its own place on wide screens; on a phone it
+            lives in the menu above, where there is room for the name. */}
+        {auth.enabled && (
+          <div class="hidden md:block">
+            <AuthControl />
+          </div>
+        )}
       </header>
 
       {/* Main Content */}

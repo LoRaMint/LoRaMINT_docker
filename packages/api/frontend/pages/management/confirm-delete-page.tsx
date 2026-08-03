@@ -1,0 +1,100 @@
+import Layout from "../../components/layout/Layout";
+import PageHeading from "../../components/manage/PageHeading";
+import DataTable from "../../components/manage/DataTable";
+import { columnsByKey, type ResourceSpec } from "../../components/manage/spec";
+
+/**
+ * What a deletion is about to remove - as rows, not as a number.
+ *
+ * A count alone does not convince anyone that the filter was right; the rows do.
+ * The first twenty are shown and the rest is counted, and the count is repeated
+ * inside the button, so the size of the action is where the click is.
+ *
+ * The form carries everything needed to repeat the request, including the moment
+ * the preview was taken: the confirmation deletes what was shown, not whatever
+ * matches the filter by the time it is clicked.
+ */
+export default function ConfirmDeletePage(props: {
+  spec: ResourceSpec;
+  /** The first rows that would go, for looking at. */
+  preview: Record<string, unknown>[];
+  total: number;
+  /** The view this started from. */
+  view: string;
+  reason: string | null;
+  fields: { name: string; value: string }[];
+  /** Set when the result changed since the preview and nothing was deleted. */
+  changedSince?: { was: number; now: number } | null;
+}) {
+  const rest = props.total - props.preview.length;
+  const columns = columnsByKey(props.spec, props.spec.defaultColumns);
+
+  return (
+    <Layout>
+      <PageHeading
+        title={`${props.spec.title} löschen`}
+        back={{ href: `${props.spec.path}${props.view}`, label: "Zurück zur Tabelle" }}
+      />
+
+      {props.changedSince && (
+        <p role="alert" class="rounded-box border border-error bg-error/10 px-4 py-3 mb-4">
+          Die Trefferzahl hat sich seit der Vorschau geändert ({props.changedSince.was} →{" "}
+          {props.changedSince.now}). Es wurde nichts gelöscht – bitte erneut prüfen.
+        </p>
+      )}
+
+      <div class="rounded-box border border-warning bg-warning/10 px-4 py-3 mb-4">
+        <p>
+          <strong>
+            {props.total} {props.spec.title}
+          </strong>{" "}
+          werden endgültig gelöscht. Gelöscht ist noch nichts.
+        </p>
+        <p class="text-sm mt-1 text-base-content/70">
+          Jede entfernte Zeile wird vollständig im Änderungsprotokoll festgehalten.
+        </p>
+      </div>
+
+      <DataTable
+        columns={columns}
+        rows={props.preview}
+        editing={false}
+        selectable={false}
+        sortable={[]}
+        activeSort=""
+        activeDirection="desc"
+        sortHref={() => "#"}
+        emptyText="Diese Zeilen gibt es nicht mehr."
+      />
+
+      {rest > 0 && (
+        <p class="text-sm text-base-content/60 mt-2">
+          … und {rest} weitere.
+        </p>
+      )}
+
+      {props.reason && (
+        <p class="text-sm text-base-content/70 mt-4">
+          Grund: <span class="italic">{props.reason}</span>
+        </p>
+      )}
+
+      <form
+        method="post"
+        action={`${props.spec.path}/delete`}
+        class="flex flex-wrap gap-3 mt-4"
+      >
+        {props.fields.map((field) => (
+          <input type="hidden" name={field.name} value={field.value} />
+        ))}
+        <input type="hidden" name="confirm" value="1" />
+        <button type="submit" class="btn btn-error">
+          {props.total} {props.spec.title} endgültig löschen
+        </button>
+        <a href={`${props.spec.path}${props.view}`} class="btn btn-ghost">
+          Abbrechen
+        </a>
+      </form>
+    </Layout>
+  );
+}

@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { createMiddleware } from "hono/factory";
 import { logger } from "hono/logger";
 import { serveStatic } from "hono/bun";
 import { routes } from "@valentinkolb/ssr/hono";
@@ -8,7 +9,8 @@ import { describeRoute, generateSpecs } from "hono-openapi";
 import { Scalar } from "@scalar/hono-api-reference";
 import { createMarkdownFromOpenApi } from "@scalar/openapi-to-markdown";
 import { z } from "zod";
-import { config, verifyAppKey } from "./config";
+import { getCookie } from "hono/cookie";
+import { config, auth, verifyAppKey } from "./config";
 import {
   openApiMeta,
   jsonResponse,
@@ -16,6 +18,9 @@ import {
   parsePagination,
   createPagination,
   PaginationResponseSchema,
+  readSession,
+  requestContext,
+  SESSION_COOKIE,
 } from "./lib";
 import { measurements, logEntries } from "./services";
 import {
@@ -32,6 +37,22 @@ import {
 const app = new Hono();
 
 app.use(logger());
+
+/**
+ * The webhook's key check, as middleware so it runs *before* the body validator.
+ *
+ * Order matters here. With the check inside the handler, Zod ran first and an
+ * unauthenticated caller got a 400 naming the fields it had got wrong - enough
+ * to work out the expected payload without ever holding the key, and a parse of
+ * whatever they sent on top. Authorisation belongs in front of anything that
+ * reads the request.
+ */
+const requireAppKey = createMiddleware(async (c, next) => {
+  if (!verifyAppKey(c.req.header("X-Downlink-Apikey"))) {
+    return c.json({ ok: false, error: "Unauthorized" }, 401);
+  }
+  await next();
+});
 
 // Catch any unhandled error in the API routes and return a consistent JSON 500
 // instead of leaking internals (e.g. a database outage in a service call).
@@ -84,13 +105,9 @@ app.post(
       401: jsonResponse(WebhookResponseSchema, "Unauthorized"),
     },
   }),
+  requireAppKey,
   v("json", TtnPayloadSchema),
   async (c) => {
-    const apiKey = c.req.header("X-Downlink-Apikey");
-    if (!verifyAppKey(apiKey)) {
-      return c.json({ ok: false, error: "Unauthorized" }, 401);
-    }
-
     const body = c.req.valid("json");
     const deviceEui = body.end_device_ids.dev_eui;
     const payload = body.uplink_message.decoded_payload;
@@ -253,6 +270,17 @@ app.get(
 //====================================
 
 const root = new Hono();
+
+// Resolve the session once per request and expose it for the whole request tree,
+// so the shared Layout can render the signed-in user. Kept outside the /api/v1
+// routes: the API authenticates with the TTN key, not with a browser cookie.
+root.use(async (c, next) => {
+  const user = auth.enabled
+    ? readSession(getCookie(c, SESSION_COOKIE), auth.session.secret!)
+    : null;
+  return requestContext.run({ user }, next);
+});
+
 root.route("/_ssr", routes(ssrConfig));
 root.use("/public/*", serveStatic({ root: "./" }));
 root.route("/api/v1", app);
