@@ -76,6 +76,11 @@ jobs:
         # The *_REQUIRED flags turn an unreachable service into a failure instead
         # of a silent skip; locally the same tests skip themselves.
         env:
+          # config.ts insists on this one at import time, and the integration
+          # tests reach it through the services. Locally packages/api/.env
+          # supplies it; here nothing does, so the value is a placeholder - no
+          # test authenticates a webhook against it.
+          TTN_APP_KEY: ci-placeholder
           DATABASE_URL: postgres://loramint:loramint@localhost:5432/loramint
           DATABASE_URL_READONLY: postgres://loramint_readonly:readonly@localhost:5432/loramint
           DATABASE_URL_ADMIN: postgres://loramint_admin_sql:adminsql@localhost:5432/loramint
