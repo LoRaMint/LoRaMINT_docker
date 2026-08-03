@@ -5,9 +5,213 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.5.0] - 2026-08-03
 
 ### Added
+- Three levels of access, one containing the next, driven by directory groups named in
+  `LDAP_DATA_GROUP`, `LDAP_MANAGEMENT_GROUP` and `LDAP_ADMIN_GROUP`. Membership
+  is resolved at sign-in from LDAP — either from an attribute such as `memberOf`
+  or by searching the group entries, which also works on an OpenLDAP without the
+  memberof overlay — and travels in the session, so a change in the directory
+  takes effect when the session expires.
+
+  The levels form a ladder, each containing the one below: `data` is read-only
+  access to the SQL page, `management` adds the "Verwaltung" section, `admin`
+  adds the SQL page on a connection that may write. One group per person is
+  therefore enough — an administrator does not also have to be in the other two.
+  An unset `LDAP_DATA_GROUP` means "no restriction configured", so a deployment
+  that never set up groups keeps working as before; unset management or admin
+  groups mean nobody reaches those levels, so editing rights and write access are
+  never granted by accident.
+- Profile page at `/profile`, reached by clicking your own name in the header.
+  It lists everything the application holds about you — login name, display
+  name, the directory groups picked up at sign-in, the access levels those add
+  up to, and when the session expires — and says plainly that this is all of it:
+  there is no user table, only the signed cookie. It is also the place to look
+  when a page is unexpectedly missing, since it shows which groups actually
+  arrived.
+- SQL page at `/sql`, under "Daten": type a statement, get a table back — or,
+  for a statement that changed something, a confirmation of what it did. One page
+  for both roles; which database connection it runs on is decided per request,
+  so there is no second page to keep in step and no way to talk the page into
+  more than the caller may do.
+
+  Read-only is enforced by the database, never by inspecting the query text. The
+  page needs `DATABASE_URL_READONLY`, a role that may only `SELECT` and carries
+  `default_transaction_read_only = on`; without it the page does not exist.
+  Administrators additionally need `DATABASE_URL_ADMIN`, a role that may change
+  data in the application's tables but is no superuser and cannot touch the
+  schema. Neither may be the application's own connection — that one owns the
+  schema and is a superuser in the default Docker setup, where a `READ ONLY`
+  transaction stops writes but not `pg_read_file()`, `pg_authid` or
+  `COPY … TO PROGRAM`, and where a query can simply end the transaction with
+  `COMMIT;`. The server refuses to start if `DATABASE_URL_ADMIN` points at it.
+  Create both roles with `dev_scripts/create-readonly-role.sql` and
+  `create-admin-role.sql`.
+
+  A statement that would delete rows asks first, reporting the exact number: it
+  is really executed and then rolled back, so the count is the true one rather
+  than an estimate from `EXPLAIN`, and nothing is gone until the second click.
+  Because Postgres reports only the last command of a multi-statement request —
+  `DELETE FROM t; SELECT 1` arrives tagged `SELECT` — the writable console takes
+  one statement at a time, recognising semicolons inside strings, identifiers,
+  dollar-quoted bodies and comments as the ordinary characters they are.
+
+  A statement timeout and a row cap applied inside the database keep a careless
+  query from taking the site down with it; both are configurable
+  (`QUERY_TIMEOUT_MS`, `QUERY_MAX_ROWS`, defaults 5000 ms and 200 rows).
+- "Verwaltung" section in the header, for the management role only — everyone
+  else gets a 404 rather than a hint that the page exists.
+  - **Daten verwalten** (`/management/data`): an overview of the managed
+    datasets, leading to the measurement and log entry tables below.
+  - **Geräte verwalten** (`/management/devices`): still an announcement — adding,
+    renaming and removing devices through TTN's REST API.
+- Measurement management at `/management/data/measurements`: finding, correcting
+  and removing measurements — an outlier from a failing sensor, a test reading
+  from the workbench, a series recorded under the wrong location. Until now that
+  meant the SQL console, which only administrators may write with and which
+  records nothing.
+
+  Searching and looking: filters for device, sensor, measurand, location and time
+  range, sortable columns, and a column picker that is part of the filter, since
+  hiding the columns you are not working on is the other half of finding the rows
+  you are. All of it lives in the address, so reloading, the back button and
+  sharing a link work without any client-side state, and every action returns to
+  exactly the view it started from. Paging offers the surrounding page numbers
+  rather than only "back" and "next".
+
+  Changing: a switch turns the table into the form. In read mode the page
+  contains no input fields at all — not disabled ones, not `readonly` ones — so a
+  stray keystroke cannot change anything. In edit mode each editable cell is an
+  input, a row can be saved with its own button, and a ticked selection can be
+  saved together; a selection is shown cell by cell for confirmation first, while
+  a click on one row's own button is unambiguous enough to go through directly.
+  Device, datatype, time method and arrival time stay read-only: that is where a
+  measurement came from, not a correction to it.
+
+  Deleting: the ticked rows, or everything the current filter matched. Both show
+  the affected rows themselves before anything happens — a count alone does not
+  convince anyone that the filter was right — and the count is repeated inside
+  the button.
+
+  Every change needs a reason, and every change is recorded. The reason is
+  required by the service, not merely by the form, so no route can write without
+  one by forgetting to ask.
+- Log entry management at `/management/data/log-entries`, the same page with a
+  different configuration: filters for device, time range and a free-text search
+  through the message, the same column picker, read and edit modes, per-row and
+  bulk saving, and deletion with a preview.
+
+  Only the message itself is correctable — a mis-worded line from a broken
+  sketch, say. Which device sent it and when it arrived stay fixed, the same way
+  a measurement's origin does, and a correction has to satisfy the rule an
+  incoming message does (not empty, at most 200 characters), so it cannot produce
+  a row the webhook could never have written. Every correction is recorded, so a
+  rewritten message can still be traced back to what the device actually sent.
+
+  The three routes behind a dataset — table, save, delete — are written once and
+  registered per dataset, so the two pages cannot drift apart in what they check.
+- Change log in a new `audit_log` table (migration `002`), written in the same
+  transaction as the change it describes: there is no code path that produces one
+  without the other. One entry per affected row rather than per action, so a
+  single measurement's history is retrievable and a deletion is reconstructible
+  from the full snapshot it leaves behind; a `batch_id` ties the rows of one
+  action together. The time is the database's own — `occurred_at` defaults to
+  `now()` and is never part of an insert, so there is no field through which the
+  person making the change could suggest a different moment.
+
+  The log is append-only *for the application*. Management writes go through
+  `DATABASE_URL_MANAGE`, a role holding `SELECT` and `INSERT` on `audit_log` and
+  nothing else, so the pages that write the log cannot rewrite it — the database
+  refuses, not the page. Correcting an entry is possible only through the SQL
+  console as an administrator. Without the variable the management pages still
+  open, but read-only, and say so; a deployment that has not set up the role does
+  not hand out write access by accident. It must not be the application's own
+  connection, and the server refuses to start if it is. Create it with
+  `dev_scripts/create-manage-role.sql`, or let the container do it.
+- Change log pages at `/management/data/audit`, under "Verwaltung" beside the
+  pages whose changes they record: readable by the management role, undoable by
+  administrators.
+
+  The list shows **operations**, one row per action rather than per changed row —
+  deleting four hundred measurements with one click is one thing that happened,
+  and listing it four hundred times would bury the moment someone is looking for.
+  Opening an operation shows the individual changes: field by field for a
+  correction, the complete row for a deletion or a restoration.
+
+  Administrators can **take an operation back**, or single changes within one.
+  That is not the same as removing it: the original entry stays untouched, the
+  opposite operation runs, and it is recorded as a new entry pointing at the one
+  it undid. A correction, its undo and the undo of that undo are three rows and
+  one readable chain — so the way from the first reading to today's value can
+  always be followed. Undoing needs a reason of its own, shows what it will do
+  before it does it, and refuses when a row no longer holds what the entry left
+  behind, rather than overwriting someone else's later work.
+
+  This is what makes the management pages safe to hand to a class: a mistake is
+  correctable by an administrator who does not know SQL, and nothing is lost on
+  the way. The SQL console remains the emergency exit for the case where
+  something has gone badly wrong — and what happens there is deliberately not in
+  the log.
+- `bun run ensure-roles`, also run by the container entrypoint after the
+  migrations, creates and refreshes the restricted database roles from the DSNs
+  that name them (`DATABASE_URL_READONLY`, `_ADMIN`, `_MANAGE`), so a deployment
+  no longer needs a `psql` session on the server. The connection string is the
+  single source of truth for name and password, an unset variable leaves that
+  role untouched, and nothing is ever revoked — the guarantees here rest on
+  privileges never having been granted rather than on a script taking them away.
+- Indexes on `measurements`, which had none: device with measurement time, the
+  measurement time on its own, and sensor — matching the expression the time
+  filter uses — plus the columns the change log is read by.
+- Concurrency is handled rather than hoped for. Every input carries the value it
+  started from, and that value goes into the `WHERE` clause of the update: a row
+  someone else changed in the meantime is reported as such and aborts the whole
+  batch, because half a correction is worse than none. A deletion by filter
+  carries the moment its preview was taken and is bounded by it, so a measurement
+  that arrived through the webhook in the meantime cannot be caught by a deletion
+  that never showed it, and the result is counted again before committing.
+- Convenience through JavaScript, but nothing that depends on it: filtering,
+  sorting, paging, editing, saving and deleting are forms and links. Added on top
+  are the select-all checkbox in the table header (with the partial state), a
+  marker on cells that differ from what they started as, a warning before leaving
+  with unsaved edits, a dialog when the reason is missing, and edits in the other
+  rows surviving a save instead of being lost to the reload.
+- Tests for the management path: unit tests for reading the submitted form — what
+  is dropped, what counts as a change, which button was pressed — and for the
+  view state in the address, including the page-number window. Plus integration
+  tests against a real Postgres for the promises that live in the database: that
+  the management role may append to the change log but that `UPDATE` and `DELETE`
+  on it are refused, that a change and its log entry share one transaction, that
+  a stale starting value writes nothing, and that the entry is timestamped by the
+  database.
+- LDAP login at `/login`, reachable from a "Login" button at the right-hand end
+  of the header, which turns into the signed-in user's name and a sign-out
+  button. Configured entirely through environment variables and opt-in: without
+  `LDAP_URL` the route and the button do not exist and the site is unchanged.
+  Two bind strategies are supported — a direct bind via `LDAP_USER_DN_TEMPLATE`,
+  or a service account that looks the user up first
+  (`LDAP_BIND_DN` + `LDAP_SEARCH_BASE` + `LDAP_SEARCH_FILTER`), which also allows
+  restricting access to a group. All settings are documented in `.env.example`;
+  a configuration that cannot work is rejected at startup rather than at the
+  first sign-in attempt.
+  Sessions are stateless signed cookies (`HttpOnly`, `SameSite=Lax`, `Secure` in
+  production) — no session table, but also no server-side revocation short of
+  rotating `SESSION_SECRET`.
+- `docker compose -f compose.dev.yml --profile ldap up -d openldap` starts a
+  throwaway OpenLDAP directory with test users, a service account and a group, so
+  the login can be developed and tested without a real directory. Documented in
+  `packages/api/dev_scripts/ldap/README.md`.
+- Tests for the login: unit tests for the session cookies and the DN/filter
+  escaping, plus integration tests that authenticate against the directory above
+  and cover both bind strategies, the group restriction, injection attempts and
+  the empty-password case. The integration tests skip themselves when no
+  directory answers, so `bun test` still works without Docker; CI starts the
+  container and sets `LDAP_TESTS_REQUIRED=1` so a missing directory fails the
+  build instead of silently skipping. The `/sql` page is covered the same way,
+  against a real Postgres (`DB_TESTS_REQUIRED=1`), since what it may and may not
+  do lives in the database and can only be verified there — including the
+  attempts to escape the read-only transaction that the separate role exists to
+  stop.
 - ESP32 example `send_temperature_ds18b20.py`: reads a DS18B20 over 1-Wire using
   MicroPython's built-in `onewire`/`ds18x20` modules (no extra driver needed).
 - `bun run sync-guide-assets` regenerates the guide assets under
@@ -20,6 +224,99 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   version-controlled alongside the encoders it mirrors, with a README covering
   installation, the wire format and its known rough edges. It previously existed
   only inside the TTN Console.
+- The login now locks out after too many wrong passwords. The form previously
+  answered as fast as it was asked — twenty attempts a second, measured — which
+  made guessing a matter of patience rather than luck and made every attempt
+  cost the directory a bind.
+
+  What is counted is the *address*: five failures inside five minutes are
+  allowed, whatever names they were aimed at, and the sixth locks that address
+  for five minutes. A login name gets the same allowance counted in *sources*
+  rather than in attempts: it is locked only once failures for it have come from
+  more than five **different** addresses inside the window. That asymmetry is the
+  point — counting per name alone would stop the guessing and hand out a new
+  weapon, since anyone who knew a name could then keep that account locked for as
+  long as they cared to. A single source can only ever contribute one address, so
+  no one attacker can lock a real user out; it takes a genuinely distributed
+  attempt, which is exactly when locking the name is right.
+
+  While either lock stands the password is not checked at all, so a lock cannot
+  be extended by hammering it, a locked request costs no LDAP round trip, and the
+  correct password does not open it early either. Only a wrong password counts:
+  an unreachable directory must not lock everyone out of a site that is merely
+  having a bad day. The page answers `429` with `Retry-After` and says how long
+  is left. State is held in memory and forgotten on restart — a speed bump, not
+  a security boundary, and deliberately not worth a table and a migration.
+- `TRUSTED_PROXIES` (default `1`) says how many reverse proxies sit in front, so
+  the throttle above can tell one visitor from another. Behind Traefik every
+  request arrives from Traefik, so without it all visitors would count as one and
+  six wrong passwords anywhere would lock the whole site out. A proxy *appends*
+  the address it saw, so the trustworthy entry in `X-Forwarded-For` is counted
+  from the right and anything an attacker writes into the header lands to the
+  left of it, where it is ignored. Set it to `0` for a server reachable directly,
+  where the header is simply whatever the client felt like sending.
+
+### Security
+- The SQL page's row cap could be switched off with two extra characters. It was
+  skipped whenever the query contained a `;` anywhere — including one inside a
+  comment or a doubled terminator — and a skipped cap means the whole result set
+  is fetched into the server process before being cut down to 200 rows for
+  display. Measured: `SELECT … FROM measurements;;` over 300,000 rows cost 80 MB
+  of heap and nine times the wall clock, while showing exactly what the same
+  query without the semicolons showed. Any signed-in user could do it.
+
+  Whether a query is one statement is now decided by the parser in
+  `lib/sql-statements` rather than by searching for a semicolon, and the
+  multi-statement refusal applies to both console levels instead of only to the
+  writable one — it had been skipped for readers on the reasoning that a reader
+  has nothing to delete, and that saving was the hole. The statement is also cut
+  loose from its terminator properly (`singleStatement`) and wrapped across
+  newlines, so a doubled `;`, a trailing comment, or `SELECT 1; -- Rest` produce
+  valid SQL instead of a subquery with a semicolon in it.
+- The TTN webhook checked its API key *inside* the handler, so the Zod validator
+  ran first: a caller without the key got a `400` naming the fields it had got
+  wrong, which is enough to reconstruct the expected payload without ever holding
+  the key. The check is now middleware in front of the validator and answers
+  `401` before anything reads the body.
+- `Object.hasOwn` replaces `in` where `services/manage.ts` checks a column or
+  table name against its whitelist. `in` also answers for the prototype chain, so
+  `constructor` and `toString` counted as editable columns and as known tables.
+  Not reachable — the form parser filters against a `Set` first, and `table_name`
+  comes from the database — but the check now means what it says.
+
+### Changed
+- A management write that fails for an unforeseen reason is written to the server
+  log. The routes map every failure to a fixed message code, so the reason was
+  discarded on its way to the screen and recorded nowhere else: the user saw a
+  sentence and the operator had nothing at all to go on.
+- `compose.prod.yml` passes every setting the application knows through to the
+  container - it previously carried five, so a production deployment could not
+  have a login, an SQL page or the management section at all. Required variables
+  now fail `docker compose up` with a sentence naming them instead of starting a
+  server that cannot work; optional ones default to empty and quietly switch
+  their feature off. `.env.prod.example` was brought along and now lists all of
+  them, grouped by topic and split into required, required-once-the-feature-is-on
+  and optional-with-a-default.
+- An optional setting that is present but empty now counts as unset. Compose
+  passes a variable it cannot resolve through as an empty string rather than
+  leaving it out, and `LDAP_URL=""` would otherwise have switched the login on
+  and then aborted the start for want of a session secret. The same trap turned
+  an empty `QUERY_MAX_ROWS` into `NaN`.
+- The container entrypoint now runs the migrations and then the database-role
+  setup, aborting on either. Both are idempotent, and migration `002` is purely
+  additive — a new table and new indexes, no existing column touched — so an
+  older image keeps working against the new schema.
+- Writing routes reject a request whose `Origin` names a foreign host.
+  `SameSite=Lax` already means a cross-site POST arrives without the session
+  cookie and fails the role check; this is a second, independent layer that still
+  holds if the cookie settings are ever loosened.
+- Header works on a phone. Below the `md` breakpoint the five dropdowns collapse
+  into one menu button; the panel is capped at the viewport width and scrolls
+  when it is taller than the screen, so it can no longer end up drawn off the
+  left edge. The logo shrinks, and the account control moves into the menu,
+  where there is room for the name. The entries come from one list rendered
+  twice rather than two copies of the markup, so a new page cannot appear in one
+  header and be missing from the other.
 
 ### Fixed
 - ESP32: measurement uplinks are no longer zero-padded to a fixed 99 bytes. In
@@ -158,7 +455,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Releases up to and including [0.1.8] (2026-05-12) predate this changelog.
 
-[Unreleased]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.4.0...HEAD
+[Unreleased]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.5.0...HEAD
+[1.5.0]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.1.0...v1.2.0
