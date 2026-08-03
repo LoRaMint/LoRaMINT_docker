@@ -14,8 +14,7 @@ export default function HomePage() {
           class="h-16 mx-auto mb-4"
         />
         <p class="max-w-xl mx-auto text-lg">
-          Messdaten von LoRaWAN-Sensoren automatisch sammeln, speichern und
-          auswerten.
+          Messdaten von LoRaWAN-Sensoren automatisch sammeln, speichern und auswerten.
         </p>
       </div>
 

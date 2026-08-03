@@ -12,5 +12,24 @@ services:
     volumes:
       - loramint_postgres_data:/var/lib/postgresql/data
 
+  # Test directory for the LDAP login. Behind a profile, so the usual
+  # `docker compose -f compose.dev.yml up` is unaffected; start it with
+  #   docker compose -f compose.dev.yml --profile ldap up -d openldap
+  # See packages/api/dev_scripts/ldap/README.md for the accounts it contains.
+  openldap:
+    image: bitnamilegacy/openldap:2.6
+    container_name: loramint_openldap
+    profiles: ["ldap"]
+    environment:
+      LDAP_ROOT: dc=loramint,dc=test
+      LDAP_ADMIN_USERNAME: admin
+      LDAP_ADMIN_PASSWORD: adminpw
+      # Replaces the image's demo tree with our fixture.
+      LDAP_CUSTOM_LDIF_DIR: /ldifs
+    ports:
+      - "1389:1389"
+    volumes:
+      - ./packages/api/dev_scripts/ldap:/ldifs:ro
+
 volumes:
   loramint_postgres_data:

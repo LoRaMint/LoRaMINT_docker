@@ -10,6 +10,7 @@
     "build-islands": "bun scripts/build-islands.ts",
     "sync-guide-assets": "bun scripts/sync-guide-assets.ts",
     "migrate": "bun --sql-preconnect migrate.ts",
+    "ensure-roles": "bun --sql-preconnect scripts/ensure-roles.ts",
     "test": "bun test",
     "typecheck": "tsc --noEmit"
   },
@@ -32,6 +33,7 @@
     "daisyui": "^5.5.18",
     "hono": "^4.11.8",
     "hono-openapi": "^1.2.0",
+    "ldapts": "^9.0.0",
     "solid-js": "^1.9.11",
     "tailwindcss": "^4.1.18",
     "zod": "^4.3.6"

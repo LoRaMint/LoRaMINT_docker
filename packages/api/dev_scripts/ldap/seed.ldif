@@ -1,0 +1,127 @@
+# Test directory for the LDAP login. Loaded by the `openldap` service in
+# compose.dev.yml - see packages/api/dev_scripts/ldap/README.md.
+#
+# THIS IS A TEST FIXTURE. The passwords are stored in the clear and are public
+# by design; never point the application at this directory outside development.
+#
+# Tree:
+#   dc=loramint,dc=test
+#     ou=people    the users that can log in
+#     ou=groups    cn=loramint, the group that may use the application
+#     ou=system    cn=service, the read-only service account for search+bind
+
+dn: dc=loramint,dc=test
+objectClass: dcObject
+objectClass: organization
+dc: loramint
+o: LoRaMINT Test Directory
+
+dn: ou=people,dc=loramint,dc=test
+objectClass: organizationalUnit
+ou: people
+
+dn: ou=groups,dc=loramint,dc=test
+objectClass: organizationalUnit
+ou: groups
+
+dn: ou=system,dc=loramint,dc=test
+objectClass: organizationalUnit
+ou: system
+
+#====================================
+# Service account (search and bind)
+#====================================
+
+dn: cn=service,ou=system,dc=loramint,dc=test
+objectClass: organizationalRole
+objectClass: simpleSecurityObject
+cn: service
+description: Read-only account used to look users up before binding as them
+userPassword: servicepw
+
+#====================================
+# Users
+#====================================
+
+# Ordinary user, member of the loramint group. Has a displayName, so the header
+# should greet them with "Matthias Ruf" rather than "mruf".
+dn: uid=mruf,ou=people,dc=loramint,dc=test
+objectClass: inetOrgPerson
+uid: mruf
+cn: Matthias Ruf
+sn: Ruf
+displayName: Matthias Ruf
+mail: mruf@loramint.test
+employeeType: loramint
+userPassword: geheim123
+
+dn: uid=aschmidt,ou=people,dc=loramint,dc=test
+objectClass: inetOrgPerson
+uid: aschmidt
+cn: Anna Schmidt
+sn: Schmidt
+displayName: Anna Schmidt
+mail: anna.schmidt@loramint.test
+employeeType: loramint
+userPassword: passwort456
+
+# No displayName: the header has to fall back to the login name.
+dn: uid=nodisplay,ou=people,dc=loramint,dc=test
+objectClass: inetOrgPerson
+uid: nodisplay
+cn: Ohne Anzeigename
+sn: Anzeigename
+mail: nodisplay@loramint.test
+employeeType: loramint
+userPassword: passwort789
+
+# Valid account, but NOT in the loramint group and without employeeType: must be
+# rejected by a restricting LDAP_SEARCH_FILTER even though the password is right.
+dn: uid=extern,ou=people,dc=loramint,dc=test
+objectClass: inetOrgPerson
+uid: extern
+cn: Externer Gast
+sn: Gast
+displayName: Externer Gast
+mail: gast@example.com
+userPassword: extern999
+
+# Login name containing DN and filter metacharacters, to prove the escaping in
+# services/ldap.ts. The password is correct for this entry, so a failure here
+# means the escaping mangled a legitimate name rather than that auth is broken.
+dn: uid=we\, ird*,ou=people,dc=loramint,dc=test
+objectClass: inetOrgPerson
+uid: we, ird*
+cn: Komischer Name
+sn: Name
+displayName: Komischer Name
+employeeType: loramint
+userPassword: seltsam000
+
+#====================================
+# Group
+#====================================
+
+dn: cn=loramint,ou=groups,dc=loramint,dc=test
+objectClass: groupOfNames
+cn: loramint
+description: May use the LoRaMINT application
+member: uid=mruf,ou=people,dc=loramint,dc=test
+member: uid=aschmidt,ou=people,dc=loramint,dc=test
+member: uid=nodisplay,ou=people,dc=loramint,dc=test
+member: uid=we\, ird*,ou=people,dc=loramint,dc=test
+
+# Two further groups, one member each. Nobody is in more than one, which is the
+# point: the levels form a ladder, so being in the admin group alone is enough to
+# reach management and reading as well.
+dn: cn=loramint-admin,ou=groups,dc=loramint,dc=test
+objectClass: groupOfNames
+cn: loramint-admin
+description: May use the SQL console with write access, and everything below it
+member: uid=mruf,ou=people,dc=loramint,dc=test
+
+dn: cn=loramint-management,ou=groups,dc=loramint,dc=test
+objectClass: groupOfNames
+cn: loramint-management
+description: May open the Verwaltung section, and everything below it
+member: uid=aschmidt,ou=people,dc=loramint,dc=test

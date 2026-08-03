@@ -257,6 +257,138 @@ const list = async (pagination: PaginationParams, filter: MeasurementFilter = {}
 };
 
 //====================================
+// MANAGEMENT
+//====================================
+
+/**
+ * What the management table may sort by, each mapped to the expression it orders
+ * by.
+ *
+ * A whitelist rather than a parameter, because an identifier cannot be
+ * parameterised: nothing a caller sends ever reaches the statement, only the key
+ * it matched. `recorded_at` sorts by the same COALESCE the time filter uses, so
+ * a measurement without its own timestamp still lands where it belongs.
+ */
+const SORT_EXPRESSIONS: Record<string, string> = {
+  recorded_at: "COALESCE(recorded_at, created_at)",
+  created_at: "created_at",
+  value: "value",
+  measurand: "measurand",
+  sensor: "sensor",
+  location: "location",
+  device_eui: "device_eui",
+};
+
+/**
+ * Rows for the management table, with the database's own column names.
+ *
+ * Unlike `list`, this does not map to camelCase: the table builds its form
+ * fields from these keys, and they have to be the names the update statement
+ * uses. One spelling, from the column to the input and back.
+ */
+const listRows = async (
+  pagination: PaginationParams,
+  filter: MeasurementFilter = {},
+  sort: { column: string; direction: "asc" | "desc" } = {
+    column: "recorded_at",
+    direction: "desc",
+  },
+) => {
+  const where = filterClause(filter);
+  const expression = SORT_EXPRESSIONS[sort.column] ?? SORT_EXPRESSIONS.recorded_at!;
+  // Appending id keeps the order total: rows sharing a timestamp would otherwise
+  // be free to swap places between two pages and hide one of themselves.
+  const order = sql.unsafe(
+    `${expression} ${sort.direction === "asc" ? "ASC" : "DESC"}, id`,
+  );
+  const rows = await sql`
+    SELECT id, device_eui, measurand, unit, datatype, sensor, location, value, time_method, recorded_at, created_at
+    FROM measurements
+    ${where}
+    ORDER BY ${order}
+    LIMIT ${pagination.perPage} OFFSET ${pagination.offset}
+  `;
+  const [{ count }] = await sql`SELECT count(*)::int AS count FROM measurements ${where}`;
+  return {
+    rows: rows as unknown as Record<string, unknown>[],
+    total: count as number,
+  };
+};
+
+/**
+ * The ids matching a filter, for a deletion that was previewed by filter.
+ *
+ * `createdBefore` is the moment the preview was taken. Bounding on `created_at`
+ * rather than on the filter's own time range is what keeps a measurement that
+ * arrived through the webhook in the seconds since then out of a deletion that
+ * never showed it: the set can shrink between preview and confirmation, but it
+ * cannot grow.
+ */
+const idsMatching = async (
+  filter: MeasurementFilter,
+  limit: number,
+  createdBefore: Date | null = null,
+) => {
+  const rows = await sql`
+    SELECT id FROM measurements
+    ${filterClause(filter)}
+      AND (${createdBefore}::timestamptz IS NULL OR created_at <= ${createdBefore})
+    ORDER BY created_at
+    LIMIT ${limit}
+  `;
+  return (rows as unknown as { id: string }[]).map((row) => row.id);
+};
+
+/** The current state of specific rows, for previewing and for validation. */
+const byIds = async (ids: string[]) => {
+  if (ids.length === 0) return [];
+  const rows = await sql`
+    SELECT id, device_eui, measurand, unit, datatype, sensor, location, value, time_method, recorded_at, created_at
+    FROM measurements WHERE id = ANY(${`{${ids.join(",")}}`}::uuid[])
+    ORDER BY COALESCE(recorded_at, created_at) DESC, id
+  `;
+  return rows as unknown as Record<string, unknown>[];
+};
+
+/**
+ * Whether a corrected field may be stored, checked against the row's *stored*
+ * datatype rather than anything the form claimed.
+ *
+ * Returns a German sentence naming the problem, or null when the value is fine.
+ * The rules are the ones an incoming measurement already has to satisfy, so a
+ * correction cannot produce a row the webhook could never have written.
+ */
+const validateField = (
+  datatype: Datatype,
+  column: string,
+  value: string | null,
+): string | null => {
+  if (column === "value") {
+    if (value === null) return "Der Wert darf nicht leer sein.";
+    return validateValue(datatype, value)
+      ? datatype === "string"
+        ? "Der Wert darf höchstens 20 Zeichen haben."
+        : `Der Wert muss eine Zahl sein (Datentyp ${datatype}).`
+      : null;
+  }
+  if (column === "recorded_at") {
+    // Empty is allowed: a measurement may legitimately carry no time of its own.
+    if (value === null) return null;
+    return Number.isNaN(Date.parse(value))
+      ? "Der Zeitpunkt muss ein Datum sein, z. B. 2026-07-31T14:23:00Z."
+      : null;
+  }
+  if (value === null) return "Das Feld darf nicht leer sein.";
+  if (value.length > 40) return "Das Feld darf höchstens 40 Zeichen haben.";
+  return null;
+};
+
+const count = async (filter: MeasurementFilter = {}) => {
+  const [row] = await sql`SELECT count(*)::int AS count FROM measurements ${filterClause(filter)}`;
+  return (row as { count: number }).count;
+};
+
+//====================================
 // PUBLIC API
 //====================================
 
@@ -314,4 +446,18 @@ const exportCsvStream = (filter: MeasurementFilter = {}) => {
   });
 };
 
-export const measurements = { validate, store, ingest, list, metadata, status, exportCsvStream, filterClause };
+export const measurements = {
+  validate,
+  store,
+  ingest,
+  list,
+  metadata,
+  status,
+  exportCsvStream,
+  filterClause,
+  listRows,
+  idsMatching,
+  byIds,
+  count,
+  validateField,
+};

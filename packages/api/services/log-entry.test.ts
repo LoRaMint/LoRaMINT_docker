@@ -34,3 +34,18 @@ describe("logEntries.validate", () => {
     expect(logEntries.validate(payload({ message: "x".repeat(201) }), EUI).ok).toBe(false);
   });
 });
+
+describe("correcting a stored message", () => {
+  test("holds a correction to the same rule as an incoming message", () => {
+    // A correction must not be able to produce a row the webhook could never
+    // have written in the first place.
+    expect(logEntries.validateField("message", "Batterie schwach")).toBeNull();
+    expect(logEntries.validateField("message", "x".repeat(200))).toBeNull();
+    expect(logEntries.validateField("message", "x".repeat(201))).toMatch(/200 Zeichen/);
+    expect(logEntries.validateField("message", null)).toMatch(/nicht leer/);
+  });
+
+  test("has nothing to say about a column it does not govern", () => {
+    expect(logEntries.validateField("device_eui", "whatever")).toBeNull();
+  });
+});
