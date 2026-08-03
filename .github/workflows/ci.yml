@@ -25,7 +25,63 @@ jobs:
       - name: Typecheck
         run: bun run typecheck
 
+      # The integration tests skip themselves when the service they need is not
+      # answering, so without this they would quietly test nothing here. Start
+      # the same containers developers use, and wait until each is really usable
+      # rather than just accepting connections.
+      - name: Start test services
+        working-directory: ${{ github.workspace }}
+        run: |
+          docker compose -f compose.dev.yml --profile ldap up -d postgres openldap
+
+          for i in $(seq 1 30); do
+            docker exec loramint_postgres pg_isready -U loramint -q && break
+            [ "$i" = 30 ] && { echo "Postgres not ready"; docker logs loramint_postgres; exit 1; }
+            sleep 1
+          done
+          echo "Postgres ready"
+
+          # Waits for the fixture, not just for slapd, so the tests cannot run
+          # against a half-initialised directory.
+          for i in $(seq 1 30); do
+            docker exec loramint_openldap ldapsearch -x -H ldap://localhost:1389 \
+              -D 'cn=admin,dc=loramint,dc=test' -w adminpw \
+              -b 'uid=mruf,ou=people,dc=loramint,dc=test' -s base dn >/dev/null 2>&1 && break
+            [ "$i" = 30 ] && { echo "LDAP not ready"; docker logs loramint_openldap; exit 1; }
+            sleep 1
+          done
+          echo "LDAP directory ready"
+
+      # The management tests work on the real tables, so the schema has to exist
+      # here - unlike the SQL console tests, which deliberately get by on
+      # expressions and system catalogs alone.
+      - name: Migrate
+        env:
+          DATABASE_URL: postgres://loramint:loramint@localhost:5432/loramint
+        run: bun run migrate
+
+      # After the migrations, because the management role is granted table by
+      # table and those tables have to exist. This is the same script the
+      # container entrypoint runs, so a break in it fails here rather than on a
+      # production deploy; dev_scripts/create-*-role.sql remain the manual path.
+      - name: Database roles
+        env:
+          DATABASE_URL: postgres://loramint:loramint@localhost:5432/loramint
+          DATABASE_URL_READONLY: postgres://loramint_readonly:readonly@localhost:5432/loramint
+          DATABASE_URL_ADMIN: postgres://loramint_admin_sql:adminsql@localhost:5432/loramint
+          DATABASE_URL_MANAGE: postgres://loramint_manage:managepw@localhost:5432/loramint
+        run: bun run ensure-roles
+
       - name: Tests
+        # The *_REQUIRED flags turn an unreachable service into a failure instead
+        # of a silent skip; locally the same tests skip themselves.
+        env:
+          DATABASE_URL: postgres://loramint:loramint@localhost:5432/loramint
+          DATABASE_URL_READONLY: postgres://loramint_readonly:readonly@localhost:5432/loramint
+          DATABASE_URL_ADMIN: postgres://loramint_admin_sql:adminsql@localhost:5432/loramint
+          DATABASE_URL_MANAGE: postgres://loramint_manage:managepw@localhost:5432/loramint
+          LDAP_TESTS_REQUIRED: "1"
+          DB_TESTS_REQUIRED: "1"
         run: bun test
 
       # The guide assets under public/guides/esp32 are committed copies of files
