@@ -19,7 +19,7 @@ COPY public ./public
 COPY services ./services
 COPY migrations ./migrations
 COPY lib ./lib
-COPY scripts/build-css.ts scripts/build-islands.ts ./scripts/
+COPY scripts/build-css.ts scripts/build-islands.ts scripts/ensure-roles.ts ./scripts/
 COPY scripts/entrypoints.sh ./entrypoint.sh
 RUN bun scripts/build-css.ts && bun scripts/build-islands.ts && chmod +x ./entrypoint.sh
 

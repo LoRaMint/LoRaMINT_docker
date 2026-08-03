@@ -1,13 +1,96 @@
+# Production deployment.
+#
+# Every variable below is read from the environment file compose was started
+# with, for example
+#     docker compose --env-file matthias.env -f compose.prod.yml up -d
+#
+# Optional features are switched on by *setting* their variable and stay off
+# when it is absent. Compose passes an unresolved variable through as an empty
+# string rather than leaving it out, and the application treats empty as unset
+# for exactly that reason - so a file that mentions none of the LDAP settings
+# yields a site without a login, not a server that refuses to start.
+#
+# On startup the container runs the migrations and then creates or refreshes the
+# restricted database roles from the connection strings below, so no psql
+# session on the server is needed. See packages/api/.env.example for what each
+# variable means.
+
 services:
   app:
     image: ghcr.io/loramint/loramint_docker:latest
     restart: unless-stopped
     environment:
-      - DATABASE_URL=postgres://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}
-      - TTN_APP_KEY=${TTN_APP_KEY}
+      # --- Core (required) ------------------------------------------------
+      # The application's own connection: owns the schema, runs the migrations,
+      # and serves every read. Everything that writes on behalf of a signed-in
+      # user goes through one of the restricted roles further down.
+      - DATABASE_URL=postgres://${DB_USER:?DB_USER is required}:${DB_PASSWORD:?DB_PASSWORD is required}@db:5432/${DB_NAME:?DB_NAME is required}
+      - TTN_APP_KEY=${TTN_APP_KEY:?TTN_APP_KEY is required}
       - NODE_ENV=production
-      - LEGAL_IMPRESSUM=${LEGAL_IMPRESSUM}
-      - LEGAL_DATENSCHUTZ=${LEGAL_DATENSCHUTZ}
+      # How many proxies sit in front, so the login throttle can tell one
+      # visitor from another. This file always puts Traefik in front, hence 1;
+      # raise it by one per further hop (a CDN, say). With 0 every request would
+      # look like it came from Traefik and six wrong passwords anywhere would
+      # lock the whole site out.
+      - TRUSTED_PROXIES=${TRUSTED_PROXIES:-1}
+
+      # --- Legal pages (optional) -----------------------------------------
+      # Each page only exists while its variable has content.
+      - LEGAL_IMPRESSUM=${LEGAL_IMPRESSUM:-}
+      - LEGAL_DATENSCHUTZ=${LEGAL_DATENSCHUTZ:-}
+
+      # --- Login (optional, LDAP) -----------------------------------------
+      # Without LDAP_URL there is no login, no roles and no management section;
+      # with it, SESSION_SECRET and one of the two bind strategies are required
+      # and the server refuses to start if they are missing.
+      - LDAP_URL=${LDAP_URL:-}
+      - SESSION_SECRET=${SESSION_SECRET:-}
+      - SESSION_TTL_HOURS=${SESSION_TTL_HOURS:-}
+      # Strategy 1 - direct bind.
+      - LDAP_USER_DN_TEMPLATE=${LDAP_USER_DN_TEMPLATE:-}
+      # Strategy 2 - a service account looks the user up first.
+      - LDAP_BIND_DN=${LDAP_BIND_DN:-}
+      - LDAP_BIND_PASSWORD=${LDAP_BIND_PASSWORD:-}
+      - LDAP_SEARCH_BASE=${LDAP_SEARCH_BASE:-}
+      - LDAP_SEARCH_FILTER=${LDAP_SEARCH_FILTER:-}
+      # Group membership: an attribute on the user entry, or a search over the
+      # group entries for directories without the memberof overlay.
+      - LDAP_GROUP_ATTRIBUTE=${LDAP_GROUP_ATTRIBUTE:-}
+      - LDAP_GROUP_SEARCH_BASE=${LDAP_GROUP_SEARCH_BASE:-}
+      - LDAP_GROUP_FILTER=${LDAP_GROUP_FILTER:-}
+      - LDAP_GROUP_NAME_ATTRIBUTE=${LDAP_GROUP_NAME_ATTRIBUTE:-}
+      - LDAP_DISPLAY_NAME_ATTRIBUTE=${LDAP_DISPLAY_NAME_ATTRIBUTE:-}
+      - LDAP_PASSWORD_RESET_URL=${LDAP_PASSWORD_RESET_URL:-}
+      - LDAP_TIMEOUT_MS=${LDAP_TIMEOUT_MS:-}
+      # The three groups that grant privileges. An unset data group means every
+      # signed-in user may read; unset management and admin groups mean nobody
+      # reaches those levels, so editing rights are never granted by accident.
+      - LDAP_DATA_GROUP=${LDAP_DATA_GROUP:-}
+      - LDAP_MANAGEMENT_GROUP=${LDAP_MANAGEMENT_GROUP:-}
+      - LDAP_ADMIN_GROUP=${LDAP_ADMIN_GROUP:-}
+
+      # --- Restricted database roles (optional) ---------------------------
+      # Created by the entrypoint from these connection strings; the password in
+      # each is what the role gets. None of them may be DATABASE_URL, and the
+      # server refuses to start if one is.
+      #
+      #   readonly  the /sql page for everyone below admin - may only SELECT
+      #   admin     the /sql page for administrators - may write the data
+      #             tables, but owns no schema and is no superuser
+      #   manage    every write the management pages make. Holds SELECT and
+      #             INSERT on audit_log and nothing more, which is what makes
+      #             the change log impossible to rewrite from the interface.
+      #
+      # Leave a line's password empty to switch that feature off: without the
+      # readonly role there is no SQL page, without the manage role the
+      # management pages open read-only and say so.
+      - DATABASE_URL_READONLY=${DATABASE_URL_READONLY:-}
+      - DATABASE_URL_ADMIN=${DATABASE_URL_ADMIN:-}
+      - DATABASE_URL_MANAGE=${DATABASE_URL_MANAGE:-}
+      - QUERY_MAX_ROWS=${QUERY_MAX_ROWS:-}
+      - QUERY_TIMEOUT_MS=${QUERY_TIMEOUT_MS:-}
+      - MANAGE_MAX_DELETE=${MANAGE_MAX_DELETE:-}
+      - MANAGE_TIMEOUT_MS=${MANAGE_TIMEOUT_MS:-}
     depends_on:
       - db
     networks:
@@ -15,7 +98,7 @@ services:
       - traefik
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.loramint.rule=Host(`${APP_DOMAIN}`)"
+      - "traefik.http.routers.loramint.rule=Host(`${APP_DOMAIN:?APP_DOMAIN is required}`)"
       - "traefik.http.routers.loramint.entrypoints=websecure"
       - "traefik.http.routers.loramint.tls=true"
       - "traefik.http.routers.loramint.tls.certResolver=http_resolver"
@@ -26,9 +109,9 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      - POSTGRES_DB=${DB_NAME}
-      - POSTGRES_USER=${DB_USER}
-      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_DB=${DB_NAME:?DB_NAME is required}
+      - POSTGRES_USER=${DB_USER:?DB_USER is required}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:?DB_PASSWORD is required}
     volumes:
       - db_data:/var/lib/postgresql/data
     networks:
