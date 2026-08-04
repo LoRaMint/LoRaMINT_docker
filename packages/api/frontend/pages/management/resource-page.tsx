@@ -46,10 +46,12 @@ const MESSAGES: Record<string, { text: string; tone: "success" | "error" }> = {
     tone: "error",
   },
   noselection: { text: "Es war nichts ausgewählt.", tone: "error" },
+  // A deletion by filter runs in blocks and no longer hits this. It remains for
+  // a selection, which the server refuses to take in one piece.
   toomany: {
     text:
-      "Das sind zu viele Zeilen für einen Durchgang. Bitte den Filter enger " +
-      "fassen – oder die SQL-Konsole benutzen.",
+      "Das sind zu viele Zeilen für einen Durchgang. Bitte weniger auswählen " +
+      "oder über den Filter löschen, der in Blöcken arbeitet.",
     tone: "error",
   },
   nowrite: {

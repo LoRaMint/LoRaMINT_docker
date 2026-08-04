@@ -180,6 +180,30 @@ Zug gespeichert wird, und wandert ins Protokoll.
 - Die Löschknöpfe stehen deutlich abgesetzt vom Speichern-Knopf; Rot bedeutet
   auf der Seite genau eine Sache.
 
+**Große Löschungen laufen in Blöcken.** `MANAGE_MAX_DELETE` (Vorgabe 10000) ist
+keine Obergrenze, sondern die Blockgröße: eine Löschung über den Filter nimmt so
+viele Blöcke, wie sie braucht, jeder als eigene kurze Transaktion. Der Grund ist
+die Tabelle — eine einzelne Anweisung über vierhunderttausend Zeilen hält
+Sperren auf genau der `measurements`, in die der Webhook schreibt, solange sie
+läuft; zwischen den Blöcken sind sie frei.
+
+Zwischen zwei Blöcken steht eine Fortschrittsseite: „30.000 von 412.000
+gelöscht", ein Knopf für den nächsten Block, einer zum Anhalten. Mit JavaScript
+läuft es von allein weiter, ohne genügt ein Klick je Block — wie überall auf
+diesen Seiten ist JavaScript Bequemlichkeit, kein Funktionsverlust.
+
+Alle Blöcke gehören zu **einem** `batch_id`, den der erste eröffnet und die
+folgenden mitbekommen: im Protokoll ist es ein Vorgang und als einer
+zurückzunehmen. Serverseitig wird nichts gemerkt — Filter, Vorschauzeitpunkt,
+Vorgang und der bisherige Stand reisen im Formular. Ein geschlossener Browser
+hält die Löschung an, wo sie steht; das Entfernte ist entfernt, protokolliert
+und rücknehmbar, der Rest steht noch. Dieselbe Löschung erneut gestartet setzt
+schlicht fort, weil die bereits gelöschten Zeilen nicht mehr passen.
+
+Die Bestätigungsseite nennt zusätzlich, wie viele Protokollzeilen entstehen —
+eine je gelöschter Zeile, mit Vollabbild. Das ist der Preis der
+Rücknehmbarkeit, und er gehört vor die Entscheidung, nicht hinter sie.
+
 ## 5. Der Filter — Zeilen und Spalten (Vorgabe 4)
 
 Ein GET-Formular, zwei Bereiche:

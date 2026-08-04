@@ -208,3 +208,54 @@ if (form) {
     event.returnValue = "";
   });
 }
+
+//====================================
+// A DELETION THAT KEEPS GOING
+//====================================
+
+/**
+ * Clicks "next block" for you.
+ *
+ * A deletion by filter runs in blocks so the table is free between them; forty
+ * blocks would otherwise be forty clicks. This does nothing the button does not
+ * already do - it submits the same form with the same fields - so the page works
+ * exactly as well without JavaScript, only more manually.
+ *
+ * The pause is not decoration. It is the window in which "Hier anhalten" can be
+ * hit, and it is why the button keeps its own label: what happens next has to be
+ * legible before it happens.
+ */
+const continueForm = document.querySelector<HTMLFormElement>(
+  "form[data-continue-delete]",
+);
+
+if (continueForm) {
+  const PAUSE_MS = 1500;
+  const status = document.querySelector<HTMLElement>("[data-continue-status]");
+  const stop = document.querySelector<HTMLButtonElement>("[data-continue-stop]");
+
+  let timer: ReturnType<typeof setTimeout> | undefined;
+
+  const halt = (message: string) => {
+    if (timer !== undefined) clearTimeout(timer);
+    timer = undefined;
+    if (status) status.textContent = message;
+    stop?.remove();
+  };
+
+  if (status) status.textContent = "Läuft automatisch weiter …";
+  if (stop) {
+    stop.hidden = false;
+    stop.addEventListener("click", () =>
+      halt("Angehalten. Mit dem Knopf oben geht es blockweise weiter."),
+    );
+  }
+
+  timer = setTimeout(() => continueForm.requestSubmit(), PAUSE_MS);
+
+  // Leaving the page must not leave a submit armed behind it - the browser would
+  // fire it on the way out and start a block nobody is watching.
+  window.addEventListener("pagehide", () => {
+    if (timer !== undefined) clearTimeout(timer);
+  });
+}

@@ -19,6 +19,11 @@ export default function ConfirmDeletePage(props: {
   /** The first rows that would go, for looking at. */
   preview: Record<string, unknown>[];
   total: number;
+  /**
+   * How many rows go per block, for a deletion by filter - null for a
+   * selection, which is one page and always goes in one.
+   */
+  blockSize?: number | null;
   /** The view this started from. */
   view: string;
   reason: string | null;
@@ -28,6 +33,10 @@ export default function ConfirmDeletePage(props: {
 }) {
   const rest = props.total - props.preview.length;
   const columns = columnsByKey(props.spec, props.spec.defaultColumns);
+  const blocks =
+    props.blockSize && props.total > props.blockSize
+      ? Math.ceil(props.total / props.blockSize)
+      : 0;
 
   return (
     <Layout>
@@ -51,8 +60,19 @@ export default function ConfirmDeletePage(props: {
           werden endgültig gelöscht. Gelöscht ist noch nichts.
         </p>
         <p class="text-sm mt-1 text-base-content/70">
-          Jede entfernte Zeile wird vollständig im Änderungsprotokoll festgehalten.
+          Jede entfernte Zeile wird vollständig im Änderungsprotokoll
+          festgehalten – das ist es, was das Zurücknehmen möglich macht, und es
+          sind entsprechend {props.total} Protokollzeilen mit dem jeweiligen
+          Vollabbild.
         </p>
+        {blocks > 0 && (
+          <p class="text-sm mt-1 text-base-content/70">
+            Gelöscht wird in {blocks} Blöcken zu je {props.blockSize}, damit die
+            Tabelle zwischendurch frei ist und ankommende Messwerte nicht warten
+            müssen. Nach jedem Block ist zu sehen, wie weit es ist, und der
+            Vorgang lässt sich dort anhalten.
+          </p>
+        )}
       </div>
 
       <DataTable
@@ -89,7 +109,9 @@ export default function ConfirmDeletePage(props: {
         ))}
         <input type="hidden" name="confirm" value="1" />
         <button type="submit" class="btn btn-error">
-          {props.total} {props.spec.title} endgültig löschen
+          {blocks > 0
+            ? `${props.total} ${props.spec.title} löschen – erster Block`
+            : `${props.total} ${props.spec.title} endgültig löschen`}
         </button>
         <a href={`${props.spec.path}${props.view}`} class="btn btn-ghost">
           Abbrechen

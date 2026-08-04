@@ -383,8 +383,23 @@ const validateField = (
   return null;
 };
 
-const count = async (filter: MeasurementFilter = {}) => {
-  const [row] = await sql`SELECT count(*)::int AS count FROM measurements ${filterClause(filter)}`;
+/**
+ * How many rows match, optionally bounded like `idsMatching`.
+ *
+ * `createdBefore` exists for the same reason it does there: a deletion that runs
+ * in blocks asks after every block how much is left, and that question has to be
+ * about the set that was previewed - not about one that has grown through the
+ * webhook in the meantime.
+ */
+const count = async (
+  filter: MeasurementFilter = {},
+  createdBefore: Date | null = null,
+) => {
+  const [row] = await sql`
+    SELECT count(*)::int AS count FROM measurements
+    ${filterClause(filter)}
+      AND (${createdBefore}::timestamptz IS NULL OR created_at <= ${createdBefore})
+  `;
   return (row as { count: number }).count;
 };
 

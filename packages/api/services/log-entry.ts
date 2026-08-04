@@ -239,9 +239,22 @@ const ingest = async (payload: TtnDecodedPayload, deviceEui: string): Promise<Mu
   return store(validated.data);
 };
 
-/** How many entries match, for the management overview and the result line. */
-const count = async (filter: LogEntryFilter = {}) => {
-  const [row] = await sql`SELECT count(*)::int AS count FROM log_entries ${filterClause(filter)}`;
+/**
+ * How many entries match, for the management overview and the result line.
+ *
+ * `createdBefore` bounds the count like `idsMatching` bounds the ids: a deletion
+ * running in blocks asks after every block how much is left, and that has to be
+ * the set that was previewed rather than one that has grown since.
+ */
+const count = async (
+  filter: LogEntryFilter = {},
+  createdBefore: Date | null = null,
+) => {
+  const [row] = await sql`
+    SELECT count(*)::int AS count FROM log_entries
+    ${filterClause(filter)}
+      AND (${createdBefore}::timestamptz IS NULL OR created_at <= ${createdBefore})
+  `;
   return (row as { count: number }).count;
 };
 

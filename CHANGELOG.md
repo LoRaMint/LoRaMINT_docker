@@ -5,6 +5,31 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+- A deletion by filter is no longer refused for being too large. `MANAGE_MAX_DELETE`
+  (default 10000) turned from a ceiling into a block size: the deletion runs in
+  as many blocks as it takes, each its own short transaction, and a progress page
+  between them says how far it is and offers to stop. With JavaScript it carries
+  on by itself; without it, one click per block.
+
+  This is a better answer to the reason the limit existed. A single statement
+  removing four hundred thousand rows holds locks on the very table the webhook
+  is inserting into for as long as it runs; between blocks those locks are free,
+  so uplinks get in rather than queueing behind the deletion.
+
+  Every block joins the batch the first one opened, so the change log still shows
+  one operation and can take it back as one. Nothing is remembered on the server:
+  the filter, the moment of the preview and the batch travel in the form, so
+  closing the browser stops the deletion where it stands - what went is gone,
+  recorded and undoable, and the rest is untouched. Starting the same deletion
+  again simply continues, because the rows already gone no longer match.
+
+  The confirmation page now also says how many log rows the deletion will write,
+  since each removed row is kept there in full - that is what makes undoing it
+  possible, and it is worth seeing before rather than after.
+
 ## [1.5.0] - 2026-08-03
 
 ### Added

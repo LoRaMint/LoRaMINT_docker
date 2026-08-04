@@ -374,6 +374,108 @@ describe.skipIf(!reachable)("deleting measurements", () => {
   });
 });
 
+describe.skipIf(!reachable)("a deletion that runs in blocks", () => {
+  test("stays one operation across every block", async () => {
+    // Two blocks of one row, the way the route drives them: the first opens a
+    // batch, the second is handed that batch and joins it.
+    const first = await seed("81");
+    const second = await seed("82");
+
+    const opening = await managed.deleteRows("measurements", [first], ACTOR);
+    expect(opening.ok).toBe(true);
+    const batchId = opening.ok ? opening.data.batchId : "";
+
+    const continuing = await managed.deleteRows(
+      "measurements",
+      [second],
+      ACTOR,
+      batchId,
+    );
+    expect(continuing.ok && continuing.data.batchId).toBe(batchId);
+
+    // One batch, so the log shows one operation to look at and to take back -
+    // not one per block.
+    const batches = new Set(
+      (await Promise.all([first, second].map(logFor)))
+        .flat()
+        .map((entry) => entry.batch_id),
+    );
+    expect(batches.size).toBe(1);
+    expect(batches.has(batchId)).toBe(true);
+  });
+
+  test("still records every single row, block or no block", async () => {
+    const first = await seed("83");
+    const second = await seed("84");
+
+    const opening = await managed.deleteRows("measurements", [first], ACTOR);
+    const batchId = opening.ok ? opening.data.batchId : "";
+    await managed.deleteRows("measurements", [second], ACTOR, batchId);
+
+    for (const id of [first, second]) {
+      const [entry] = await logFor(id);
+      expect(entry?.action).toBe("delete");
+      expect((entry?.changes as { before: { value: string } }).before.value).toBe(
+        id === first ? "83" : "84",
+      );
+    }
+  });
+
+  test("refuses a batch that is not one, so nothing can be tacked onto a foreign operation", async () => {
+    const id = await seed("85");
+
+    const result = await managed.deleteRows(
+      "measurements",
+      [id],
+      ACTOR,
+      "not-a-uuid",
+    );
+
+    expect(result.ok).toBe(false);
+    expect((await valueOf(id))?.value).toBe("85");
+  });
+});
+
+describe.skipIf(!reachable)("counting what is left to delete", () => {
+  test("is bounded by the preview, so rows arriving later are not counted in", async () => {
+    const { measurements } = await import("./measurement");
+    const filter = { device_eui: deviceEui, location: "Blockzaehlung" };
+
+    await seed("91", "Blockzaehlung");
+    await seed("92", "Blockzaehlung");
+    const previewAt = new Date();
+
+    // Arrives through the webhook a moment after the preview was taken.
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    await seed("93", "Blockzaehlung");
+
+    expect(await measurements.count(filter, previewAt)).toBe(2);
+    expect(await measurements.count(filter)).toBe(3);
+  });
+
+  test("shrinks by exactly what a block removed", async () => {
+    const { measurements } = await import("./measurement");
+    const filter = { device_eui: deviceEui, location: "Blockabbau" };
+
+    await seed("94", "Blockabbau");
+    await seed("95", "Blockabbau");
+    await seed("96", "Blockabbau");
+    const previewAt = new Date();
+
+    // One block of two, exactly as the route asks for it.
+    const block = await measurements.idsMatching(filter, 2, previewAt);
+    expect(block.length).toBe(2);
+    await managed.deleteRows("measurements", block, ACTOR);
+
+    // The next call returns the next block rather than the same one: the set can
+    // only shrink, which is what makes the loop resumable.
+    expect(await measurements.count(filter, previewAt)).toBe(1);
+    const next = await measurements.idsMatching(filter, 2, previewAt);
+    expect(next.length).toBe(1);
+    expect(block).not.toContain(next[0]!);
+  });
+});
+
 describe.skipIf(!reachable)("log entries go through the same path", () => {
   test("a corrected message is written and recorded as its own table", async () => {
     const id = await seedLog("Batterie schwach");
