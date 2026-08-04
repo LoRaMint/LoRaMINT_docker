@@ -97,13 +97,19 @@ export default function LoginPage(props: {
                 Anmelden
               </button>
 
+              {/* The label names the destination rather than the wish, because
+                  what the variable points at is a user directory one has to be
+                  signed in to - not a forgotten-password path. Promising the
+                  latter would strand exactly the person who cannot get in.
+                  Without the variable there is nothing to point at, and the
+                  honest answer is the one that was always there. */}
               {auth.passwordResetUrl ? (
                 <a
                   href={auth.passwordResetUrl}
                   rel="noopener noreferrer"
                   class="link link-hover text-sm text-center"
                 >
-                  Passwort vergessen?
+                  Passwort ändern in der Nutzerverwaltung
                 </a>
               ) : (
                 <span class="text-sm text-center text-base-content/60">

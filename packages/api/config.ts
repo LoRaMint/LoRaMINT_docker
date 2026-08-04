@@ -216,8 +216,10 @@ export const auth = {
     rejectUnauthorized: Bun.env.LDAP_TLS_REJECT_UNAUTHORIZED !== "false",
     timeoutMs: optionalInt("LDAP_TIMEOUT_MS", 5000),
   },
-  // Where "Passwort vergessen?" points. Password resets belong to the directory,
-  // not to this application, so this is a link to whatever portal owns them.
+  // The directory's own user administration, linked from the login form as
+  // "Passwort ändern in der Nutzerverwaltung". Passwords belong to the directory
+  // and not to this application, so this points at whatever owns them - lldap's
+  // interface, a school portal. Unset, the form says to ask the administration.
   passwordResetUrl: optional("LDAP_PASSWORD_RESET_URL"),
   /**
    * Directory groups that grant privileges in the application. See lib/roles.ts

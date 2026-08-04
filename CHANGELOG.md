@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- The login form's link behind `LDAP_PASSWORD_RESET_URL` is now labelled
+  "Passwort ändern in der Nutzerverwaltung" rather than "Passwort vergessen?".
+  What the variable usefully points at - lldap's interface, a school portal - is
+  a place one has to be signed in to, which is exactly what someone with a
+  forgotten password cannot do; the old label promised a way in and delivered
+  another login form. Unset, the form still says to contact the administration.
 - A deletion by filter is no longer refused for being too large. `MANAGE_MAX_DELETE`
   (default 10000) turned from a ceiling into a block size: the deletion runs in
   as many blocks as it takes, each its own short transaction, and a progress page
