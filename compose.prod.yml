@@ -2,7 +2,7 @@
 #
 # Every variable below is read from the environment file compose was started
 # with, for example
-#     docker compose --env-file matthias.env -f compose.prod.yml up -d
+#     docker compose --env-file example.env -f compose.prod.yml up -d
 #
 # Optional features are switched on by *setting* their variable and stay off
 # when it is absent. Compose passes an unresolved variable through as an empty
@@ -27,12 +27,6 @@ services:
       - DATABASE_URL=postgres://${DB_USER:?DB_USER is required}:${DB_PASSWORD:?DB_PASSWORD is required}@db:5432/${DB_NAME:?DB_NAME is required}
       - TTN_APP_KEY=${TTN_APP_KEY:?TTN_APP_KEY is required}
       - NODE_ENV=production
-      # How many proxies sit in front, so the login throttle can tell one
-      # visitor from another. This file always puts Traefik in front, hence 1;
-      # raise it by one per further hop (a CDN, say). With 0 every request would
-      # look like it came from Traefik and six wrong passwords anywhere would
-      # lock the whole site out.
-      - TRUSTED_PROXIES=${TRUSTED_PROXIES:-1}
 
       # --- Legal pages (optional) -----------------------------------------
       # Each page only exists while its variable has content.
