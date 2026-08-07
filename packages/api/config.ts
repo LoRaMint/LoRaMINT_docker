@@ -155,6 +155,70 @@ if (manageDatabaseUrl && manageDatabaseUrl === optional("DATABASE_URL")) {
   );
 }
 
+//====================================
+// DEVICE MANAGEMENT (TTN)
+//====================================
+
+/**
+ * The key the device pages talk to The Things Stack with.
+ *
+ * Not to be confused with TTN_APP_KEY above, however similar the names look.
+ * That one is a word the webhook sends us and we compare; this one is a key that
+ * may *change* the application in TTN - register devices, set their root keys,
+ * read them back. Swapping the two would put the webhook secret into the TTN
+ * console and a management credential into every environment file, so the check
+ * below refuses to start rather than let that pass unnoticed.
+ *
+ * Opt-in like every other optional feature: without both the key and the
+ * application id the device page stays the announcement it is today, and no
+ * request ever leaves this server for TTN.
+ *
+ * The key needs these rights on the application (TTN console > API keys):
+ * read and write end devices, and read and write their keys - the last one
+ * because an OTAA device is registered with its AppKey and because the detail
+ * page can show it again to administrators.
+ */
+const ttnApiKey = optional("TTN_API_KEY");
+const ttnApplicationId = optional("TTN_APPLICATION_ID");
+
+export const ttn = {
+  enabled: ttnApiKey !== null && ttnApplicationId !== null,
+  apiKey: ttnApiKey,
+  applicationId: ttnApplicationId,
+  /** The cluster the application lives in, without a trailing slash. */
+  url: (optional("TTN_URL") ?? "https://eu1.cloud.thethings.network").replace(
+    /\/+$/,
+    "",
+  ),
+  timeoutMs: optionalInt("TTN_TIMEOUT_MS", 5000),
+  /**
+   * What every device registered from here gets. These are properties of the
+   * deployment, not of the individual device: one school, one region, one kind
+   * of module, so the form states them rather than asking. The defaults are what
+   * the devices registered by hand so far already use.
+   */
+  frequencyPlan: optional("TTN_FREQUENCY_PLAN") ?? "EU_863_870_TTN",
+  lorawanVersion: optional("TTN_LORAWAN_VERSION") ?? "MAC_V1_0_3",
+  /**
+   * `PHY_V1_0_3_REV_A`, not `RP001_V1_0_3_REV_A`. The Things Stack accepts the
+   * second as an alias but stores and returns the first, so using the alias here
+   * made the registration form and the device page name the same setting
+   * differently - measured against the real thing, not assumed. The console
+   * spells it out as "RP001 Regional Parameters 1.0.3 revision A".
+   */
+  regionalParameters: optional("TTN_REGIONAL_PARAMETERS") ?? "PHY_V1_0_3_REV_A",
+};
+
+if (ttnApiKey && ttnApiKey === config.appKey) {
+  throw new Error(
+    "TTN_API_KEY must not be the same value as TTN_APP_KEY: the first is a " +
+      "credential that may register devices and read their root keys, the " +
+      "second is only the shared word the TTN webhook sends with an uplink. " +
+      "Setting them to one value means whoever can read the webhook " +
+      "configuration in TTN can also administer the application.",
+  );
+}
+
 export const legal = {
   impressum: optional("LEGAL_IMPRESSUM"),
   datenschutz: optional("LEGAL_DATENSCHUTZ"),
