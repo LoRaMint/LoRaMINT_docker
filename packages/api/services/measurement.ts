@@ -354,6 +354,14 @@ const listRows = async (
  * arrived through the webhook in the seconds since then out of a deletion that
  * never showed it: the set can shrink between preview and confirmation, but it
  * cannot grow.
+ *
+ * The bound covers the whole millisecond `createdBefore` names, and that is not
+ * sloppiness. A JavaScript Date holds milliseconds, `timestamptz` holds
+ * microseconds, so a row written 7 µs into the same millisecond as the preview
+ * would fall outside a plain `<=` - a row that was demonstrably already there
+ * when the preview was taken, since the preview is what happened afterwards.
+ * `< bound + 1ms` includes it, and keeps the column bare so an index on it is
+ * still usable, which `date_trunc(...) <= bound` would not.
  */
 const idsMatching = async (
   filter: MeasurementFilter,
@@ -363,7 +371,8 @@ const idsMatching = async (
   const rows = await sql`
     SELECT id FROM measurements
     ${filterClause(filter)}
-      AND (${createdBefore}::timestamptz IS NULL OR created_at <= ${createdBefore})
+      AND (${createdBefore}::timestamptz IS NULL
+           OR created_at < ${createdBefore}::timestamptz + interval '1 millisecond')
     ORDER BY created_at
     LIMIT ${limit}
   `;
@@ -429,7 +438,8 @@ const count = async (
   const [row] = await sql`
     SELECT count(*)::int AS count FROM measurements
     ${filterClause(filter)}
-      AND (${createdBefore}::timestamptz IS NULL OR created_at <= ${createdBefore})
+      AND (${createdBefore}::timestamptz IS NULL
+           OR created_at < ${createdBefore}::timestamptz + interval '1 millisecond')
   `;
   return (row as { count: number }).count;
 };

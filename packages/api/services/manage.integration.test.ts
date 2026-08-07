@@ -453,6 +453,29 @@ describe.skipIf(!reachable)("counting what is left to delete", () => {
     expect(await measurements.count(filter)).toBe(3);
   });
 
+  /**
+   * The preview bound is a JavaScript Date and therefore only as fine as a
+   * millisecond, while `created_at` is a `timestamptz` and holds microseconds. A
+   * row written a few microseconds into the same millisecond as the preview was
+   * once dropped from it by a plain `<=` - a row that was demonstrably already
+   * there, since the preview happened after it. That made "shrinks by exactly
+   * what a block removed" fail about one full test run in five.
+   */
+  test("counts a row written in the very millisecond of the preview", async () => {
+    const { measurements } = await import("./measurement");
+    const filter = { device_eui: deviceEui, location: "Mikrosekunde" };
+
+    const id = await seed("97", "Mikrosekunde");
+    // Exactly the boundary: the preview claims the millisecond the row carries,
+    // but without the microseconds the row has on top of it.
+    const [row] = await app`SELECT created_at FROM measurements WHERE id = ${id}`;
+    const stored = new Date((row as { created_at: Date }).created_at);
+    const previewAt = new Date(stored.getTime());
+
+    expect(await measurements.count(filter, previewAt)).toBe(1);
+    expect(await measurements.idsMatching(filter, 10, previewAt)).toContain(id);
+  });
+
   test("shrinks by exactly what a block removed", async () => {
     const { measurements } = await import("./measurement");
     const filter = { device_eui: deviceEui, location: "Blockabbau" };

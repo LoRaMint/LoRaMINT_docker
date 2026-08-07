@@ -188,7 +188,8 @@ const idsMatching = async (
   const rows = await sql`
     SELECT id FROM log_entries
     ${filterClause(filter)}
-      AND (${createdBefore}::timestamptz IS NULL OR created_at <= ${createdBefore})
+      AND (${createdBefore}::timestamptz IS NULL
+           OR created_at < ${createdBefore}::timestamptz + interval '1 millisecond')
     ORDER BY created_at
     LIMIT ${limit}
   `;
@@ -253,7 +254,8 @@ const count = async (
   const [row] = await sql`
     SELECT count(*)::int AS count FROM log_entries
     ${filterClause(filter)}
-      AND (${createdBefore}::timestamptz IS NULL OR created_at <= ${createdBefore})
+      AND (${createdBefore}::timestamptz IS NULL
+           OR created_at < ${createdBefore}::timestamptz + interval '1 millisecond')
   `;
   return (row as { count: number }).count;
 };
