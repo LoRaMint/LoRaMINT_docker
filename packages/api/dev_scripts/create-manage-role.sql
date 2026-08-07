@@ -55,3 +55,8 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON log_entries TO loramint_manage;
 
 -- The change log: append and read, nothing else.
 GRANT SELECT, INSERT ON audit_log TO loramint_manage;
+
+-- The device log, on the same terms and for the same reason. It records what the
+-- device pages did in The Things Network - see migrations/004-device-log.ts for
+-- why that is a separate table rather than more rows in audit_log.
+GRANT SELECT, INSERT ON device_log TO loramint_manage;

@@ -88,6 +88,9 @@ const SPECS: RoleSpec[] = [
       { privileges: "SELECT, INSERT, UPDATE, DELETE", on: "measurements" },
       { privileges: "SELECT, INSERT, UPDATE, DELETE", on: "log_entries" },
       { privileges: "SELECT, INSERT", on: "audit_log" },
+      // Same shape as audit_log and for the same reason: the device pages append
+      // to their log and must not be able to tidy it up afterwards.
+      { privileges: "SELECT, INSERT", on: "device_log" },
     ],
     // Deliberately empty: a table added by a later migration grants this role
     // nothing until someone adds a line above. A default privilege here would
