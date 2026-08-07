@@ -33,6 +33,26 @@ services:
       - LEGAL_IMPRESSUM=${LEGAL_IMPRESSUM:-}
       - LEGAL_DATENSCHUTZ=${LEGAL_DATENSCHUTZ:-}
 
+      # --- Device management (optional, TTN) -------------------------------
+      # Without both of the first two the device page stays an announcement and
+      # no request ever leaves this server for The Things Network.
+      #
+      # TTN_API_KEY is NOT TTN_APP_KEY above, however alike they look: that one
+      # is the word the webhook sends us and we compare, this one may register
+      # devices in the application and read their root keys. The server refuses
+      # to start if they are set to the same value.
+      - TTN_API_KEY=${TTN_API_KEY:-}
+      - TTN_APPLICATION_ID=${TTN_APPLICATION_ID:-}
+      - TTN_URL=${TTN_URL:-}
+      - TTN_TIMEOUT_MS=${TTN_TIMEOUT_MS:-}
+      # Passed through rather than pinned like TRUSTED_PROXIES: this file does
+      # not decide which cluster or region a deployment sits in. Empty means the
+      # default in config.ts, which is what the devices registered by hand so
+      # far already use.
+      - TTN_FREQUENCY_PLAN=${TTN_FREQUENCY_PLAN:-}
+      - TTN_LORAWAN_VERSION=${TTN_LORAWAN_VERSION:-}
+      - TTN_REGIONAL_PARAMETERS=${TTN_REGIONAL_PARAMETERS:-}
+
       # --- Login (optional, LDAP) -----------------------------------------
       # Without LDAP_URL there is no login, no roles and no management section;
       # with it, SESSION_SECRET and one of the two bind strategies are required
