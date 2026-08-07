@@ -22,8 +22,10 @@ SQL-Konsole — nur für die Admin-Gruppe, ohne Protokoll, ohne Sicherheitsnetz.
 
 Ziel war **eine einzige Unterseite pro Datenmenge**, auf der gesucht, geändert
 und gelöscht wird; identisch bedienbar für Messwerte, Logeinträge und später
-Geräte. `/management/devices` steht weiterhin auf `<Planned/>` und kommt mit
-Meilenstein 1.6.
+Geräte. `/management/devices` stand zu diesem Zeitpunkt noch auf `<Planned/>`;
+die Seite kam mit Meilenstein 1.6 und ist in `geraete-verwalten.md` beschrieben.
+Sie folgt diesem Muster bewusst nur zum Teil — ihre Zeilen sind keine
+Datenbankzeilen, sondern liegen in The Things Network.
 
 ## Die fünf Vorgaben
 
@@ -306,7 +308,7 @@ gelesen; ein untergeschobenes `device_eui` existiert für den Handler nicht.
 /management/data/audit                      GET   Vorgänge, nur lesen
 /management/data/audit/:batchId             GET   die Änderungen eines Vorgangs
 /management/data/audit/revert               POST  nur admin — Bestätigung / Ausführung
-/management/devices                         GET   bleibt vorerst <Planned/>
+/management/devices                         GET   eigenes Konzept, s. geraete-verwalten.md
 ```
 
 Die beiden schreibbaren Datenmengen teilen sich denselben Satz Routen: sie
@@ -323,7 +325,7 @@ sonst im Verlauf, im Prefetch und in fremden `<img>`-Tags landen kann.
 frontend/pages/management/
 ├─ routes.tsx                    registerResourceRoutes + registerAuditRoutes
 ├─ data-page.tsx                 Übersicht (ersetzt den früheren <Planned/>)
-├─ devices-page.tsx              unverändert
+├─ devices-page.tsx              damals unverändert; seit 1.6 die Geräteübersicht
 ├─ resource-page.tsx             DIE Seite — nimmt eine Ressourcen-Konfiguration
 ├─ resources.ts                  Spalten/Filter/Fähigkeiten je Datenmenge
 ├─ confirm-save-page.tsx
