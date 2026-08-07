@@ -132,8 +132,9 @@ export default function DeviceNewPage(props: {
           value={props.values.deviceId}
           problem={props.problems.deviceId}
           hint={
-            "Die Kennung in TTN – Kleinbuchstaben, Ziffern und Bindestriche, " +
-            "3 bis 36 Zeichen. Sie lässt sich später nicht mehr ändern."
+            "Die Kennung in TTN, fortlaufend vorgeschlagen. Änderbar – " +
+            "Kleinbuchstaben, Ziffern und Bindestriche, 3 bis 36 Zeichen. " +
+            "Später lässt sie sich nicht mehr ändern."
           }
           mono
         />

@@ -100,10 +100,23 @@ getippt; eine Eingabe wegen ihrer Formatierung abzulehnen kauft nur ein
 Abtippen, und ein abgetippter 32-stelliger Schlüssel ist genau die Fehlerquelle,
 die man vermeiden will.
 
-Die Geräte-ID wird vorgeschlagen, nicht verlangt: bleibt sie leer, wird
-`eui-<deveui>` daraus gebaut — das Schema, das die Console selbst vorschlägt und
-das per Konstruktion nicht kollidieren kann. Das Feld bleibt editierbar, denn
+Die Geräte-ID steht beim Öffnen schon da: `device-` und eins mehr als die
+höchste Nummer, die in TTN bereits vergeben ist — bei `device-1` bis `device-3`
+also `device-4`. So heissen die von Hand angelegten Geräte, und ein Vorschlag,
+der nicht zum Bestand passt, ist keiner.
+
+Gezählt wird, nicht aufgefüllt: sind `device-1` und `device-3` da, lautet die
+Antwort `device-4` und nicht `device-2`. Eine Lücke bedeutet meist ein
+entferntes Gerät, und dessen Nummer an andere Hardware zu vergeben liesse zwei
+Dinge in den Aufzeichnungen und in der Messwerthistorie denselben Namen tragen.
+Ids ausserhalb des Schemas zählen nicht mit; das Feld bleibt editierbar, denn
 `klasse-8b-fenster` sagt beim Hinsehen mehr.
+
+Die Nummer wird bei jedem Öffnen des Formulars bei TTN erfragt — dort allein ist
+bekannt, was vergeben ist, denn diese Anwendung führt keine Gerätetabelle. Lässt
+sich die Liste nicht abrufen, bleibt das Feld leer: ein aus einer unvollständigen
+Liste gezählter Vorschlag wäre schlimmer als keiner, weil er einen bereits
+benutzten Namen nennen könnte.
 
 Frequenzplan, LoRaWAN- und Regional-Parameters-Version stehen als Text da, nicht
 als Feld: sie sind Eigenschaften des Standorts, für alle Geräte gleich, und ein

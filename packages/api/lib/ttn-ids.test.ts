@@ -5,9 +5,9 @@ import {
   MAX_NAME_LENGTH,
   normaliseAppKey,
   normaliseDevice,
+  nextDeviceId,
   normaliseDeviceId,
   normaliseEui,
-  suggestDeviceId,
 } from "./ttn-ids";
 
 /** The values of a real LA66, as the TTN console shows them. */
@@ -89,19 +89,46 @@ describe("normaliseDeviceId", () => {
   });
 });
 
-describe("suggestDeviceId", () => {
-  test("proposes the collision-free scheme the console uses", () => {
-    expect(suggestDeviceId(DEV_EUI)).toBe("eui-a84041d6c184db82");
+describe("nextDeviceId", () => {
+  test("counts on from the highest number in use", () => {
+    expect(nextDeviceId(["device-1", "device-2", "device-3"])).toBe("device-4");
   });
 
-  test("proposes nothing while the DevEUI is still incomplete", () => {
-    expect(suggestDeviceId("A840")).toBeNull();
+  test("starts at one in an empty application", () => {
+    expect(nextDeviceId([])).toBe("device-1");
+  });
+
+  test("compares numerically, not as text", () => {
+    // Sorted as text "device-9" would win over "device-10" and the proposal
+    // would be a name that already exists.
+    expect(nextDeviceId(["device-9", "device-10"])).toBe("device-11");
+  });
+
+  test("counts on rather than filling a gap", () => {
+    // device-2 is most likely a device that was removed; handing its name to
+    // different hardware would make two things share it in the history.
+    expect(nextDeviceId(["device-1", "device-3"])).toBe("device-4");
+  });
+
+  test("ignores ids that are not part of the scheme", () => {
+    expect(nextDeviceId(["klasse-8b-fenster", "eui-a84041d6c184db82"])).toBe(
+      "device-1",
+    );
+    expect(nextDeviceId(["fenster", "device-2", "flur-eg"])).toBe("device-3");
+  });
+
+  test("is not fooled by lookalikes", () => {
+    expect(nextDeviceId(["device-2b", "device-", "devices-5", "device-1"])).toBe(
+      "device-2",
+    );
+  });
+
+  test("takes ids as TTN hands them over, whatever their case or spacing", () => {
+    expect(nextDeviceId([" Device-4 "])).toBe("device-5");
   });
 
   test("what it proposes is always a valid id", () => {
-    expect(normaliseDeviceId(suggestDeviceId(DEV_EUI)!)).toBe(
-      "eui-a84041d6c184db82",
-    );
+    expect(normaliseDeviceId(nextDeviceId(["device-41"]))).toBe("device-42");
   });
 });
 

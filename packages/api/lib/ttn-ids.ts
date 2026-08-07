@@ -51,17 +51,37 @@ export const normaliseDeviceId = (raw: string): string | null => {
   return DEVICE_ID.test(value) ? value : null;
 };
 
+/** The scheme the counted-up proposal uses: `device-` and a number. */
+const NUMBERED = /^device-(\d+)$/;
+
 /**
- * The id to offer for a device whose DevEUI is already typed in.
+ * The id to offer for the next device: `device-` and one past the highest number
+ * already in use.
  *
- * `eui-` plus the DevEUI is what the TTN console itself suggests, and it is the
- * one scheme that cannot collide: the EUI is unique by construction. It is only
- * a proposal - the field stays editable, and a name like `klasse-8b-fenster`
- * says far more at a glance.
+ * Counted rather than derived from the DevEUI, because that is how the devices
+ * of this application have been named by hand so far and a proposal that does
+ * not match what is already there is no proposal at all.
+ *
+ * It counts rather than fills gaps. With `device-1` and `device-3` present the
+ * answer is `device-4`, not `device-2`: a gap usually means that device was
+ * removed, and handing its number to a different piece of hardware makes two
+ * things share a name in everyone's notes and in the measurement history.
+ *
+ * Ids that do not fit the scheme are ignored, so a `klasse-8b-fenster` next to
+ * the numbered ones does not disturb the count - the field stays editable, and
+ * such a name says far more at a glance.
  */
-export const suggestDeviceId = (rawEui: string): string | null => {
-  const eui = normaliseEui(rawEui);
-  return eui ? `eui-${eui.toLowerCase()}` : null;
+export const nextDeviceId = (existingIds: readonly string[]): string => {
+  let highest = 0;
+  for (const id of existingIds) {
+    const match = NUMBERED.exec(id.trim().toLowerCase());
+    if (!match) continue;
+    // Compared as a number, not as text: otherwise "device-9" would outrank
+    // "device-10" and the next device would be handed a name already taken.
+    const value = Number.parseInt(match[1]!, 10);
+    if (Number.isSafeInteger(value) && value > highest) highest = value;
+  }
+  return `device-${highest + 1}`;
 };
 
 /**

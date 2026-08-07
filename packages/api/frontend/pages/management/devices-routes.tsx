@@ -5,8 +5,8 @@ import { deviceLog, devices, measurements } from "../../../services";
 import { currentUser, hasRole, parsePage, parseReason } from "../../../lib";
 import {
   deviceProblems,
+  nextDeviceId,
   normaliseDevice,
-  suggestDeviceId,
   type DeviceInput,
 } from "../../../lib/ttn-ids";
 import ManageDevicesPage, { type DeviceRow } from "./devices-page";
@@ -180,15 +180,34 @@ export const registerDeviceRoutes = (
   // REGISTERING A DEVICE
   //====================================
 
+  /**
+   * The next id in the `device-N` series, asked of TTN rather than remembered.
+   *
+   * TTN is the only place that knows which ids are taken - this application
+   * keeps no device table - and somebody may well have registered one through
+   * the console since the last look. An empty string when the list cannot be
+   * fetched: a proposal counted from an incomplete list is worse than none,
+   * because it would suggest a name that is already in use.
+   */
+  const proposedId = async () => {
+    const listed = await devices.listDevices();
+    return listed.ok
+      ? nextDeviceId(listed.data.map((device) => device.deviceId))
+      : "";
+  };
+
   pages.get(
     `${PATH}/new`,
     guards.requireRole,
-    ...ssr((c) => {
+    ...ssr(async (c) => {
       if (!ttn.enabled || !manage.writable) return c.redirect(PATH, 303);
       c.get("page").title = "Gerät anlegen";
+      // Awaited before the JSX: Solid compiles props into getters, and a getter
+      // cannot be async. Same reason as in ./routes.tsx.
+      const deviceId = await proposedId();
       return (
         <DeviceNewPage
-          values={{ deviceId: "", name: "", devEui: "", joinEui: "", appKey: "" }}
+          values={{ deviceId, name: "", devEui: "", joinEui: "", appKey: "" }}
           reason=""
           problems={{}}
           radio={RADIO}
@@ -219,10 +238,11 @@ export const registerDeviceRoutes = (
       const values = inputFrom(body);
       const reason = parseReason(body);
 
-      // An id nobody filled in is offered rather than demanded: the DevEUI is
-      // already there, and TTN's own scheme built from it cannot collide.
+      // Someone who cleared the field gets the proposal anyway, counted again
+      // here rather than trusted from the form: between opening the page and
+      // submitting it, another device may have taken the number.
       if (values.deviceId.trim().length === 0) {
-        values.deviceId = suggestDeviceId(values.devEui) ?? "";
+        values.deviceId = await proposedId();
       }
 
       const problems = deviceProblems(values);
