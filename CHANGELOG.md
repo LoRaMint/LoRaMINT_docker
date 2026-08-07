@@ -5,6 +5,29 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.1] - 2026-08-08
+
+### Changed
+- The device id proposed when registering counts on - `device-4` when `device-1`
+  to `device-3` exist - instead of being built from the DevEUI as
+  `eui-a84041d6c184db82`. The devices registered by hand so far are named that
+  way, and a proposal that does not match what is already there is not much of a
+  proposal. It also stands in the field when the form opens rather than only
+  being filled in on submit, so the name is visible while the rest is typed.
+
+  It counts rather than fills gaps: with `device-1` and `device-3` present the
+  answer is `device-4`, not `device-2`. A gap usually means that device was
+  removed, and handing its number to different hardware would make two things
+  share a name in everyone's notes and in the measurement history. Ids outside
+  the scheme are ignored, so a `klasse-8b-fenster` alongside the numbered ones
+  does not disturb the count, and the field stays editable - such a name says
+  far more at a glance.
+
+  The number is asked of TTN each time the form opens, because that is the only
+  place that knows which ids are taken; this application keeps no device table.
+  When the list cannot be fetched the field stays empty rather than proposing a
+  name counted from an incomplete list, which could well be one already in use.
+
 ## [1.6.0] - 2026-08-08
 
 ### Added
@@ -546,7 +569,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Releases up to and including [0.1.8] (2026-05-12) predate this changelog.
 
-[Unreleased]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.6.0...HEAD
+[Unreleased]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.6.1...HEAD
+[1.6.1]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.6.0...v1.6.1
 [1.6.0]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.5.0...v1.6.0
 [1.5.0]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.3.0...v1.4.0
