@@ -29,6 +29,7 @@ import type { ResourceSpec } from "../../components/manage/spec";
 import ResourcePage from "./resource-page";
 import ConfirmSavePage from "./confirm-save-page";
 import ConfirmDeletePage from "./confirm-delete-page";
+import ContinueDeletePage from "./continue-delete-page";
 import AuditPage, { AUDIT_PATH, AUDIT_VIEW } from "./audit-page";
 import AuditBatchPage from "./audit-batch-page";
 import ConfirmRevertPage from "./confirm-revert-page";
@@ -61,6 +62,8 @@ export type ResourceBackend<F> = {
     sort: { column: string; direction: "asc" | "desc" },
   ) => Promise<{ rows: Record<string, unknown>[]; total: number }>;
   idsMatching: (filter: F, limit: number, before: Date | null) => Promise<string[]>;
+  /** How many rows match, bounded the same way `idsMatching` is. */
+  countMatching: (filter: F, before: Date | null) => Promise<number>;
   byIds: (ids: string[]) => Promise<Record<string, unknown>[]>;
   /** Options for the select filters, keyed by filter key. */
   options: (filter: F) => Promise<Record<string, string[]>>;
@@ -337,35 +340,49 @@ export const registerResourceRoutes = <F,>(
         ? new Date()
         : new Date(submittedPreviewAt);
 
-      const ids = byFilter
-        ? await backend.idsMatching(
-            backend.filterFrom(view.query),
-            manage.maxDeleteRows + 1,
-            previewAt,
-          )
-        : parseSelection(body);
+      const filter = backend.filterFrom(view.query);
 
-      if (ids.length === 0) return back("noselection");
-      if (ids.length > manage.maxDeleteRows) return back("toomany");
+      // How much is still there. For a deletion by filter this is the whole
+      // matching set, however large - the block size below is about how much
+      // goes at once, not about how much may go at all.
+      const remaining = byFilter
+        ? await backend.countMatching(filter, previewAt)
+        : parseSelection(body).length;
 
+      if (remaining === 0) return back("noselection");
+
+      // Rows already removed by earlier blocks of this same deletion. Only a
+      // continuation carries it; the first request starts at zero.
+      const done =
+        typeof body.done === "string" && /^\d+$/.test(body.done)
+          ? Number(body.done)
+          : 0;
+      // What the user was shown at the very start, so a set that changed under
+      // them is still noticed after the tenth block rather than only the first.
       const expected =
         typeof body.expected === "string" ? Number(body.expected) : Number.NaN;
       const countChanged =
-        byFilter && Number.isFinite(expected) && expected !== ids.length;
+        byFilter && Number.isFinite(expected) && expected - done !== remaining;
 
       if (!isConfirmed(body) || countChanged) {
         c.get("page").title = "Löschen bestätigen";
+        const previewIds = byFilter
+          ? await backend.idsMatching(filter, 20, previewAt)
+          : parseSelection(body);
         // Awaited before the JSX: Solid compiles props into getters, and a
         // getter cannot be async.
-        const preview = await backend.byIds(ids.slice(0, 20));
+        const preview = await backend.byIds(previewIds.slice(0, 20));
         return (
           <ConfirmDeletePage
             spec={spec}
             preview={preview}
-            total={ids.length}
+            total={remaining}
+            blockSize={byFilter ? manage.maxDeleteRows : null}
             view={buildQuery(view.params)}
             reason={reason}
-            changedSince={countChanged ? { was: expected, now: ids.length } : null}
+            changedSince={
+              countChanged ? { was: expected - done, now: remaining } : null
+            }
             fields={[
               { name: "view", value: buildQuery(view.params) },
               { name: action.data.kind, value: "1" },
@@ -373,22 +390,67 @@ export const registerResourceRoutes = <F,>(
               ...(byFilter
                 ? [
                     { name: "previewAt", value: previewAt.toISOString() },
-                    { name: "expected", value: String(ids.length) },
+                    { name: "expected", value: String(remaining) },
                   ]
-                : ids.map((id) => ({ name: "sel", value: id }))),
+                : previewIds.map((id) => ({ name: "sel", value: id }))),
             ]}
           />
         );
       }
 
+      // One block. By filter that is the next `maxDeleteRows` of the previewed
+      // set - `idsMatching` orders by created_at and the bound above keeps the
+      // set from growing, so removing a block makes the next call return the
+      // next one. A selection is a single page and never reaches the limit.
+      const ids = byFilter
+        ? await backend.idsMatching(filter, manage.maxDeleteRows, previewAt)
+        : parseSelection(body);
+      if (ids.length === 0) return back("noselection");
+      if (ids.length > manage.maxDeleteRows) return back("toomany");
+
       const user = currentUser()!;
-      const result = await managed.deleteRows(backend.table, ids, {
-        username: user.username,
-        displayName: user.displayName ?? null,
-        reason,
-      });
+      const result = await managed.deleteRows(
+        backend.table,
+        ids,
+        {
+          username: user.username,
+          displayName: user.displayName ?? null,
+          reason,
+        },
+        // Every block of one deletion joins the batch the first block opened, so
+        // the log shows one operation and can take it back as one.
+        asUuid(typeof body.batch === "string" ? body.batch : undefined),
+      );
       if (!result.ok) return back("failed");
-      return back("deleted");
+
+      const removed = done + result.data.deleted;
+      const left = byFilter ? remaining - result.data.deleted : 0;
+      if (left <= 0) return back("deleted");
+
+      c.get("page").title = "Löschen läuft";
+      return (
+        <ContinueDeletePage
+          spec={spec}
+          done={removed}
+          left={left}
+          blockSize={manage.maxDeleteRows}
+          view={buildQuery(view.params)}
+          reason={reason}
+          fields={[
+            { name: "view", value: buildQuery(view.params) },
+            { name: action.data.kind, value: "1" },
+            { name: "reason", value: reason },
+            { name: "previewAt", value: previewAt.toISOString() },
+            // The original total, unchanged from block to block - only `done`
+            // grows, and the guard above compares `expected - done` against what
+            // the table still holds.
+            { name: "expected", value: String(expected) },
+            { name: "done", value: String(removed) },
+            { name: "batch", value: result.data.batchId },
+            { name: "confirm", value: "1" },
+          ]}
+        />
+      );
     }),
   );
 };
@@ -625,6 +687,7 @@ export const measurementBackend: ResourceBackend<MeasurementFilter> = {
   filterFrom: measurementFilterFrom,
   listRows: measurements.listRows,
   idsMatching: measurements.idsMatching,
+  countMatching: measurements.count,
   byIds: measurements.byIds,
   options: async (filter) => {
     // Narrowed by the selected device, so the other dropdowns only offer what
@@ -648,6 +711,7 @@ export const logEntryBackend: ResourceBackend<LogEntryFilter> = {
   filterFrom: logEntryFilterFrom,
   listRows: logEntries.listRows,
   idsMatching: logEntries.idsMatching,
+  countMatching: logEntries.count,
   byIds: logEntries.byIds,
   options: async () => ({ device_eui: (await logEntries.metadata()).devices }),
   validateField: (_row, column, value) => logEntries.validateField(column, value),

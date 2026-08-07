@@ -210,6 +210,37 @@ const metadata = async (filter: MeasurementFilter = {}) => {
 };
 
 /**
+ * How much has arrived per device, and when the last of it did.
+ *
+ * The device overview joins this against what The Things Network has registered,
+ * which is the only way to tell the three interesting cases apart: a device that
+ * is registered and sending, one that is registered and silent, and measurements
+ * arriving under an EUI that TTN no longer knows. That last one is invisible from
+ * either side alone.
+ *
+ * Keyed by the upper-case EUI, because TTN writes them upper case and the rows
+ * hold whatever the webhook was sent - a device that matched only in case would
+ * otherwise appear twice.
+ */
+const deviceActivity = async (): Promise<
+  Map<string, { count: number; lastSeen: Date | null }>
+> => {
+  const rows = await sql`
+    SELECT upper(device_eui) AS eui,
+           count(*)::int AS n,
+           max(COALESCE(recorded_at, created_at)) AS last_seen
+      FROM measurements
+     GROUP BY upper(device_eui)
+  `;
+  return new Map(
+    (rows as Record<string, unknown>[]).map((r) => [
+      r.eui as string,
+      { count: Number(r.n), lastSeen: (r.last_seen as Date | null) ?? null },
+    ]),
+  );
+};
+
+/**
  * Status board data: the latest measurement per (device_eui, sensor), together
  * with how many measurements that pair has sent, ordered by most recent
  * activity first. Uses window functions so the newest row and the count come
@@ -383,8 +414,23 @@ const validateField = (
   return null;
 };
 
-const count = async (filter: MeasurementFilter = {}) => {
-  const [row] = await sql`SELECT count(*)::int AS count FROM measurements ${filterClause(filter)}`;
+/**
+ * How many rows match, optionally bounded like `idsMatching`.
+ *
+ * `createdBefore` exists for the same reason it does there: a deletion that runs
+ * in blocks asks after every block how much is left, and that question has to be
+ * about the set that was previewed - not about one that has grown through the
+ * webhook in the meantime.
+ */
+const count = async (
+  filter: MeasurementFilter = {},
+  createdBefore: Date | null = null,
+) => {
+  const [row] = await sql`
+    SELECT count(*)::int AS count FROM measurements
+    ${filterClause(filter)}
+      AND (${createdBefore}::timestamptz IS NULL OR created_at <= ${createdBefore})
+  `;
   return (row as { count: number }).count;
 };
 
@@ -452,6 +498,7 @@ export const measurements = {
   ingest,
   list,
   metadata,
+  deviceActivity,
   status,
   exportCsvStream,
   filterClause,

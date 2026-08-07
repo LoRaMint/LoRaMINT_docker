@@ -5,6 +5,97 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0] - 2026-08-07
+
+### Added
+- Device administration at `/management/devices`, which until now was an
+  announcement. It lists what The Things Network has registered *next to* what
+  has actually been arriving, and that pairing is the point: the TTN console
+  knows nothing about measurements and the data pages know nothing about
+  registrations, so two states were invisible from either side alone. A device
+  registered months ago that has never sent anything now reads "stumm", and
+  measurements piling up under a DevEUI that TTN no longer knows read
+  "verwaist" - the readings stay, but nobody can configure that device any more.
+  Trouble sorts to the top.
+
+  Devices can be registered and renamed here. The form takes the numbers printed
+  on the LA66 modules rather than generating any, and it accepts them in the
+  spacing the TTN console shows - `A8 40 41 D6 C1 84 DB 82` - because those
+  values are pasted, and a retyped 32-digit key is precisely where the errors
+  come from. Frequency plan and LoRaWAN versions are stated rather than asked:
+  they belong to the site, not to the device.
+
+  Registering is four calls to four servers and no transaction, so the result
+  page names each step on its own instead of saying it did not work. A failure
+  rolls the earlier steps back, and when the rollback itself fails - the server
+  that just refused a request may refuse the DELETE for the same reason - the
+  page says which parts are still in TTN and under which device id. Without that
+  sentence somebody would be left with half a device they do not know about, and
+  the next attempt with the same id would fail on a conflict nobody could
+  explain.
+
+  Deleting is deliberately not here. It is four DELETEs with the same
+  half-finished problem, and the least often needed; it stays with the console.
+- A device's AppKey can be revealed on its detail page, by administrators only,
+  and through a POST rather than a link - a link is something one follows by
+  accident, and the key would otherwise sit in the browser history and in every
+  proxy log that records URLs. It is fetched from the Join Server for that one
+  response and never travels with the list or the detail page. Everyone else
+  sees a sentence saying so, not a greyed-out button.
+- A device log at `/management/devices/log`, recording who registered or renamed
+  what, why, and how it went - including the half-finished case. It is separate
+  from the Änderungsprotokoll on purpose, and says so: that log can take an entry
+  back because every entry is a database row it can write again, and a device in
+  TTN is not one. The pages append to it through the same restricted role they
+  write data with, which holds `SELECT` and `INSERT` on it and nothing else, so
+  they cannot tidy up their own record.
+
+  All of this is opt-in through `TTN_API_KEY` and `TTN_APPLICATION_ID`; without
+  them the page stays the announcement and no request leaves the server for TTN.
+  Note that `TTN_API_KEY` is *not* `TTN_APP_KEY`, however alike they look: the
+  old one is the word the webhook sends and this server compares, the new one may
+  register devices and read their root keys. Setting both to one value would mean
+  that whoever can read the webhook configuration in TTN can also administer the
+  application, so the server now refuses to start when they match.
+
+### Changed
+- The login form's link behind `LDAP_PASSWORD_RESET_URL` is now labelled
+  "Passwort ändern in der Nutzerverwaltung" rather than "Passwort vergessen?".
+  What the variable usefully points at - lldap's interface, a school portal - is
+  a place one has to be signed in to, which is exactly what someone with a
+  forgotten password cannot do; the old label promised a way in and delivered
+  another login form. Unset, the form still says to contact the administration.
+- A deletion by filter is no longer refused for being too large. `MANAGE_MAX_DELETE`
+  (default 10000) turned from a ceiling into a block size: the deletion runs in
+  as many blocks as it takes, each its own short transaction, and a progress page
+  between them says how far it is and offers to stop. With JavaScript it carries
+  on by itself; without it, one click per block.
+
+  This is a better answer to the reason the limit existed. A single statement
+  removing four hundred thousand rows holds locks on the very table the webhook
+  is inserting into for as long as it runs; between blocks those locks are free,
+  so uplinks get in rather than queueing behind the deletion.
+
+  Every block joins the batch the first one opened, so the change log still shows
+  one operation and can take it back as one. Nothing is remembered on the server:
+  the filter, the moment of the preview and the batch travel in the form, so
+  closing the browser stops the deletion where it stands - what went is gone,
+  recorded and undoable, and the rest is untouched. Starting the same deletion
+  again simply continues, because the rows already gone no longer match.
+
+  The confirmation page now also says how many log rows the deletion will write,
+  since each removed row is kept there in full - that is what makes undoing it
+  possible, and it is worth seeing before rather than after.
+- `TRUSTED_PROXIES` is no longer a variable of `compose.prod.yml`; the file simply
+  has the value it needs. It always puts Traefik in front and nothing else, so the
+  only right answer is the default of `1` - there was nothing to configure, only
+  something to get wrong. A `0` picked up from an env file would have made every
+  request look as though it came from Traefik, and six wrong passwords anywhere
+  would have locked the whole site out. `.env.prod.example` now says as much where
+  the variable used to be listed, since setting it there has no effect any more.
+  Should a further hop ever appear - a CDN, say - the variable belongs back in
+  `compose.prod.yml`, one higher per hop.
+
 ## [1.5.0] - 2026-08-03
 
 ### Added
@@ -455,7 +546,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Releases up to and including [0.1.8] (2026-05-12) predate this changelog.
 
-[Unreleased]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.5.0...HEAD
+[Unreleased]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.6.0...HEAD
+[1.6.0]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.5.0...v1.6.0
 [1.5.0]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.2.0...v1.3.0

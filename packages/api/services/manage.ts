@@ -282,11 +282,17 @@ const updateRows = async (
  * The log entry keeps the whole row - after a deletion there is nothing left to
  * look at - and it is built inside the database with `to_jsonb`, so a bulk
  * delete does not travel through this process row by row.
+ *
+ * `batchId` may be supplied by the caller, which is how a deletion that runs in
+ * blocks stays one operation: forty requests removing ten thousand rows each are
+ * one thing somebody did, and the change log has to be able to show it - and
+ * undo it - as one. Left out, each call is its own batch.
  */
 const deleteRows = async (
   table: ManagedTable,
   ids: string[],
   actor: Actor,
+  continuing?: string,
 ): Promise<MutationResult<DeleteOutcome>> => {
   const sql = writeClient();
   if (!sql) return { ok: false, error: NOT_CONFIGURED };
@@ -304,7 +310,12 @@ const deleteRows = async (
     return { ok: false, error: "Ungültige Auswahl." };
   }
 
-  const batchId = crypto.randomUUID();
+  // A caller-supplied batch has to look like one, or a crafted field could tie
+  // this deletion onto an unrelated operation in the log.
+  if (continuing !== undefined && !UUID_PATTERN.test(continuing)) {
+    return { ok: false, error: "Ungültiger Vorgang." };
+  }
+  const batchId = continuing ?? crypto.randomUUID();
   const idList = uuidArray(ids);
 
   try {
