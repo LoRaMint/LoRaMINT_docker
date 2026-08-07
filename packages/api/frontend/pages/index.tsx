@@ -31,13 +31,13 @@ import LoginPage from "./login/page";
 import SqlPage from "./sql/page";
 import ProfilePage from "./profile/page";
 import ManageDataPage from "./management/data-page";
-import ManageDevicesPage from "./management/devices-page";
 import {
   logEntryBackend,
   measurementBackend,
   registerAuditRoutes,
   registerResourceRoutes,
 } from "./management/routes";
+import { registerDeviceRoutes } from "./management/devices-routes";
 import ImpressumPage from "./impressum/page";
 import DatenschutzPage from "./datenschutz/page";
 
@@ -342,14 +342,14 @@ if (auth.enabled) {
     sameOrigin,
   });
 
-  pages.get(
-    "/management/devices",
-    requireRole("management"),
-    ...ssr((c) => {
-      c.get("page").title = "Geräte verwalten";
-      return <ManageDevicesPage />;
-    }),
-  );
+  // The devices, which live in The Things Network rather than in this database.
+  // Revealing a device's AppKey is a rung higher than seeing the page, the same
+  // way taking a change back is.
+  registerDeviceRoutes(pages, {
+    requireRole: requireRole("management"),
+    requireAdmin: requireRole("admin"),
+    sameOrigin,
+  });
 }
 
 if (legal.impressum) {
