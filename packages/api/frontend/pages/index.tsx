@@ -4,7 +4,15 @@ import { getConnInfo } from "hono/bun";
 import { setCookie, deleteCookie } from "hono/cookie";
 import { createMiddleware } from "hono/factory";
 import { html, ssr } from "../../config/ssr";
-import { config, legal, auth, sqlConsole, manage } from "../../config";
+import {
+  config,
+  legal,
+  auth,
+  sqlConsole,
+  manage,
+  setupAccount,
+} from "../../config";
+import { verifySetupAccount } from "../../services/setup-account";
 import {
   measurements,
   logEntries,
@@ -38,6 +46,7 @@ import {
   registerResourceRoutes,
 } from "./management/routes";
 import { registerDeviceRoutes } from "./management/devices-routes";
+import { registerConfigRoutes } from "./management/config-routes";
 import ImpressumPage from "./impressum/page";
 import DatenschutzPage from "./datenschutz/page";
 
@@ -112,10 +121,15 @@ pages.get(
   }),
 );
 
-// The login only exists when LDAP is configured, so a deployment without
-// LDAP_URL keeps working unchanged instead of offering a sign-in that cannot
-// succeed. The header button is gated on the same flag.
-if (auth.enabled) {
+// The login exists as soon as there is any way to sign in - a directory, the
+// local setup account, or both. A deployment with neither keeps working
+// unchanged instead of offering a sign-in that cannot succeed, and the header
+// button is gated on the same condition.
+//
+// The setup account counts here on purpose: it is what makes a fresh server
+// configurable at all, since the pages on which LDAP gets configured are behind
+// this very block.
+if (auth.enabled || setupAccount.enabled) {
   pages.get(
     "/login",
     ...ssr((c) => {
@@ -178,10 +192,19 @@ if (auth.enabled) {
     const locked = loginThrottle.lockedFor(username, address);
     if (locked > 0) return lockedResponse(locked);
 
-    const result = await authenticate(
-      username,
-      typeof form.password === "string" ? form.password : "",
-    );
+    const password = typeof form.password === "string" ? form.password : "";
+
+    // The setup account first, and a name that belongs to it is decided there
+    // and nowhere else: "wrong" does not fall through to the directory. That
+    // keeps the name unambiguously local and stops anybody learning by trial
+    // whether a directory entry of the same name exists.
+    const local = await verifySetupAccount(username, password);
+    const result =
+      local.kind === "ok"
+        ? ({ ok: true, data: local.user } as const)
+        : local.kind === "wrong"
+          ? ({ ok: false, error: "invalid_credentials" } as const)
+          : await authenticate(username, password);
 
     // Redirect after POST either way, so a refresh never resubmits the password.
     // Only the error code travels in the URL, never the credentials.
@@ -350,26 +373,42 @@ if (auth.enabled) {
     requireAdmin: requireRole("admin"),
     sameOrigin,
   });
+
+  // The configuration overview. Administrators only: it lists bind accounts,
+  // database roles and the shape of every secret, which is deployment knowledge
+  // rather than something the management role needs.
+  registerConfigRoutes(pages, {
+    requireAdmin: requireRole("admin"),
+    sameOrigin,
+  });
 }
 
-if (legal.impressum) {
-  pages.get(
-    "/impressum",
-    ...ssr((c) => {
-      c.get("page").title = "Impressum";
-      return <ImpressumPage />;
-    }),
-  );
-}
+/**
+ * The legal pages exist whenever their text does - decided per request, not once
+ * at startup.
+ *
+ * Registering them conditionally would mean that filling in an Impressum on the
+ * configuration page did nothing until somebody restarted the server, and a
+ * restart is not something one does to publish a page. The route is always
+ * there; without text it is simply not found, which is the same thing from
+ * outside.
+ */
+pages.get(
+  "/impressum",
+  ...ssr((c) => {
+    if (!legal.impressum) return c.notFound();
+    c.get("page").title = "Impressum";
+    return <ImpressumPage />;
+  }),
+);
 
-if (legal.datenschutz) {
-  pages.get(
-    "/datenschutz",
-    ...ssr((c) => {
-      c.get("page").title = "Datenschutz";
-      return <DatenschutzPage />;
-    }),
-  );
-}
+pages.get(
+  "/datenschutz",
+  ...ssr((c) => {
+    if (!legal.datenschutz) return c.notFound();
+    c.get("page").title = "Datenschutz";
+    return <DatenschutzPage />;
+  }),
+);
 
 export default pages;

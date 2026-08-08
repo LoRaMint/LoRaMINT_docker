@@ -1,5 +1,5 @@
 import type { JSX } from "solid-js";
-import { legal, auth, sqlConsole } from "../../../config";
+import { legal, auth, sqlConsole, setupAccount } from "../../../config";
 import { currentUser, hasRole } from "../../../lib";
 
 const tabClass =
@@ -103,6 +103,12 @@ export default function Layout(props: { children: JSX.Element }) {
   const user = currentUser();
   const dataUser = hasRole(user, "data", auth);
   const managementUser = hasRole(user, "management", auth);
+  const adminUser = hasRole(user, "admin", auth);
+  // The same condition the login routes are registered under in
+  // frontend/pages/index.tsx: a sign-in exists as soon as either way in is
+  // configured. Offering the button without a route behind it would be worse
+  // than offering nothing.
+  const loginPossible = auth.enabled || setupAccount.enabled;
 
   /**
    * The navigation as data, so the wide and the narrow header render the same
@@ -130,6 +136,11 @@ export default function Layout(props: { children: JSX.Element }) {
               { href: "/management/data", label: "Daten verwalten" },
               { href: "/management/devices", label: "Geräte verwalten" },
               { href: "/management/data/audit", label: "Änderungsprotokoll" },
+              // Administrators only: the page lists bind accounts, database
+              // roles and the shape of every secret.
+              ...(adminUser
+                ? [{ href: "/management/config", label: "Konfiguration" }]
+                : []),
             ],
           },
         ]
@@ -201,7 +212,7 @@ export default function Layout(props: { children: JSX.Element }) {
                 ))}
               </>
             ))}
-            {auth.enabled && (
+            {loginPossible && (
               <>
                 <li class="menu-title text-primary-content/60">Konto</li>
                 {user ? (
@@ -229,7 +240,7 @@ export default function Layout(props: { children: JSX.Element }) {
 
         {/* The account control has its own place on wide screens; on a phone it
             lives in the menu above, where there is room for the name. */}
-        {auth.enabled && (
+        {loginPossible && (
           <div class="hidden md:block">
             <AuthControl />
           </div>
