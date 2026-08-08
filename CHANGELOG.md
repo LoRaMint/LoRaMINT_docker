@@ -5,6 +5,128 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### ⚠ Breaking — read before upgrading
+
+Around thirty settings move out of the environment and into the database. **They
+are no longer read from the environment at all**, and the settings table starts
+out empty, so an upgraded server comes up with none of them configured. Most
+importantly that includes every `LDAP_*` variable: there is no directory login
+until the values are entered again.
+
+This is deliberate — one setting, one place, so a compose file and the actual
+behaviour cannot drift apart. There is no automatic import; the transition is
+yours to make, and the way through it is:
+
+1. **Before upgrading**, set `ADMIN_USERNAME` and `ADMIN_PASSWORD_HASH` (or
+   `ADMIN_PW`) in the environment. Without them the upgraded server has no login
+   at all and cannot be configured.
+2. Note the current values of the `LDAP_*`, `TTN_*`, `MANAGE_*`, `QUERY_*` and
+   `LEGAL_*` variables — `/management/config` on the old version lists them.
+3. Upgrade, sign in with the setup account, and enter them under
+   Verwaltung → Konfiguration.
+4. Remove them from the compose file afterwards. The page marks any that are
+   still set there, since a value nobody reads is one somebody will believe.
+
+What stays in the environment: `DATABASE_URL` and the three restricted
+connection strings, `SESSION_SECRET`, the setup account, `TTN_APP_KEY`, `PORT`,
+`NODE_ENV` and `TRUSTED_PROXIES` — the values needed before the application can
+reach its own configuration, and the ones the security model rests on.
+
+### Added
+- A configuration overview at `/management/config`, for administrators. It reads
+  the running process rather than a document that can go stale, and answers the
+  one question no file could: not *what may be set*, but *what took effect*.
+
+  It opens with the optional features and, for each, the setting responsible —
+  "Geräteverwaltung aus — TTN_API_KEY und TTN_APPLICATION_ID fehlt". That second
+  half is the point. Deploying 1.6.1 left the device page an announcement because
+  the stack still carried the compose file of 1.5.0 and never passed the new
+  variables into the container; the variables were set, and from the screen there
+  was no way to tell. Finding out took a `docker inspect` dump that exposed every
+  production secret along the way. This block ends that search in a glance.
+
+  Below it, every setting with a sentence on what it is for, its effective value
+  and its **origin**: set in the environment, fallen back to the built-in
+  default, or absent. Those two middle states look identical everywhere else and
+  only diverge once somebody changes a default. Empty counts as unset, exactly as
+  `config.ts` treats it, because compose passes an unresolved variable through as
+  an empty string.
+
+  Secrets are described rather than shown — `gesetzt (98 Zeichen, beginnt mit
+  NNSXS.…)` — and connection strings appear with the password masked.
+  Administrators can reveal one through a button, which is a POST and not a link:
+  a link is something one follows by accident, and the value would otherwise sit
+  in the browser history and in every proxy log that records URLs.
+
+  The page also says what it can work out for itself, such as a `TTN_URL` holding
+  the address of the web console instead of the cluster origin — a mistake made
+  twice in this project.
+
+  A test reads `config.ts` and insists that every variable it consults appears in
+  the catalogue behind the page. A setting can therefore no longer be added
+  without a sentence explaining it, which is the omission that let the broken
+  deployment go unnoticed through a release in the first place.
+- A setup account beside the directory, switched on with `ADMIN_USERNAME` and one
+  of `ADMIN_PASSWORD_HASH` or `ADMIN_PW`. Until now a server without `LDAP_URL`
+  had no login at all, and therefore no way to reach the pages on which LDAP
+  itself is configured — a fresh installation could only be brought up by editing
+  the environment by hand.
+
+  It is for one person doing that job and does not replace the directory:
+  everyone else signs in through LDAP as before and gets their roles from their
+  groups, so the change log keeps showing real people's names. The account holds
+  `admin`, which it needs because the configuration pages sit at the top of the
+  ladder.
+
+  Checked *before* the directory, and a name that matches is decided locally and
+  only locally — a wrong password is refused rather than passed on. That keeps
+  the name unambiguously the account's, stops anyone learning by trial whether a
+  directory entry of the same name exists, and means a failed attempt costs one
+  comparison rather than a comparison and a bind, so the response time does not
+  say which path answered. The login throttle covers it like any other name.
+
+  Prefer `ADMIN_PASSWORD_HASH`: whoever reads the environment — through
+  `docker inspect`, the container platform or a copy of the compose file — then
+  holds a hash and not a way in. `bun scripts/hash-password.ts` generates one and
+  asks for the password without echoing it, so it reaches neither the shell
+  history nor the process list. `ADMIN_PW` in the clear is allowed and says so in
+  the log on every start.
+- Settings can now be changed on `/management/config` instead of in the
+  environment. Each one has its own small form, so a value is saved together with
+  the note that explains it and a mistake in one field cannot take the rest with
+  it. It works without JavaScript, like every other writing path here.
+
+  A change takes effect for the next request — nothing waits for a restart,
+  because the values are read on use rather than captured at startup. That holds
+  for a value changed anywhere: one made in the SQL console, in `psql` or by a
+  second instance behind the same database is picked up within a few seconds,
+  and the legal pages appear and disappear with their text rather than with a
+  restart.
+
+  Each setting also carries a **note** — what it is set that way for. Not a
+  reason typed while saving, which would be buried in a list a week later, but a
+  line that stays beside the value it explains and can be corrected when the
+  reasoning changes. `updated_by` and `updated_at` answer the rest: who touched
+  it last, and when. A secret can be annotated without retyping it — an empty
+  value field means "leave it alone".
+
+  Configuration changes are deliberately **not** written to the Änderungsprotokoll.
+  That log is about the data this application holds: every entry names a table and
+  a row and can be written back, and a timeout is none of those things. Entries
+  about settings would bury the question it exists to answer.
+
+  Written through the same restricted connection the data pages use, not through
+  the administrator one, although the page is administrators-only — that
+  connection may read and write every table in the schema, and a page that has to
+  change one row should not run on it.
+
+  The origin column gained a third answer. A setting now reads **Datenbank**,
+  **Umgebung**, **Vorgabe** or **nicht gesetzt**, and the page shows the value the
+  application actually uses — so it cannot claim a source that is no longer
+  consulted.
+
 ## [1.6.1] - 2026-08-08
 
 ### Changed
