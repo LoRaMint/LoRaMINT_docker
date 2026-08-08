@@ -40,6 +40,11 @@ const inGroup = (user: SessionUser, group: string | null) =>
  */
 const levelOf = (user: SessionUser | null, config: RoleConfig): number => {
   if (!user) return -1;
+  // The local setup account authenticated against the environment and holds no
+  // directory groups, so none of the checks below could ever grant it anything.
+  // It is the way in before a directory is configured - and that is only useful
+  // at the top of the ladder, where the configuration pages are.
+  if (user.setup) return LADDER.indexOf("admin");
   if (inGroup(user, config.adminGroup)) return LADDER.indexOf("admin");
   if (inGroup(user, config.managementGroup)) return LADDER.indexOf("management");
   // No group configured: every signed-in user may read, which is what a

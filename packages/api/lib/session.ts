@@ -29,6 +29,16 @@ export type SessionUser = {
    * every session at once.
    */
   groups: string[];
+  /**
+   * True for the local setup account, which authenticated against the
+   * environment rather than against the directory and therefore holds no groups
+   * at all. `lib/roles.ts` reads it and grants `admin` outright.
+   *
+   * It travels inside the signed payload, so it cannot be added to a cookie from
+   * the outside - forging one would need SESSION_SECRET, and whoever has that
+   * can already sign in as anybody.
+   */
+  setup?: boolean;
 };
 
 type SessionPayload = SessionUser & {
@@ -61,6 +71,7 @@ export const createSession = (
     username: user.username,
     displayName: user.displayName,
     groups: user.groups,
+    ...(user.setup ? { setup: true as const } : {}),
     exp: Math.floor(Date.now() / 1000) + ttlHours * 3600,
   };
   const body = encode(Buffer.from(JSON.stringify(payload), "utf8"));
@@ -110,5 +121,9 @@ export const readSession = (
     groups: Array.isArray(payload.groups)
       ? payload.groups.filter((g): g is string => typeof g === "string")
       : [],
+    // Only ever true, never false: the field is what grants admin, so it is
+    // read strictly and a payload without it is an ordinary session. The
+    // signature is what makes trusting it safe - see SessionUser.
+    ...(payload.setup === true ? { setup: true as const } : {}),
   };
 };
