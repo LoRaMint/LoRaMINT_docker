@@ -1,5 +1,5 @@
 import Layout from "../../components/layout/Layout";
-import { MAX_ROWS, TIMEOUT_MS, type ConsoleResult } from "../../../services/query";
+import { maxRows, timeoutMs, type ConsoleResult } from "../../../services/query";
 
 /**
  * The SQL console. One page for both roles: the data role opens it read-only,
@@ -49,9 +49,9 @@ export default function SqlPage(props: {
             ab, nicht erst diese Seite.
           </>
         )}{" "}
-        Abfragen liefern eine Tabelle (höchstens {MAX_ROWS} Zeilen)
+        Abfragen liefern eine Tabelle (höchstens {maxRows()} Zeilen)
         {props.writable ? ", andere Anweisungen eine Bestätigung" : ""}. Nach{" "}
-        {TIMEOUT_MS / 1000} Sekunden bricht eine Anweisung ab.
+        {timeoutMs() / 1000} Sekunden bricht eine Anweisung ab.
       </p>
       <form method="post" action="/sql" class="mb-6">
         <label class="block">
@@ -137,7 +137,7 @@ export default function SqlPage(props: {
               {props.result.rows.length === 1 ? "" : "n"} in{" "}
               {props.result.durationMs} ms
               {props.result.truncated && (
-                <span class="text-warning"> – gekürzt auf die ersten {MAX_ROWS}.</span>
+                <span class="text-warning"> – gekürzt auf die ersten {maxRows()}.</span>
               )}
             </p>
             <div class="overflow-x-auto rounded-box border border-base-300">

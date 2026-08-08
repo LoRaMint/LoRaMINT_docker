@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { connect } from "node:net";
-import { MAX_ROWS, runConsoleSqlOn, runReadOnlyOn, TIMEOUT_MS } from "./query";
+import { maxRows, runConsoleSqlOn, runReadOnlyOn, timeoutMs } from "./query";
 
 /**
  * Integration tests for the read-only query service against a real Postgres -
@@ -87,19 +87,19 @@ describe.skipIf(!reachable)("read-only query execution", () => {
     expect(result.error).toContain("syntax error");
   });
 
-  test("caps the result at MAX_ROWS and says so", async () => {
-    const result = await runReadOnly(`SELECT generate_series(1, ${MAX_ROWS * 10}) AS n`);
+  test("caps the result at maxRows() and says so", async () => {
+    const result = await runReadOnly(`SELECT generate_series(1, ${maxRows() * 10}) AS n`);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.data.rows).toHaveLength(MAX_ROWS);
+    expect(result.data.rows).toHaveLength(maxRows());
     expect(result.data.truncated).toBe(true);
   });
 
   test("does not claim truncation when the query fits exactly", async () => {
-    const result = await runReadOnly(`SELECT generate_series(1, ${MAX_ROWS}) AS n`);
+    const result = await runReadOnly(`SELECT generate_series(1, ${maxRows()}) AS n`);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.data.rows).toHaveLength(MAX_ROWS);
+    expect(result.data.rows).toHaveLength(maxRows());
     expect(result.data.truncated).toBe(false);
   });
 
@@ -125,7 +125,7 @@ describe.skipIf(!reachable)("read-only query execution", () => {
     if (!result.ok) return;
     expect(result.data.rows[0]).toEqual({
       ro: "on",
-      timeout: `${TIMEOUT_MS / 1000}s`,
+      timeout: `${timeoutMs() / 1000}s`,
     });
   });
 });
@@ -278,10 +278,10 @@ describe.skipIf(!reachable)("SQL console, writable", () => {
   });
 
   test("caps a query that returns too many rows", async () => {
-    const result = await run(`SELECT generate_series(1, ${MAX_ROWS * 10}) AS n`);
+    const result = await run(`SELECT generate_series(1, ${maxRows() * 10}) AS n`);
     expect(result.ok).toBe(true);
     if (!result.ok || result.data.kind !== "rows") throw new Error("expected rows");
-    expect(result.data.rows).toHaveLength(MAX_ROWS);
+    expect(result.data.rows).toHaveLength(maxRows());
     expect(result.data.truncated).toBe(true);
   });
 
@@ -467,10 +467,10 @@ describe.skipIf(!reachable)("SQL console, read-only", () => {
   });
 
   test("caps the result like the writable console", async () => {
-    const result = await run(`SELECT generate_series(1, ${MAX_ROWS * 10}) AS n`);
+    const result = await run(`SELECT generate_series(1, ${maxRows() * 10}) AS n`);
     expect(result.ok).toBe(true);
     if (!result.ok || result.data.kind !== "rows") throw new Error("expected rows");
-    expect(result.data.rows).toHaveLength(MAX_ROWS);
+    expect(result.data.rows).toHaveLength(maxRows());
   });
 
   test("connects as the read-only role", async () => {

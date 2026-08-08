@@ -1,15 +1,15 @@
 import { describe, expect, test } from "bun:test";
-import { limitQuery, MAX_ROWS } from "./query";
+import { limitQuery, maxRows } from "./query";
 import { countStatements } from "../lib/sql-statements";
 
 /** What the wrapper produces for a body it accepted. */
-const capped = (body: string, maxRows = MAX_ROWS) =>
-  `SELECT * FROM (\n${body}\n) AS _q LIMIT ${maxRows + 1}`;
+const capped = (body: string, cap = maxRows()) =>
+  `SELECT * FROM (\n${body}\n) AS _q LIMIT ${cap + 1}`;
 
 describe("limitQuery", () => {
   test("wraps a plain SELECT and fetches one row past the cap", () => {
     // One extra row is what makes "there is more" distinguishable from
-    // "there are exactly MAX_ROWS".
+    // "there are exactly maxRows()".
     expect(limitQuery("SELECT 1")).toEqual({
       text: capped("SELECT 1"),
       wrapped: true,

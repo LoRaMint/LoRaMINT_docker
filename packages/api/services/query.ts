@@ -43,13 +43,16 @@ const clientFor = (databaseUrl: string) => {
   return client;
 };
 
-export const MAX_ROWS = sqlConsole.maxRows;
-export const TIMEOUT_MS = sqlConsole.timeoutMs;
+// Read on use, not captured here: both live in the settings table, and a value
+// frozen at import would wait for a restart that nobody performs to change a row
+// cap. `sqlConsole` exposes them as getters, so this stays a plain read.
+export const maxRows = () => sqlConsole.maxRows;
+export const timeoutMs = () => sqlConsole.timeoutMs;
 
 export type QueryResult = {
   columns: string[];
   rows: Record<string, unknown>[];
-  /** True when the query had more rows than MAX_ROWS and the rest were dropped. */
+  /** True when the query had more rows than the cap and the rest were dropped. */
   truncated: boolean;
   durationMs: number;
 };
@@ -69,7 +72,7 @@ export type QueryResult = {
  * still saw 200 rows, so nothing about the answer said what it had cost: 80 MB
  * of heap for 300,000 rows, from two extra characters.
  */
-export const limitQuery = (text: string, maxRows = MAX_ROWS) => {
+export const limitQuery = (text: string, cap = sqlConsole.maxRows) => {
   // Null for anything that is not exactly one statement; otherwise the statement
   // without its terminator, which is what a subquery can actually hold.
   const body = singleStatement(text);
@@ -79,7 +82,7 @@ export const limitQuery = (text: string, maxRows = MAX_ROWS) => {
   // Newlines around the body, so a query ending in a `--` comment does not
   // swallow the closing parenthesis.
   return {
-    text: `SELECT * FROM (\n${body}\n) AS _q LIMIT ${maxRows + 1}`,
+    text: `SELECT * FROM (\n${body}\n) AS _q LIMIT ${cap + 1}`,
     wrapped: true,
   };
 };
@@ -126,13 +129,13 @@ const executeOn = async (
     const rows = (await clientFor(databaseUrl).begin("read only", async (tx) => {
       // SET LOCAL: reverted when the transaction ends, so it cannot leak into
       // another request sharing the connection pool.
-      await tx.unsafe(`SET LOCAL statement_timeout = ${TIMEOUT_MS}`);
+      await tx.unsafe(`SET LOCAL statement_timeout = ${sqlConsole.timeoutMs}`);
       return await tx.unsafe(text, values);
     })) as unknown as Record<string, unknown>[];
 
     const all = Array.isArray(rows) ? rows : [];
-    const truncated = all.length > MAX_ROWS;
-    const kept = truncated ? all.slice(0, MAX_ROWS) : all;
+    const truncated = all.length > sqlConsole.maxRows;
+    const kept = truncated ? all.slice(0, sqlConsole.maxRows) : all;
 
     return {
       ok: true,
@@ -141,7 +144,7 @@ const executeOn = async (
         rows: kept,
         // An unwrapped query was capped here rather than in the database, but
         // the user still needs to know the output is incomplete.
-        truncated: truncated || (!wrapped && all.length === MAX_ROWS),
+        truncated: truncated || (!wrapped && all.length === sqlConsole.maxRows),
         durationMs: Math.round((Bun.nanoseconds() - started) / 1e6),
       },
     };
@@ -238,7 +241,7 @@ export const runConsoleSqlOn = async (
     const run = async (tx: {
       unsafe: (q: string) => Promise<unknown>;
     }): Promise<Executed> => {
-      await tx.unsafe(`SET LOCAL statement_timeout = ${TIMEOUT_MS}`);
+      await tx.unsafe(`SET LOCAL statement_timeout = ${sqlConsole.timeoutMs}`);
       const raw = (await tx.unsafe(limited.text)) as unknown as Record<
         string,
         unknown
@@ -279,15 +282,15 @@ export const runConsoleSqlOn = async (
       };
     }
 
-    const truncated = rows.length > MAX_ROWS;
-    const kept = truncated ? rows.slice(0, MAX_ROWS) : rows;
+    const truncated = rows.length > sqlConsole.maxRows;
+    const kept = truncated ? rows.slice(0, sqlConsole.maxRows) : rows;
     return {
       ok: true,
       data: {
         kind: "rows",
         columns: columnsOf(kept),
         rows: kept,
-        truncated: truncated || (!limited.wrapped && rows.length === MAX_ROWS),
+        truncated: truncated || (!limited.wrapped && rows.length === sqlConsole.maxRows),
         durationMs,
       },
     };

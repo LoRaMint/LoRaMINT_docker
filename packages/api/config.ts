@@ -1,4 +1,23 @@
 import { createHash, timingSafeEqual } from "node:crypto";
+import { CATALOG } from "./lib/config-catalog";
+import { storedSetting } from "./lib/settings-store";
+
+/**
+ * Settings that live in the database rather than in the environment.
+ *
+ * The catalogue already says which those are, so the two cannot drift: a setting
+ * marked `movable` there is read from the table here, and its environment
+ * variable is ignored. See docs/konfiguration-verwalten.md for where the line
+ * runs - in short, everything needed *before* the application can reach the
+ * table stays outside it, and so does everything the security model rests on.
+ *
+ * Values of this kind are read lazily, through getters on the exported objects.
+ * They have to be: this module is evaluated while the process starts, and the
+ * table is not read until a moment later.
+ */
+const MOVABLE = new Set(
+  CATALOG.filter((setting) => setting.tier === "movable").map((s) => s.key),
+);
 
 const requireEnv = (key: string) => {
   const value = Bun.env[key];
@@ -17,6 +36,11 @@ const requireEnv = (key: string) => {
  * deployment that wants none of the optional features.
  */
 const optional = (key: string) => {
+  // A movable setting comes from the table and from nowhere else. The
+  // environment is not consulted as a fallback on purpose: two places for one
+  // value is how a compose file and the actual behaviour drift apart, which is
+  // exactly the class of confusion this whole change exists to end.
+  if (MOVABLE.has(key)) return storedSetting(key);
   const value = Bun.env[key];
   return value !== undefined && value.trim().length > 0 ? value : null;
 };
@@ -96,8 +120,15 @@ export const sqlConsole = {
    * raising it costs rendering time and page weight, not database work - roughly
    * 240 bytes and 0.1 ms of HTML per row for a typical measurement row.
    */
-  maxRows: optionalInt("QUERY_MAX_ROWS", 200),
-  timeoutMs: optionalInt("QUERY_TIMEOUT_MS", 5000),
+  // Getters: these live in the settings table, which is read after this module
+  // is evaluated. Reading them on use is also what makes a change take effect
+  // without a restart.
+  get maxRows() {
+    return optionalInt("QUERY_MAX_ROWS", 200);
+  },
+  get timeoutMs() {
+    return optionalInt("QUERY_TIMEOUT_MS", 5000);
+  },
 };
 
 if (adminDatabaseUrl && adminDatabaseUrl === optional("DATABASE_URL")) {
@@ -141,9 +172,13 @@ export const manage = {
    * the table the webhook is inserting into, so beyond this the page asks for a
    * narrower filter instead.
    */
-  maxDeleteRows: optionalInt("MANAGE_MAX_DELETE", 10000),
+  get maxDeleteRows() {
+    return optionalInt("MANAGE_MAX_DELETE", 10000);
+  },
   /** Longer than the SQL console's: a bulk delete legitimately takes a while. */
-  timeoutMs: optionalInt("MANAGE_TIMEOUT_MS", 30000),
+  get timeoutMs() {
+    return optionalInt("MANAGE_TIMEOUT_MS", 30000);
+  },
 };
 
 if (manageDatabaseUrl && manageDatabaseUrl === optional("DATABASE_URL")) {
@@ -178,27 +213,37 @@ if (manageDatabaseUrl && manageDatabaseUrl === optional("DATABASE_URL")) {
  * because an OTAA device is registered with its AppKey and because the detail
  * page can show it again to administrators.
  */
-const ttnApiKey = optional("TTN_API_KEY");
-const ttnApplicationId = optional("TTN_APPLICATION_ID");
-
 export const ttn = {
-  enabled: ttnApiKey !== null && ttnApplicationId !== null,
-  apiKey: ttnApiKey,
-  applicationId: ttnApplicationId,
+  get enabled() {
+    return this.apiKey !== null && this.applicationId !== null;
+  },
+  get apiKey() {
+    return optional("TTN_API_KEY");
+  },
+  get applicationId() {
+    return optional("TTN_APPLICATION_ID");
+  },
   /** The cluster the application lives in, without a trailing slash. */
-  url: (optional("TTN_URL") ?? "https://eu1.cloud.thethings.network").replace(
-    /\/+$/,
-    "",
-  ),
-  timeoutMs: optionalInt("TTN_TIMEOUT_MS", 5000),
+  get url() {
+    return (
+      optional("TTN_URL") ?? "https://eu1.cloud.thethings.network"
+    ).replace(/\/+$/, "");
+  },
+  get timeoutMs() {
+    return optionalInt("TTN_TIMEOUT_MS", 5000);
+  },
   /**
    * What every device registered from here gets. These are properties of the
    * deployment, not of the individual device: one school, one region, one kind
    * of module, so the form states them rather than asking. The defaults are what
    * the devices registered by hand so far already use.
    */
-  frequencyPlan: optional("TTN_FREQUENCY_PLAN") ?? "EU_863_870_TTN",
-  lorawanVersion: optional("TTN_LORAWAN_VERSION") ?? "MAC_V1_0_3",
+  get frequencyPlan() {
+    return optional("TTN_FREQUENCY_PLAN") ?? "EU_863_870_TTN";
+  },
+  get lorawanVersion() {
+    return optional("TTN_LORAWAN_VERSION") ?? "MAC_V1_0_3";
+  },
   /**
    * `PHY_V1_0_3_REV_A`, not `RP001_V1_0_3_REV_A`. The Things Stack accepts the
    * second as an alias but stores and returns the first, so using the alias here
@@ -206,10 +251,19 @@ export const ttn = {
    * differently - measured against the real thing, not assumed. The console
    * spells it out as "RP001 Regional Parameters 1.0.3 revision A".
    */
-  regionalParameters: optional("TTN_REGIONAL_PARAMETERS") ?? "PHY_V1_0_3_REV_A",
+  get regionalParameters() {
+    return optional("TTN_REGIONAL_PARAMETERS") ?? "PHY_V1_0_3_REV_A";
+  },
 };
 
-if (ttnApiKey && ttnApiKey === config.appKey) {
+/**
+ * TTN_API_KEY now lives in the settings table while TTN_APP_KEY stays in the
+ * environment, so this can no longer be decided while the module is evaluated -
+ * the table has not been read yet. It moves into `validateConfig()` below, which
+ * runs once the settings are in.
+ */
+const checkTtnKeys = () => {
+  if (ttn.apiKey === null || ttn.apiKey !== config.appKey) return;
   throw new Error(
     "TTN_API_KEY must not be the same value as TTN_APP_KEY: the first is a " +
       "credential that may register devices and read their root keys, the " +
@@ -217,11 +271,15 @@ if (ttnApiKey && ttnApiKey === config.appKey) {
       "Setting them to one value means whoever can read the webhook " +
       "configuration in TTN can also administer the application.",
   );
-}
+};
 
 export const legal = {
-  impressum: optional("LEGAL_IMPRESSUM"),
-  datenschutz: optional("LEGAL_DATENSCHUTZ"),
+  get impressum() {
+    return optional("LEGAL_IMPRESSUM");
+  },
+  get datenschutz() {
+    return optional("LEGAL_DATENSCHUTZ");
+  },
 };
 
 //====================================
@@ -252,19 +310,37 @@ export const legal = {
  * `{username}` is the only placeholder, and it is escaped before substitution
  * (RFC 4514 for DNs, RFC 4515 for filters) - see services/ldap.ts.
  */
-const ldapUrl = optional("LDAP_URL");
-
 export const auth = {
-  enabled: ldapUrl !== null,
+  // Getters throughout: the directory settings live in the settings table, and
+  // that is read after this module is evaluated. `enabled` in particular is
+  // asked while the routes are registered, which is why index.ts loads the
+  // settings before it imports the pages.
+  get enabled() {
+    return this.ldap.url !== null;
+  },
   ldap: {
-    url: ldapUrl,
-    userDnTemplate: optional("LDAP_USER_DN_TEMPLATE"),
-    bindDn: optional("LDAP_BIND_DN"),
-    bindPassword: optional("LDAP_BIND_PASSWORD"),
-    searchBase: optional("LDAP_SEARCH_BASE"),
-    searchFilter: optional("LDAP_SEARCH_FILTER") ?? "(uid={username})",
+    get url() {
+      return optional("LDAP_URL");
+    },
+    get userDnTemplate() {
+      return optional("LDAP_USER_DN_TEMPLATE");
+    },
+    get bindDn() {
+      return optional("LDAP_BIND_DN");
+    },
+    get bindPassword() {
+      return optional("LDAP_BIND_PASSWORD");
+    },
+    get searchBase() {
+      return optional("LDAP_SEARCH_BASE");
+    },
+    get searchFilter() {
+      return optional("LDAP_SEARCH_FILTER") ?? "(uid={username})";
+    },
     // Attribute used as the display name in the header; falls back to the login name.
-    displayNameAttribute: optional("LDAP_DISPLAY_NAME_ATTRIBUTE") ?? "cn",
+    get displayNameAttribute() {
+      return optional("LDAP_DISPLAY_NAME_ATTRIBUTE") ?? "cn";
+    },
     // Group membership, used to decide what a user may do. Two ways to get it,
     // both optional - without either, users simply hold no groups:
     //   groupAttribute    an attribute on the user entry, e.g. memberOf (which
@@ -272,19 +348,33 @@ export const auth = {
     //                     memberof overlay loaded).
     //   groupSearchBase   search the group entries instead, with groupFilter -
     //                     works with plain groupOfNames and needs no overlay.
-    groupAttribute: optional("LDAP_GROUP_ATTRIBUTE"),
-    groupSearchBase: optional("LDAP_GROUP_SEARCH_BASE"),
-    groupFilter: optional("LDAP_GROUP_FILTER") ?? "(member={dn})",
-    groupNameAttribute: optional("LDAP_GROUP_NAME_ATTRIBUTE") ?? "cn",
+    get groupAttribute() {
+      return optional("LDAP_GROUP_ATTRIBUTE");
+    },
+    get groupSearchBase() {
+      return optional("LDAP_GROUP_SEARCH_BASE");
+    },
+    get groupFilter() {
+      return optional("LDAP_GROUP_FILTER") ?? "(member={dn})";
+    },
+    get groupNameAttribute() {
+      return optional("LDAP_GROUP_NAME_ATTRIBUTE") ?? "cn";
+    },
     // Only ever set this to false against a test directory.
-    rejectUnauthorized: Bun.env.LDAP_TLS_REJECT_UNAUTHORIZED !== "false",
-    timeoutMs: optionalInt("LDAP_TIMEOUT_MS", 5000),
+    get rejectUnauthorized() {
+      return optional("LDAP_TLS_REJECT_UNAUTHORIZED") !== "false";
+    },
+    get timeoutMs() {
+      return optionalInt("LDAP_TIMEOUT_MS", 5000);
+    },
   },
   // The directory's own user administration, linked from the login form as
   // "Passwort ändern in der Nutzerverwaltung". Passwords belong to the directory
   // and not to this application, so this points at whatever owns them - lldap's
   // interface, a school portal. Unset, the form says to ask the administration.
-  passwordResetUrl: optional("LDAP_PASSWORD_RESET_URL"),
+  get passwordResetUrl() {
+    return optional("LDAP_PASSWORD_RESET_URL");
+  },
   /**
    * Directory groups that grant privileges in the application. See lib/roles.ts
    * for what each one unlocks.
@@ -295,38 +385,130 @@ export const auth = {
    * holds those roles: a deployment that has not configured them must never hand
    * out editing rights or write access to the database by accident.
    */
-  dataGroup: optional("LDAP_DATA_GROUP"),
-  managementGroup: optional("LDAP_MANAGEMENT_GROUP"),
-  adminGroup: optional("LDAP_ADMIN_GROUP"),
+  get dataGroup() {
+    return optional("LDAP_DATA_GROUP");
+  },
+  get managementGroup() {
+    return optional("LDAP_MANAGEMENT_GROUP");
+  },
+  get adminGroup() {
+    return optional("LDAP_ADMIN_GROUP");
+  },
   session: {
     // Signing key for the session cookie. Required once the login is enabled;
     // rotating it invalidates all existing sessions.
     secret: optional("SESSION_SECRET"),
-    ttlHours: optionalInt("SESSION_TTL_HOURS", 8),
+    get ttlHours() {
+      return optionalInt("SESSION_TTL_HOURS", 8);
+    },
     // The Secure flag would make the cookie unusable over plain http, so it is
     // only dropped in development.
     secureCookie: Bun.env.NODE_ENV === "production",
   },
 };
 
+//====================================
+// THE SETUP ACCOUNT
+//====================================
+
+/**
+ * A local administrator beside the directory, for getting in before there is
+ * one.
+ *
+ * It exists so that a fresh server can be configured at all: without it there is
+ * no login without LDAP, and therefore no way to reach the pages on which LDAP
+ * itself will eventually be configured. It is meant for one person doing that
+ * job, not as a replacement for the directory - everyone else signs in through
+ * LDAP as before and gets their roles from their groups.
+ *
+ * It is checked *before* the directory, and a username that matches is decided
+ * locally and only locally: a wrong password is refused rather than passed on.
+ * That keeps the name unambiguously the setup account's, and no difference in
+ * response time betrays which path answered.
+ *
+ * Two ways to give it a password. `ADMIN_PASSWORD_HASH` is the one to use -
+ * whoever reads the environment then holds a hash and not a way in, which
+ * matters because an environment is read by `docker inspect`, by the container
+ * platform's interface and by anyone who is sent a copy of it. `ADMIN_PW` in the
+ * clear is allowed for convenience and says so in the log on every start.
+ * Generate a hash with `bun scripts/hash-password.ts`.
+ */
+const setupUsername = optional("ADMIN_USERNAME");
+const setupPasswordHash = optional("ADMIN_PASSWORD_HASH");
+const setupPassword = optional("ADMIN_PW");
+
+export const setupAccount = {
+  enabled:
+    setupUsername !== null &&
+    (setupPasswordHash !== null || setupPassword !== null),
+  username: setupUsername,
+  /** Preferred. When present, `password` is ignored. */
+  passwordHash: setupPasswordHash,
+  password: setupPassword,
+};
+
+if (setupUsername !== null && !setupAccount.enabled) {
+  throw new Error(
+    "ADMIN_USERNAME is set, so one of ADMIN_PASSWORD_HASH or ADMIN_PW is " +
+      "required. Generate a hash with: bun scripts/hash-password.ts",
+  );
+}
+if (setupAccount.enabled && setupPasswordHash === null) {
+  console.warn(
+    "config: ADMIN_PW holds a password in clear text. Anyone who can read this " +
+      "server's environment - through `docker inspect`, the container platform " +
+      "or a copy of the compose file - can sign in as an administrator. Prefer " +
+      "ADMIN_PASSWORD_HASH; generate one with: bun scripts/hash-password.ts",
+  );
+}
+if (setupAccount.enabled && setupPasswordHash !== null && setupPassword !== null) {
+  console.warn(
+    "config: both ADMIN_PASSWORD_HASH and ADMIN_PW are set. The hash is used " +
+      "and ADMIN_PW is ignored - remove it so the clear-text password does not " +
+      "linger in the environment.",
+  );
+}
+
 /**
  * Fails fast on a login that is switched on but cannot work, instead of letting
  * every sign-in attempt error at runtime.
+ *
+ * The session checks cover the setup account too: it signs in and therefore
+ * needs a cookie, whether or not a directory is configured.
  */
-if (auth.enabled) {
-  if (!auth.session.secret) {
-    throw new Error("LDAP_URL is set, so SESSION_SECRET is required");
+/**
+ * The checks that used to run while this module was evaluated.
+ *
+ * They cannot any more: the directory settings live in the settings table, and
+ * that is read a moment after this module loads. Called from index.ts once the
+ * settings are in - before a single request is served, so a deployment that
+ * cannot work still fails at startup rather than on every sign-in attempt.
+ */
+export const validateConfig = () => {
+  if (auth.enabled || setupAccount.enabled) {
+    if (!auth.session.secret) {
+      throw new Error(
+        auth.enabled
+          ? "LDAP_URL is set, so SESSION_SECRET is required"
+          : "ADMIN_USERNAME is set, so SESSION_SECRET is required",
+      );
+    }
+    if (auth.session.secret.length < 32) {
+      throw new Error("SESSION_SECRET must be at least 32 characters");
+    }
   }
-  if (auth.session.secret.length < 32) {
-    throw new Error("SESSION_SECRET must be at least 32 characters");
+
+  if (auth.enabled) {
+    const directBind = auth.ldap.userDnTemplate !== null;
+    const searchBind =
+      auth.ldap.bindDn !== null && auth.ldap.searchBase !== null;
+    if (!directBind && !searchBind) {
+      throw new Error(
+        "LDAP_URL is set, so either LDAP_USER_DN_TEMPLATE (direct bind) or " +
+          "LDAP_BIND_DN + LDAP_SEARCH_BASE (search and bind) is required",
+      );
+    }
   }
-  const directBind = auth.ldap.userDnTemplate !== null;
-  const searchBind =
-    auth.ldap.bindDn !== null && auth.ldap.searchBase !== null;
-  if (!directBind && !searchBind) {
-    throw new Error(
-      "LDAP_URL is set, so either LDAP_USER_DN_TEMPLATE (direct bind) or " +
-        "LDAP_BIND_DN + LDAP_SEARCH_BASE (search and bind) is required",
-    );
-  }
-}
+
+  checkTtnKeys();
+};

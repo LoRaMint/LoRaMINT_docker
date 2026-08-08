@@ -1,27 +1,24 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 
-import { ttn } from "../config";
 import { devices } from "./ttn";
+import { replaceSettings } from "../lib/settings-store";
 
 /**
  * The TTN client against a stubbed `fetch`.
  *
- * The configuration is written into the config object rather than into the
- * environment. config.ts reads `Bun.env` once, at import time, and the test
- * runner shares one module registry across files - so by the time this file is
- * evaluated another test may already have pulled the config in, and setting
- * variables here would come too late. The client reads these fields on every
- * call, which is what makes overwriting them enough.
+ * The configuration is placed in the settings store, which is where the TTN
+ * settings live now - config.ts reads them from there on every access. Writing
+ * to the config object would not work and should not: these are exactly the
+ * values a deployment keeps in the database.
  */
-Object.assign(ttn, {
-  enabled: true,
-  apiKey: "NNSXS.testkey.testsecret",
-  applicationId: "loramint-test",
-  url: "https://eu1.example.test",
-  frequencyPlan: "EU_863_870_TTN",
-  lorawanVersion: "MAC_V1_0_3",
-  regionalParameters: "PHY_V1_0_3_REV_A",
-});
+replaceSettings([
+  ["TTN_API_KEY", "NNSXS.testkey.testsecret"],
+  ["TTN_APPLICATION_ID", "loramint-test"],
+  ["TTN_URL", "https://eu1.example.test"],
+  ["TTN_FREQUENCY_PLAN", "EU_863_870_TTN"],
+  ["TTN_LORAWAN_VERSION", "MAC_V1_0_3"],
+  ["TTN_REGIONAL_PARAMETERS", "PHY_V1_0_3_REV_A"],
+]);
 
 const DEVICE = {
   deviceId: "device-1",

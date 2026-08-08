@@ -60,3 +60,8 @@ GRANT SELECT, INSERT ON audit_log TO loramint_manage;
 -- device pages did in The Things Network - see migrations/004-device-log.ts for
 -- why that is a separate table rather than more rows in audit_log.
 GRANT SELECT, INSERT ON device_log TO loramint_manage;
+
+-- Einstellungen sollen sich ändern lassen, anders als die beiden Protokolle -
+-- daher hier auch UPDATE und DELETE. Der Nachweis der Änderung landet weiterhin
+-- in audit_log, an das diese Rolle nur anhängen kann.
+GRANT SELECT, INSERT, UPDATE, DELETE ON settings TO loramint_manage;

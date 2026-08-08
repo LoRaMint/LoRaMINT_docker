@@ -91,6 +91,10 @@ const SPECS: RoleSpec[] = [
       // Same shape as audit_log and for the same reason: the device pages append
       // to their log and must not be able to tidy it up afterwards.
       { privileges: "SELECT, INSERT", on: "device_log" },
+      // Settings are meant to change, unlike the two logs above - so this one
+      // gets UPDATE and DELETE as well. The record of a change still lands in
+      // audit_log, which this role can only append to.
+      { privileges: "SELECT, INSERT, UPDATE, DELETE", on: "settings" },
     ],
     // Deliberately empty: a table added by a later migration grants this role
     // nothing until someone adds a line above. A default privilege here would

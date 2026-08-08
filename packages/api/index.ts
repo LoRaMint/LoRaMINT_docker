@@ -4,13 +4,13 @@ import { logger } from "hono/logger";
 import { serveStatic } from "hono/bun";
 import { routes } from "@valentinkolb/ssr/hono";
 import { config as ssrConfig } from "./config/ssr";
-import pages from "./frontend/pages";
 import { describeRoute, generateSpecs } from "hono-openapi";
 import { Scalar } from "@scalar/hono-api-reference";
 import { createMarkdownFromOpenApi } from "@scalar/openapi-to-markdown";
 import { z } from "zod";
 import { getCookie } from "hono/cookie";
-import { config, auth, verifyAppKey } from "./config";
+import { config, auth, setupAccount, validateConfig, verifyAppKey } from "./config";
+import { loadSettings, refreshSettingsIfStale } from "./services/settings";
 import {
   openApiMeta,
   jsonResponse,
@@ -274,16 +274,48 @@ const root = new Hono();
 // Resolve the session once per request and expose it for the whole request tree,
 // so the shared Layout can render the signed-in user. Kept outside the /api/v1
 // routes: the API authenticates with the TTN key, not with a browser cookie.
+/**
+ * Keeps the settings in memory close to the table.
+ *
+ * Saving on the configuration page updates them directly; this covers every
+ * other way they can change - the SQL console, psql, a restore, or a second
+ * instance behind the same database. See services/settings.ts for the cost.
+ */
 root.use(async (c, next) => {
-  const user = auth.enabled
-    ? readSession(getCookie(c, SESSION_COOKIE), auth.session.secret!)
-    : null;
+  await refreshSettingsIfStale();
+  await next();
+});
+
+root.use(async (c, next) => {
+  // The same condition the login routes are registered under: a session can
+  // exist as soon as *either* way in is configured. Reading it only when LDAP is
+  // set up would sign the setup account in and then forget it on the next
+  // request - which is precisely when it is needed, since it exists to configure
+  // a server that has no directory yet.
+  const user =
+    auth.enabled || setupAccount.enabled
+      ? readSession(getCookie(c, SESSION_COOKIE), auth.session.secret!)
+      : null;
   return requestContext.run({ user }, next);
 });
 
 root.route("/_ssr", routes(ssrConfig));
 root.use("/public/*", serveStatic({ root: "./" }));
 root.route("/api/v1", app);
+/**
+ * The settings table decides which routes exist at all - `auth.enabled` and
+ * `ttn.enabled` now answer out of it - so it has to be read before the pages
+ * module is evaluated, and the pages module is therefore imported here rather
+ * than at the top of the file.
+ *
+ * The configuration is checked immediately afterwards, once and before the first
+ * request: a deployment that cannot work should fail at startup, not on every
+ * sign-in attempt.
+ */
+await loadSettings();
+validateConfig();
+
+const pages = (await import("./frontend/pages")).default;
 root.route("/", pages);
 
 console.log(`LoRaMINT listening on port ${config.port}`);
