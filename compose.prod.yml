@@ -33,6 +33,15 @@ services:
       - LEGAL_IMPRESSUM=${LEGAL_IMPRESSUM:-}
       - LEGAL_DATENSCHUTZ=${LEGAL_DATENSCHUTZ:-}
 
+      # --- Setup account (optional) ----------------------------------------
+      # A local administrator beside the directory, for getting in before there
+      # is one - without it there is no login without LDAP, and no way to reach
+      # the pages on which LDAP gets configured. Prefer the hash over ADMIN_PW:
+      #     docker exec -it loramint-app-1 bun scripts/hash-password.ts
+      - ADMIN_USERNAME=${ADMIN_USERNAME:-}
+      - ADMIN_PASSWORD_HASH=${ADMIN_PASSWORD_HASH:-}
+      - ADMIN_PW=${ADMIN_PW:-}
+
       # --- Device management (optional, TTN) -------------------------------
       # Without both of the first two the device page stays an announcement and
       # no request ever leaves this server for The Things Network.
