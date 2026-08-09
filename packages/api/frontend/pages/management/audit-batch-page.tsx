@@ -1,6 +1,8 @@
 import Layout from "../../components/layout/Layout";
-import PageHeading from "../../components/manage/PageHeading";
+import TableFrame, { EmptyRow } from "../../components/TableFrame";
+import PageHeading from "../../components/PageHeading";
 import { actionLabel, revertState, tableLabel, tablePath } from "./audit-labels";
+import { Muted } from "../../components/Row";
 
 /**
  * One operation, change by change.
@@ -23,13 +25,13 @@ function FieldDiff(props: { fields: Record<string, { from: unknown; to: unknown 
         <li class="font-mono text-xs">
           <span class="text-base-content/60">{column}:</span>{" "}
           {change.from === null ? (
-            <span class="text-base-content/40 italic">leer</span>
+            <Muted>leer</Muted>
           ) : (
             String(change.from)
           )}{" "}
           →{" "}
           {change.to === null ? (
-            <span class="text-base-content/40 italic">leer</span>
+            <Muted>leer</Muted>
           ) : (
             String(change.to)
           )}
@@ -49,7 +51,7 @@ function RowSnapshot(props: { row: Record<string, unknown>; summary: string }) {
           <li class="font-mono text-xs">
             <span class="text-base-content/60">{column}:</span>{" "}
             {value === null ? (
-              <span class="text-base-content/40 italic">leer</span>
+              <Muted>leer</Muted>
             ) : (
               String(value)
             )}
@@ -81,7 +83,7 @@ function Changes(props: { action: string; changes: unknown }) {
       />
     );
   }
-  return <span class="text-base-content/40 italic">nichts aufgezeichnet</span>;
+  return <Muted>nichts aufgezeichnet</Muted>;
 }
 
 export default function AuditBatchPage(props: {
@@ -141,8 +143,7 @@ export default function AuditBatchPage(props: {
           </div>
         )}
 
-        <div class="overflow-x-auto rounded-box border border-base-300">
-          <table class="table table-sm table-zebra">
+        <TableFrame>
             <thead>
               <tr>
                 <th>Datenzeile</th>
@@ -153,11 +154,7 @@ export default function AuditBatchPage(props: {
             </thead>
             <tbody>
               {props.entries.length === 0 ? (
-                <tr>
-                  <td colspan={props.canRevert ? 4 : 3} class="text-center text-base-content/60 py-6">
-                    Diesen Vorgang gibt es nicht.
-                  </td>
-                </tr>
+                <EmptyRow columns={props.canRevert ? 4 : 3}>Diesen Vorgang gibt es nicht.</EmptyRow>
               ) : (
                 props.entries.map((entry) => {
                   const entryId = String(entry.id ?? "");
@@ -201,8 +198,7 @@ export default function AuditBatchPage(props: {
                 })
               )}
             </tbody>
-          </table>
-        </div>
+          </TableFrame>
       </form>
     </Layout>
   );

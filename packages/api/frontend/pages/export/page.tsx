@@ -1,4 +1,6 @@
 import Layout from "../../components/layout/Layout";
+import PageHeading from "../../components/PageHeading";
+import Field from "../../components/Field";
 
 /**
  * CSV export page. The markup is server-rendered (static shell); all
@@ -8,66 +10,61 @@ import Layout from "../../components/layout/Layout";
  * /api/v1/measurements/export. No SolidJS hydration.
  */
 export default function ExportPage() {
-  const controlClass = "select select-bordered w-full";
+  const controlClass = "select w-full";
   return (
     <Layout>
-      <h2 class="text-xl font-bold border-b border-base-300 pb-2 mb-4 mt-8">
-        CSV-Export
-      </h2>
-      <p class="mb-6 max-w-2xl text-base-content/80">
-        Messdaten gefiltert als CSV herunterladen: Gerät, Messgröße, Sensor,
-        Location, Datentyp und Zeitraum wählen. Leere Felder bedeuten „alle".
-      </p>
+      <PageHeading
+        title="CSV-Export"
+        intro={
+          <>
+            Messdaten gefiltert als CSV herunterladen: Gerät, Messgröße, Sensor,
+            Location, Datentyp und Zeitraum wählen. Leere Felder bedeuten „alle".
+          </>
+        }
+      />
 
       {/* Control panel */}
       <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3 rounded-box border border-base-300 p-4 mb-6">
-        <label class="form-control">
-          <span class="label-text mb-1">Gerät (device_eui)</span>
-          <select id="device" class={controlClass}>
+        <Field label={<>Gerät (device_eui)</>}>
+<select id="device" class={controlClass}>
             <option value="">– alle –</option>
           </select>
-        </label>
+</Field>
 
-        <label class="form-control">
-          <span class="label-text mb-1">Messgröße</span>
-          <select id="measurand" class={controlClass}>
+        <Field label={<>Messgröße</>}>
+<select id="measurand" class={controlClass}>
             <option value="">– alle –</option>
           </select>
-        </label>
+</Field>
 
-        <label class="form-control">
-          <span class="label-text mb-1">Sensor</span>
-          <select id="sensor" class={controlClass}>
+        <Field label={<>Sensor</>}>
+<select id="sensor" class={controlClass}>
             <option value="">– alle –</option>
           </select>
-        </label>
+</Field>
 
-        <label class="form-control">
-          <span class="label-text mb-1">Location</span>
-          <select id="location" class={controlClass}>
+        <Field label={<>Location</>}>
+<select id="location" class={controlClass}>
             <option value="">– alle –</option>
           </select>
-        </label>
+</Field>
 
-        <label class="form-control">
-          <span class="label-text mb-1">Datentyp</span>
-          <select id="datatype" class={controlClass}>
+        <Field label={<>Datentyp</>}>
+<select id="datatype" class={controlClass}>
             <option value="">– alle –</option>
             <option value="float">float</option>
             <option value="integer">integer</option>
             <option value="string">string</option>
           </select>
-        </label>
+</Field>
 
         <div class="grid gap-4 content-start">
-          <label class="form-control">
-            <span class="label-text mb-1">Von</span>
-            <input id="from" type="datetime-local" class="input input-bordered w-full" />
-          </label>
-          <label class="form-control">
-            <span class="label-text mb-1">Bis</span>
-            <input id="to" type="datetime-local" class="input input-bordered w-full" />
-          </label>
+          <Field label={<>Von</>}>
+<input id="from" type="datetime-local" class="input w-full" />
+</Field>
+          <Field label={<>Bis</>}>
+<input id="to" type="datetime-local" class="input w-full" />
+</Field>
         </div>
 
         <div class="flex items-center gap-4 lg:col-span-3">

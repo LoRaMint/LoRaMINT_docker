@@ -1,6 +1,6 @@
 import Layout from "../../components/layout/Layout";
-import PageHeading from "../../components/manage/PageHeading";
-import Notice from "../../components/manage/Notice";
+import PageHeading from "../../components/PageHeading";
+import Notice from "../../components/Notice";
 import { formatEui, formatHex } from "../../../lib/ttn-ids";
 import type { TtnDeviceDetail } from "../../../services/ttn";
 import { DEVICE_MESSAGES } from "./devices-page";

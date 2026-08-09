@@ -1,6 +1,7 @@
 import Layout from "../../components/layout/Layout";
-import PageHeading from "../../components/manage/PageHeading";
+import PageHeading from "../../components/PageHeading";
 import type { ResourceSpec } from "../../components/manage/spec";
+import Notice from "../../components/Notice";
 
 /**
  * Where a deletion by filter stands, between two blocks.
@@ -39,7 +40,7 @@ export default function ContinueDeletePage(props: {
         back={{ href: `${props.spec.path}${props.view}`, label: "Zurück zur Tabelle" }}
       />
 
-      <div class="rounded-box border border-warning bg-warning/10 px-4 py-3 mb-4">
+      <Notice tone="warning">
         <p>
           <strong>
             {props.done} von {total} {props.spec.title}
@@ -51,7 +52,7 @@ export default function ContinueDeletePage(props: {
           ist und ankommende Messwerte nicht warten müssen. Was schon entfernt
           ist, bleibt entfernt und steht als ein Vorgang im Änderungsprotokoll.
         </p>
-      </div>
+      </Notice>
 
       <progress
         class="progress progress-error w-full"

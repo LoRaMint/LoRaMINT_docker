@@ -1,5 +1,5 @@
 import Layout from "../../components/layout/Layout";
-import PageHeading from "../../components/manage/PageHeading";
+import PageHeading from "../../components/PageHeading";
 import { pageLink, pageWindow } from "../../../lib/manage-view";
 import type { DeviceLogEntry } from "../../../services/device-log";
 

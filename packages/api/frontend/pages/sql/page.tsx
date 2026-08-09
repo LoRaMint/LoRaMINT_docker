@@ -1,5 +1,9 @@
 import Layout from "../../components/layout/Layout";
+import TableFrame from "../../components/TableFrame";
 import { maxRows, timeoutMs, type ConsoleResult } from "../../../services/query";
+import PageHeading from "../../components/PageHeading";
+import Notice from "../../components/Notice";
+import { Muted } from "../../components/Row";
 
 /**
  * The SQL console. One page for both roles: the data role opens it read-only,
@@ -15,7 +19,7 @@ import { maxRows, timeoutMs, type ConsoleResult } from "../../../services/query"
 function Cell(props: { value: unknown }) {
   const v = props.value;
   if (v === null || v === undefined) {
-    return <span class="text-base-content/40 italic">NULL</span>;
+    return <Muted>NULL</Muted>;
   }
   if (v instanceof Date) return <>{v.toISOString()}</>;
   if (typeof v === "object") return <>{JSON.stringify(v)}</>;
@@ -31,28 +35,30 @@ export default function SqlPage(props: {
 }) {
   return (
     <Layout>
-      <h2 class="text-xl font-bold border-b border-base-300 pb-2 mb-4 mt-8">
-        SQL-Konsole
-      </h2>
-      <p class="mb-4 max-w-3xl text-base-content/80">
-        {props.writable ? (
+      <PageHeading
+        title="SQL-Konsole"
+        intro={
           <>
-            Beliebige Anweisungen auf der Messdatenbank – auch schreibende. Die
-            Verbindung darf die Anwendungstabellen lesen und ändern, aber keine
-            Tabellen anlegen oder löschen; Schemaänderungen bleiben den
-            Migrationen vorbehalten.
+            {props.writable ? (
+              <>
+                Beliebige Anweisungen auf der Messdatenbank – auch schreibende.
+                Die Verbindung darf die Anwendungstabellen lesen und ändern, aber
+                keine Tabellen anlegen oder löschen; Schemaänderungen bleiben den
+                Migrationen vorbehalten.
+              </>
+            ) : (
+              <>
+                Beliebige Abfragen auf der Messdatenbank. Deine Verbindung darf
+                ausschließlich lesen – schreibende Anweisungen weist die
+                Datenbank ab, nicht erst diese Seite.
+              </>
+            )}{" "}
+            Abfragen liefern eine Tabelle (höchstens {maxRows()} Zeilen)
+            {props.writable ? ", andere Anweisungen eine Bestätigung" : ""}. Nach{" "}
+            {timeoutMs() / 1000} Sekunden bricht eine Anweisung ab.
           </>
-        ) : (
-          <>
-            Beliebige Abfragen auf der Messdatenbank. Deine Verbindung darf
-            ausschließlich lesen – schreibende Anweisungen weist die Datenbank
-            ab, nicht erst diese Seite.
-          </>
-        )}{" "}
-        Abfragen liefern eine Tabelle (höchstens {maxRows()} Zeilen)
-        {props.writable ? ", andere Anweisungen eine Bestätigung" : ""}. Nach{" "}
-        {timeoutMs() / 1000} Sekunden bricht eine Anweisung ab.
-      </p>
+        }
+      />
       <form method="post" action="/sql" class="mb-6">
         <label class="block">
           <span class="block text-sm mb-1 text-base-content/80">Anweisung</span>
@@ -95,7 +101,7 @@ export default function SqlPage(props: {
       )}
 
       {props.result?.kind === "confirm" && (
-        <div class="rounded-box border border-warning bg-warning/10 px-4 py-3 mb-4">
+        <Notice tone="warning">
           <p class="mb-3">
             Diese Anweisung würde <strong>{props.result.affected}</strong> Zeile
             {props.result.affected === 1 ? "" : "n"} löschen. Sie wurde
@@ -113,16 +119,16 @@ export default function SqlPage(props: {
               Abbrechen
             </a>
           </form>
-        </div>
+        </Notice>
       )}
 
       {props.result?.kind === "command" && (
-        <p class="rounded-box border border-success/40 bg-success/10 px-4 py-3">
+        <Notice tone="success">
           <strong>{props.result.command}</strong> ausgeführt –{" "}
           {props.result.affected} Zeile
           {props.result.affected === 1 ? "" : "n"} betroffen (
           {props.result.durationMs} ms).
-        </p>
+        </Notice>
       )}
 
       {props.result?.kind === "rows" &&
@@ -140,8 +146,7 @@ export default function SqlPage(props: {
                 <span class="text-warning"> – gekürzt auf die ersten {maxRows()}.</span>
               )}
             </p>
-            <div class="overflow-x-auto rounded-box border border-base-300">
-              <table class="table table-sm table-zebra">
+            <TableFrame>
                 <thead>
                   <tr>
                     {props.result.columns.map((c) => (
@@ -161,8 +166,7 @@ export default function SqlPage(props: {
                     </tr>
                   ))}
                 </tbody>
-              </table>
-            </div>
+              </TableFrame>
           </>
         ))}
     </Layout>

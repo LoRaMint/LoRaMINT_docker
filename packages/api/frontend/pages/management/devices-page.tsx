@@ -1,6 +1,6 @@
 import Layout from "../../components/layout/Layout";
-import PageHeading from "../../components/manage/PageHeading";
-import Notice from "../../components/manage/Notice";
+import PageHeading from "../../components/PageHeading";
+import Notice from "../../components/Notice";
 import Planned from "../../components/Planned";
 import { formatEui } from "../../../lib/ttn-ids";
 

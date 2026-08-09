@@ -1,4 +1,5 @@
 import type { JSX } from "solid-js";
+import PageHeading from "./PageHeading";
 
 /**
  * A page for a feature that is announced but not built yet.
@@ -19,9 +20,7 @@ export default function Planned(props: {
 }) {
   return (
     <>
-      <h2 class="text-xl font-bold border-b border-base-300 pb-2 mb-4 mt-8">
-        {props.title}
-      </h2>
+      <PageHeading title={props.title} intro={props.intro} />
 
       <div class="flex items-center gap-2 mb-4">
         <span class="badge badge-warning">In Planung</span>
@@ -29,8 +28,6 @@ export default function Planned(props: {
           Diese Seite kündigt an, was hier entstehen soll – noch ohne Funktion.
         </span>
       </div>
-
-      <p class="mb-6 max-w-3xl text-base-content/80">{props.intro}</p>
 
       <ul class="grid gap-3 sm:grid-cols-2 max-w-3xl">
         {props.features.map((feature) => (
