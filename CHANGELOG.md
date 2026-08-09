@@ -5,7 +5,7 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.7.0] - 2026-08-09
 
 ### ⚠ Breaking — read before upgrading
 
@@ -818,7 +818,8 @@ reach its own configuration, and the ones the security model rests on.
 
 Releases up to and including [0.1.8] (2026-05-12) predate this changelog.
 
-[Unreleased]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.6.1...HEAD
+[Unreleased]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.7.0...HEAD
+[1.7.0]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.6.1...v1.7.0
 [1.6.1]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.6.0...v1.6.1
 [1.6.0]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.5.0...v1.6.0
 [1.5.0]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.4.0...v1.5.0
