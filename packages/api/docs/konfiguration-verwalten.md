@@ -138,13 +138,12 @@ Sicherheitsmodell aushebeln würde:
 
 | bleibt Umgebung | Grund |
 |---|---|
-| `DATABASE_URL` | ohne sie kein Zugriff auf den Ort, wo die Konfiguration liegt |
-| `DATABASE_URL_MANAGE` / `_ADMIN` / `_READONLY` | die Zusicherung „die Seiten können das Protokoll nicht umschreiben" ist eine Eigenschaft der Rolle, nicht des Codes |
+| `DATABASE_URL` | ohne sie kein Zugriff auf den Ort, wo die Konfiguration liegt — und die übrigen Rollen werden aus ihr abgeleitet |
 | `SESSION_SECRET` | wird gebraucht, bevor eine Sitzung existiert |
 | `ADMIN_USERNAME`, `ADMIN_PASSWORD_HASH` / `ADMIN_PW` | das Einrichtungskonto selbst |
 | `PORT`, `NODE_ENV`, `TRUSTED_PROXIES` | Prozess- und Proxy-Ebene |
 
-Das sind acht bis neun; die übrigen rund 30 ziehen in die Datenbank —
+Das sind fünf bis sechs; die übrigen rund 30 ziehen in die Datenbank —
 **einschliesslich der 17 LDAP-Variablen**, und das ist der eigentliche Gewinn.
 
 Ursprünglich sollte LDAP in der Umgebung bleiben, weil ein Vertipper im

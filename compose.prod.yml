@@ -11,9 +11,9 @@
 # yields a site without a login, not a server that refuses to start.
 #
 # On startup the container runs the migrations and then creates or refreshes the
-# restricted database roles from the connection strings below, so no psql
-# session on the server is needed. See packages/api/.env.example for what each
-# variable means.
+# restricted database roles, whose passwords are derived from DATABASE_URL - so
+# no psql session on the server and no extra variables are needed. See
+# packages/api/.env.example for what each variable means.
 
 services:
   app:
@@ -21,9 +21,9 @@ services:
     restart: unless-stopped
     environment:
       # --- Core (required) ------------------------------------------------
-      # The application's own connection: owns the schema, runs the migrations,
-      # and serves every read. Everything that writes on behalf of a signed-in
-      # user goes through one of the restricted roles further down.
+      # The owner's connection: owns the schema and runs the migrations, and the
+      # restricted roles are derived from it. The running application does not
+      # query through it - see packages/api/.env.example.
       - DATABASE_URL=postgres://${DB_USER:?DB_USER is required}:${DB_PASSWORD:?DB_PASSWORD is required}@db:5432/${DB_NAME:?DB_NAME is required}
       - TTN_APP_KEY=${TTN_APP_KEY:?TTN_APP_KEY is required}
       - NODE_ENV=production
@@ -92,24 +92,11 @@ services:
       - LDAP_MANAGEMENT_GROUP=${LDAP_MANAGEMENT_GROUP:-}
       - LDAP_ADMIN_GROUP=${LDAP_ADMIN_GROUP:-}
 
-      # --- Restricted database roles (optional) ---------------------------
-      # Created by the entrypoint from these connection strings; the password in
-      # each is what the role gets. None of them may be DATABASE_URL, and the
-      # server refuses to start if one is.
-      #
-      #   readonly  the /sql page for everyone below admin - may only SELECT
-      #   admin     the /sql page for administrators - may write the data
-      #             tables, but owns no schema and is no superuser
-      #   manage    every write the management pages make. Holds SELECT and
-      #             INSERT on audit_log and nothing more, which is what makes
-      #             the change log impossible to rewrite from the interface.
-      #
-      # Leave a line's password empty to switch that feature off: without the
-      # readonly role there is no SQL page, without the manage role the
-      # management pages open read-only and say so.
-      - DATABASE_URL_READONLY=${DATABASE_URL_READONLY:-}
-      - DATABASE_URL_ADMIN=${DATABASE_URL_ADMIN:-}
-      - DATABASE_URL_MANAGE=${DATABASE_URL_MANAGE:-}
+      # --- Tuning (optional) -----------------------------------------------
+      # The restricted database roles are no longer configured here: they are
+      # derived from DATABASE_URL and created by the entrypoint. See
+      # packages/api/.env.example for which role does what and why the
+      # application no longer queries as the schema owner.
       - QUERY_MAX_ROWS=${QUERY_MAX_ROWS:-}
       - QUERY_TIMEOUT_MS=${QUERY_TIMEOUT_MS:-}
       - MANAGE_MAX_DELETE=${MANAGE_MAX_DELETE:-}

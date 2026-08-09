@@ -1,6 +1,18 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import { CATALOG } from "./lib/config-catalog";
 import { storedSetting } from "./lib/settings-store";
+import { DB_ROLES, roleDsn } from "./lib/db-roles";
+
+/**
+ * The connection every restricted role is reached through, worked out from
+ * DATABASE_URL rather than configured separately.
+ *
+ * One environment variable per role made the group that *cannot* move into the
+ * database grow with every role added - and that is the group somebody has to
+ * type by hand. See lib/db-roles.ts for how the passwords are derived and why
+ * nothing has to be stored.
+ */
+const ownerDsn = () => Bun.env.DATABASE_URL ?? "";
 
 /**
  * Settings that live in the database rather than in the environment.
@@ -98,23 +110,26 @@ export const verifyAppKey = (candidate: string | undefined): boolean => {
  * stops, because none of them writes to the database. Without a restricted role
  * the page therefore does not exist at all.
  *
- * Create the role with dev_scripts/create-readonly-role.sql.
+ * The role is created by scripts/ensure-roles.ts and reached through a
+ * connection derived from DATABASE_URL - see lib/db-roles.ts.
  */
-const readonlyDatabaseUrl = optional("DATABASE_URL_READONLY");
-
-/**
- * The Admin > SQL page lets administrators submit arbitrary statements, writes
- * included, so it needs a connection that may write - but still not the
- * application's own, which is a superuser in the default Docker setup and would
- * make the page equivalent to shell access on the database host. Use the role
- * from dev_scripts/create-admin-role.sql. Unset means the page does not exist.
- */
-const adminDatabaseUrl = optional("DATABASE_URL_ADMIN");
 
 export const sqlConsole = {
-  enabled: readonlyDatabaseUrl !== null,
-  databaseUrl: readonlyDatabaseUrl,
-  adminDatabaseUrl,
+  /**
+   * Whether the page exists at all. It used to be decided by whether a
+   * connection string had been configured; now the role always exists, so this
+   * is a setting of its own - switchable where one goes looking for it rather
+   * than by leaving a variable out.
+   */
+  get enabled() {
+    return optional("SQL_CONSOLE_ENABLED") !== "false";
+  },
+  get databaseUrl() {
+    return roleDsn(ownerDsn(), DB_ROLES.readonly);
+  },
+  get adminDatabaseUrl() {
+    return roleDsn(ownerDsn(), DB_ROLES.admin);
+  },
   /**
    * How many rows a result may show. The cap is applied inside the database, so
    * raising it costs rendering time and page weight, not database work - roughly
@@ -130,15 +145,6 @@ export const sqlConsole = {
     return optionalInt("QUERY_TIMEOUT_MS", 5000);
   },
 };
-
-if (adminDatabaseUrl && adminDatabaseUrl === optional("DATABASE_URL")) {
-  throw new Error(
-    "DATABASE_URL_ADMIN must not be the application's own DATABASE_URL: " +
-      "that role owns the schema and is typically a superuser, which would let " +
-      "the Admin SQL page read server files and run shell commands. " +
-      "See packages/api/dev_scripts/create-admin-role.sql.",
-  );
-}
 
 //====================================
 // DATA MANAGEMENT
@@ -158,15 +164,23 @@ if (adminDatabaseUrl && adminDatabaseUrl === optional("DATABASE_URL")) {
  * still open, but read-only, and say why. A deployment that has not set up the
  * role does not hand out write access by accident.
  *
- * Create the role with scripts/ensure-roles.ts (run from the entrypoint) or by
- * hand with dev_scripts/create-manage-role.sql.
+ * Created by scripts/ensure-roles.ts and reached through a connection derived
+ * from DATABASE_URL - see lib/db-roles.ts.
  */
-const manageDatabaseUrl = optional("DATABASE_URL_MANAGE");
 
 export const manage = {
-  /** True when changes and deletions are possible at all. */
-  writable: manageDatabaseUrl !== null,
-  databaseUrl: manageDatabaseUrl,
+  /**
+   * Whether data may be changed at all. Decided by a setting rather than by
+   * whether a connection string happens to be configured: the role now always
+   * exists, and a deployment that wants a read-only installation should be able
+   * to say so where the other settings are.
+   */
+  get writable() {
+    return optional("DATA_EDITING_ENABLED") !== "false";
+  },
+  get databaseUrl() {
+    return roleDsn(ownerDsn(), DB_ROLES.manage);
+  },
   /**
    * Ceiling for a single delete. A deletion that runs for minutes holds locks on
    * the table the webhook is inserting into, so beyond this the page asks for a
@@ -181,14 +195,19 @@ export const manage = {
   },
 };
 
-if (manageDatabaseUrl && manageDatabaseUrl === optional("DATABASE_URL")) {
-  throw new Error(
-    "DATABASE_URL_MANAGE must not be the application's own DATABASE_URL: " +
-      "that role owns the schema and may rewrite audit_log, which would make " +
-      "the change log worthless as a record. " +
-      "See packages/api/dev_scripts/create-manage-role.sql.",
-  );
-}
+/**
+ * The connection the webhook inserts through.
+ *
+ * Its own role, with INSERT on the two data tables and nothing else - no SELECT,
+ * no UPDATE, no DELETE. The webhook is the only route reachable from outside
+ * that writes, so it gets the narrowest rights in the whole application; it
+ * reads nothing, so it may read nothing.
+ */
+export const ingest = {
+  get databaseUrl() {
+    return roleDsn(ownerDsn(), DB_ROLES.ingest);
+  },
+};
 
 //====================================
 // DEVICE MANAGEMENT (TTN)

@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { connect } from "node:net";
 import { maxRows, runConsoleSqlOn, runReadOnlyOn, timeoutMs } from "./query";
+import { DB_ROLES, roleDsn } from "../lib/db-roles";
 
 /**
  * Integration tests for the read-only query service against a real Postgres -
@@ -20,13 +21,11 @@ import { maxRows, runConsoleSqlOn, runReadOnlyOn, timeoutMs } from "./query";
 // The page runs on the restricted role, so that is what has to be tested: the
 // same queries against the application's own superuser connection do escape.
 const DSN =
-  Bun.env.DATABASE_URL_READONLY ??
-  "postgres://loramint_readonly:readonly@localhost:5432/loramint";
+  roleDsn(Bun.env.DATABASE_URL ?? "", DB_ROLES.readonly);
 
 /** The writable connection: the same console, opened by an administrator. */
 const ADMIN_DSN =
-  Bun.env.DATABASE_URL_ADMIN ??
-  "postgres://loramint_admin_sql:adminsql@localhost:5432/loramint";
+  roleDsn(Bun.env.DATABASE_URL ?? "", DB_ROLES.admin);
 
 /** Runs a query the way the read-only console does. */
 const runReadOnly = (text: string) => runReadOnlyOn(DSN, text);

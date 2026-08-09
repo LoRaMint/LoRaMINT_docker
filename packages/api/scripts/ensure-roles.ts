@@ -1,13 +1,13 @@
 import { sql } from "bun"
+import { DB_ROLES, ownerRole, rolePassword, type DbRole } from "../lib/db-roles"
 
 /**
  * Creates and updates the restricted database roles the application connects
  * through, so a deployment does not need a psql session on the server.
  *
  * Run from the entrypoint *after* the migrations: the per-table grants below
- * need the tables to exist. dev_scripts/create-*-role.sql do the same thing by
- * hand and carry the reasoning behind each grant; this script is the convenient
- * path, not a replacement for reading them.
+ * need the tables to exist. dev_scripts/ROLLEN.md carries the reasoning behind
+ * each grant, and says what this script deliberately does not do.
  *
  * Three properties worth knowing:
  *
@@ -15,10 +15,11 @@ import { sql } from "bun"
  *   is revoked - the guarantees this setup makes rest on privileges never having
  *   been granted, not on a script taking them away again.
  *
- *   The DSN is the source of truth. Role name and password are read from
- *   DATABASE_URL_READONLY / _ADMIN / _MANAGE, so a role cannot end up with a
- *   different password than the connection string the application uses. An
- *   existing role's password is set to match on every run.
+ *   DATABASE_URL is the source of truth. Names are constants and passwords are
+ *   derived from the owner's (lib/db-roles.ts), so a role cannot end up with a
+ *   password the application does not expect - both sides compute the same value
+ *   and nothing has to be configured. Every run sets them again, so rotating the
+ *   owner's password rotates all of them.
  *
  *   Unset means untouched. A missing variable is not an error: that role is
  *   skipped, and the feature using it does not exist.
@@ -32,8 +33,8 @@ import { sql } from "bun"
 //====================================
 
 type RoleSpec = {
-  /** Variable holding the DSN this role is reached through. */
-  envVar: string
+  /** The role's name. Derived, not configured - see lib/db-roles.ts. */
+  role: DbRole
   /** What the role is for, used in the log output. */
   purpose: string
   /** `ALTER ROLE ... SET name = value`, reapplied on every run. */
@@ -50,19 +51,24 @@ type RoleSpec = {
 
 const SPECS: RoleSpec[] = [
   {
-    envVar: "DATABASE_URL_READONLY",
+    role: DB_ROLES.readonly,
     purpose: "read-only SQL console",
     // The role itself is read-only, which is what survives a query that ends the
     // transaction with COMMIT and carries on.
+    //
+    // 30s rather than the console's 10: every read the application makes now
+    // runs through here, including the CSV export, which streams large results.
+    // The console keeps its own, tighter limit - services/query.ts sets it per
+    // transaction with SET LOCAL.
     settings: [
       { name: "default_transaction_read_only", value: "on" },
-      { name: "statement_timeout", value: "10s" },
+      { name: "statement_timeout", value: "30s" },
     ],
     grants: [{ privileges: "SELECT", on: "ALL TABLES IN SCHEMA public" }],
     defaults: [{ privileges: "SELECT", on: "TABLES" }],
   },
   {
-    envVar: "DATABASE_URL_ADMIN",
+    role: DB_ROLES.admin,
     purpose: "writable SQL console",
     settings: [{ name: "statement_timeout", value: "10s" }],
     // No CREATE on the schema: schema changes stay with the migrations.
@@ -76,7 +82,7 @@ const SPECS: RoleSpec[] = [
     ],
   },
   {
-    envVar: "DATABASE_URL_MANAGE",
+    role: DB_ROLES.manage,
     purpose: "management pages",
     // Longer than the console's: a bulk delete legitimately takes a while. The
     // application still sets its own, shorter limit per transaction.
@@ -99,6 +105,19 @@ const SPECS: RoleSpec[] = [
     // Deliberately empty: a table added by a later migration grants this role
     // nothing until someone adds a line above. A default privilege here would
     // silently hand out UPDATE and DELETE on the next log-like table.
+    defaults: [],
+  },
+  {
+    role: DB_ROLES.ingest,
+    purpose: "TTN webhook",
+    settings: [{ name: "statement_timeout", value: "5s" }],
+    // INSERT and nothing else - no SELECT either. The webhook is the only route
+    // reachable from outside that writes, and it reads nothing, so it may read
+    // nothing. A flaw there cannot be turned into a way of reading the data.
+    grants: [
+      { privileges: "INSERT", on: "measurements" },
+      { privileges: "INSERT", on: "log_entries" },
+    ],
     defaults: [],
   },
 ]
@@ -145,29 +164,22 @@ const credentialsFrom = (dsn: string) => {
 // SETUP
 //====================================
 
-const ensure = async (spec: RoleSpec, databaseName: string, appRole: string | null) => {
-  const dsn = Bun.env[spec.envVar]
-  if (!dsn) {
-    console.log(`  ${spec.envVar} not set - skipping the ${spec.purpose} role.`)
-    return
-  }
+const ensure = async (
+  spec: RoleSpec,
+  databaseName: string,
+  ownerPassword: string,
+  appRole: string | null,
+) => {
+  const username = spec.role
+  const password = rolePassword(ownerPassword, spec.role)
 
-  const credentials = credentialsFrom(dsn)
-  if (!credentials) {
-    throw new Error(
-      `${spec.envVar} must be a connection string carrying a user name and a ` +
-        `password, so the role can be created from it.`,
-    )
-  }
-  const { username, password } = credentials
-
-  // The same check config.ts makes about the DSN, one level down: this script
-  // runs as the schema owner, and must never reconfigure the role it is using.
+  // This script runs as the schema owner and must never reconfigure the role it
+  // is using. The names are constants now, so this can only fire if somebody
+  // named the owner after one of them.
   if (appRole && username === appRole) {
     throw new Error(
-      `${spec.envVar} uses the application's own database role (${username}). ` +
-        `That role owns the schema and is typically a superuser; the point of ` +
-        `a separate role is that it is not. See dev_scripts/create-*-role.sql.`,
+      `DATABASE_URL uses the role ${username}, which is one of the restricted ` +
+        `roles this script manages. The owner needs a name of its own.`,
     )
   }
 
@@ -203,10 +215,20 @@ const [current] = (await sql`SELECT current_database()`) as {
   current_database: string
 }[]
 const databaseName = current!.current_database
-const appRole = credentialsFrom(Bun.env.DATABASE_URL ?? "")?.username ?? null
+
+// Every restricted role's password is derived from this one - see
+// lib/db-roles.ts. Without it there is nothing to derive from, and rolePassword
+// refuses rather than giving every deployment the same four passwords.
+const owner = credentialsFrom(Bun.env.DATABASE_URL ?? "")
+if (!owner) {
+  throw new Error(
+    "DATABASE_URL must carry a user name and a password: the restricted roles " +
+      "are derived from it.",
+  )
+}
 
 for (const spec of SPECS) {
-  await ensure(spec, databaseName, appRole)
+  await ensure(spec, databaseName, owner.password, owner.username)
 }
 
 console.log("Database roles ready.")

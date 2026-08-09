@@ -34,7 +34,9 @@ export type SettingKind =
   /** A connection string: the password is masked even from administrators' eyes by default. */
   | "dsn"
   /** Never rendered; only its shape is described. */
-  | "secret";
+  | "secret"
+  /** Longer text in Markdown - gets a text box rather than a one-line field. */
+  | "markdown";
 
 /**
  * Where a setting will live once the configuration page can write.
@@ -112,8 +114,9 @@ export const CATALOG: Setting[] = [
     group: "core",
     kind: "dsn",
     meaning:
-      "Die eigene Verbindung der Anwendung. Sie besitzt das Schema, führt die " +
-      "Migrationen aus und beantwortet jede Leseanfrage.",
+      "Die Verbindung des Eigentümers. Sie besitzt das Schema und führt die " +
+      "Migrationen aus; die übrigen Rollen werden aus ihr abgeleitet. Der " +
+      "laufende Betrieb benutzt sie nicht.",
     fallback: null,
     required: true,
     tier: "environment",
@@ -365,15 +368,14 @@ export const CATALOG: Setting[] = [
 
   //---- Datenverwaltung ----
   {
-    key: "DATABASE_URL_MANAGE",
+    key: "DATA_EDITING_ENABLED",
     group: "manage",
-    kind: "dsn",
+    kind: "flag",
     meaning:
-      "Verbindung, durch die die Verwaltungsseiten schreiben. Sie darf an das " +
-      "Änderungsprotokoll anhängen, es aber nicht umschreiben. Fehlt sie, " +
-      "öffnen die Seiten nur lesend.",
-    fallback: null,
-    tier: "environment",
+      "Ob Daten überhaupt geändert werden dürfen. Auf „false\" öffnen die " +
+      "Verwaltungsseiten nur lesend – für eine Installation, die nur anzeigen soll.",
+    fallback: "true",
+    tier: "movable",
   },
   {
     key: "MANAGE_MAX_DELETE",
@@ -396,23 +398,14 @@ export const CATALOG: Setting[] = [
 
   //---- SQL-Seite ----
   {
-    key: "DATABASE_URL_READONLY",
+    key: "SQL_CONSOLE_ENABLED",
     group: "sql",
-    kind: "dsn",
+    kind: "flag",
     meaning:
-      "Nur-Lese-Verbindung der SQL-Seite. Ohne sie gibt es die Seite nicht.",
-    fallback: null,
-    tier: "environment",
-  },
-  {
-    key: "DATABASE_URL_ADMIN",
-    group: "sql",
-    kind: "dsn",
-    meaning:
-      "Schreibende Verbindung der SQL-Seite für Administratoren. Ohne sie " +
-      "bleibt die Seite auch für sie lesend.",
-    fallback: null,
-    tier: "environment",
+      "Ob es die SQL-Seite gibt. Auf „false\" verschwindet sie aus dem Menü und " +
+      "antwortet mit 404.",
+    fallback: "true",
+    tier: "movable",
   },
   {
     key: "QUERY_MAX_ROWS",
@@ -497,17 +490,20 @@ export const CATALOG: Setting[] = [
   {
     key: "LEGAL_IMPRESSUM",
     group: "legal",
-    kind: "text",
-    meaning: "Inhalt der Impressumsseite. Ohne Inhalt gibt es die Seite nicht.",
+    kind: "markdown",
+    meaning:
+      "Inhalt der Impressumsseite, als Markdown: # Überschrift, - Aufzählung, " +
+      "**fett**, [Text](https://…). Ohne Inhalt gibt es die Seite nicht.",
     fallback: null,
     tier: "movable",
   },
   {
     key: "LEGAL_DATENSCHUTZ",
     group: "legal",
-    kind: "text",
+    kind: "markdown",
     meaning:
-      "Inhalt der Datenschutzseite. Ohne Inhalt gibt es die Seite nicht.",
+      "Inhalt der Datenschutzseite, als Markdown – dieselben Auszeichnungen wie " +
+      "beim Impressum. Ohne Inhalt gibt es die Seite nicht.",
     fallback: null,
     tier: "movable",
   },
@@ -641,12 +637,6 @@ export const warningsFor = (setting: Setting, env: Env): string[] => {
         "Seite aus.",
     );
   }
-  if (setting.key === "DATABASE_URL_MANAGE" && value === null) {
-    warnings.push(
-      "Ohne diese Verbindung öffnen die Verwaltungsseiten nur lesend, und es " +
-        "lässt sich weder etwas ändern noch protokollieren.",
-    );
-  }
   if (setting.key === "SESSION_TTL_HOURS") {
     const hours = Number(value);
     if (Number.isFinite(hours) && hours > 24 * 30) {
@@ -714,6 +704,15 @@ export const featureStates = (env: Env): FeatureState[] => {
     ...(ttnApp ? [] : ["TTN_APPLICATION_ID"]),
   ];
 
+  // A flag setting is on unless it says "false" - the same reading config.ts
+  // applies, so the block cannot disagree with the application.
+  const flagOn = (key: string) => {
+    const setting = settingFor(key);
+    return setting === undefined || effectiveValue(setting, env) !== "false";
+  };
+  const editingOn = flagOn("DATA_EDITING_ENABLED");
+  const consoleOn = flagOn("SQL_CONSOLE_ENABLED");
+
   const setupUser = set("ADMIN_USERNAME");
   const setupHash = set("ADMIN_PASSWORD_HASH");
   const setupPlain = set("ADMIN_PW");
@@ -737,21 +736,23 @@ export const featureStates = (env: Env): FeatureState[] => {
         ? "LDAP_URL gesetzt"
         : "LDAP_URL fehlt – ohne Anmeldung gibt es keinen Verwaltungsbereich",
     },
+    // Both used to be decided by whether a connection string was configured.
+    // The roles are derived and always exist now, so what is left to decide is a
+    // setting - and "off" here means somebody chose it, not that something is
+    // missing.
     {
       label: "Daten ändern",
-      on: set("DATABASE_URL_MANAGE"),
-      because: set("DATABASE_URL_MANAGE")
-        ? "DATABASE_URL_MANAGE gesetzt"
-        : "DATABASE_URL_MANAGE fehlt – die Verwaltungsseiten öffnen nur lesend",
+      on: editingOn,
+      because: editingOn
+        ? "eingeschaltet – Messwerte und Logeinträge sind änderbar"
+        : "durch DATA_EDITING_ENABLED abgeschaltet – die Verwaltungsseiten öffnen nur lesend",
     },
     {
       label: "SQL-Seite",
-      on: set("DATABASE_URL_READONLY"),
-      because: set("DATABASE_URL_READONLY")
-        ? set("DATABASE_URL_ADMIN")
-          ? "DATABASE_URL_READONLY und _ADMIN gesetzt"
-          : "DATABASE_URL_READONLY gesetzt – für Administratoren fehlt _ADMIN"
-        : "DATABASE_URL_READONLY fehlt",
+      on: consoleOn,
+      because: consoleOn
+        ? "eingeschaltet – für Administratoren auf einer schreibenden Verbindung"
+        : "durch SQL_CONSOLE_ENABLED abgeschaltet",
     },
     {
       label: "Geräteverwaltung",

@@ -1,6 +1,7 @@
 import { afterAll, describe, expect, test } from "bun:test";
 import { connect } from "node:net";
 import { SQL } from "bun";
+import { DB_ROLES, roleDsn } from "../lib/db-roles";
 
 /**
  * Integration tests for the management write path against a real Postgres.
@@ -21,9 +22,7 @@ import { SQL } from "bun";
 const APP_DSN =
   Bun.env.DATABASE_URL ?? "postgres://loramint:loramint@localhost:5432/loramint";
 
-const MANAGE_DSN =
-  Bun.env.DATABASE_URL_MANAGE ??
-  "postgres://loramint_manage:managepw@localhost:5432/loramint";
+const MANAGE_DSN = roleDsn(APP_DSN, DB_ROLES.manage);
 
 const reachable = await new Promise<boolean>((resolve) => {
   let hostname = "localhost";
