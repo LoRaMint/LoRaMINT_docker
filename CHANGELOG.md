@@ -34,7 +34,118 @@ connection strings, `SESSION_SECRET`, the setup account, `TTN_APP_KEY`, `PORT`,
 `NODE_ENV` and `TRUSTED_PROXIES` — the values needed before the application can
 reach its own configuration, and the ones the security model rests on.
 
+### Changed
+- **Die Oberfläche baut auf gemeinsamen Bausteinen statt auf kopierten
+  Klassenketten.** Ausgangspunkt war eine Zählung: 1695 Klassenvorkommen in den
+  Seiten, davon vieles wortgleich wiederholt. Jetzt sind es 1336.
+
+  Zwei der größten Wiederholungen waren keine fehlenden Komponenten, sondern
+  vorhandene, die umgangen wurden — `PageHeading` in sieben Seiten von Hand
+  nachgebaut, `Notice` in zehn. Beide lagen unter `components/manage/`, und wer
+  auf einer öffentlichen Seite etwas schrieb, suchte dort nicht. Sie liegen nun
+  eine Ebene höher.
+
+  Neu dazu: `Field` und `FieldGroup` (Formularfelder), `TableFrame` und
+  `EmptyRow` (Tabellen), `Row` (Beschriftung/Wert), `SectionHeading`, `Muted`.
+
+- **39 Klassen taten überhaupt nichts.** `form-control`, `label-text`,
+  `label-text-alt`, `input-bordered`, `select-bordered` und `textarea-bordered`
+  stammen aus daisyUI 4; in Version 5 gibt es sie nicht mehr. Sie standen im
+  Quelltext, erzeugten aber kein CSS — mit der Folge, dass die Formulare auf
+  sieben Seiten ihre Beschriftungen anders darstellten als der Rest, ohne dass
+  das je jemand entschieden hätte. Die Login-Seite hatte den Befund schon im
+  Kommentar stehen und war die einzige, die ihn umgesetzt hatte.
+
+  `Field` ist deshalb aus reinen Tailwind-Utilities gebaut statt aus daisyUIs
+  Formularklassen: genau dieser Ausfallmodus — eine Klasse, die still zu
+  existieren aufhört — soll sich nicht wiederholen können.
+
+- Fünf verschiedene Stile für Abschnittsüberschriften und drei für Tabellen sind
+  auf je einen zusammengeführt. Tabellen sind jetzt durchgehend dicht und
+  gestreift; bei breiten Zeilen aus Messwerten und Kennungen ist der Streifen
+  das, was das Auge in der Zeile hält.
+
+- The application no longer queries the database as the schema owner. Every
+  query now runs on the narrowest role that can carry it, and which one is
+  decided by the *intent of the operation* — not by the module the code sits in,
+  and not by the role of whoever is signed in. An administrator who only reads on
+  a page reads through the read-only role like everybody else.
+
+  Until now every read went through `DATABASE_URL`, which is a superuser in the
+  default Docker setup. That the application may read what it displays is
+  unavoidable; that the reading connection could also call `pg_read_file()`, read
+  the password hashes in `pg_authid` and run shell commands through
+  `COPY ... TO PROGRAM` was not. A flaw in any read path was worth a shell on the
+  database host rather than a few rows too many. That connection is now used by
+  the migrations and the role setup, and by nothing else.
+
+  A fourth role joins the three: `loramint_ingest`, for the TTN webhook, with
+  `INSERT` on the two data tables and **not even `SELECT`**. It is the only
+  externally reachable route that writes, and it reads nothing, so it may read
+  nothing. That required dropping `RETURNING` from the two inserts — measured,
+  not assumed: `INSERT ... RETURNING` needs `SELECT` on the columns it returns,
+  and granting that would have let the webhook's role read every measurement ever
+  stored. Id and arrival time are generated in the application instead.
+
+  `DATABASE_URL_READONLY`, `DATABASE_URL_MANAGE` and `DATABASE_URL_ADMIN` are
+  gone. One variable per role would have grown the one group of settings that
+  cannot move into the database — the group somebody has to type by hand. The
+  passwords are derived from the owner's instead, so nothing has to be
+  configured, passed or stored: `ensure-roles` and the application compute the
+  same value independently. Rotating the owner's password rotates all of them.
+
+  Splitting one connection into four multiplies the pools, and Postgres counts
+  every one against `max_connections`. Measured during the change: an unbounded
+  read pool took 77 of 100 slots on its own and the next connection was refused.
+  Each role is now capped, twenty between them.
+
+  Whether the SQL page exists and whether data may be edited used to be decided
+  by whether a connection string had been configured. Since the roles now always
+  exist, both became settings — `SQL_CONSOLE_ENABLED` and `DATA_EDITING_ENABLED`,
+  switchable under Verwaltung → Konfiguration.
+
+  **After upgrading, the application no longer needs to run as a superuser.**
+  That is the point of the change, and it is a change to the deployment rather
+  than only to the code.
+
 ### Added
+- **Persönliche Einstellungen** unter `/profile`: Zeitzone und dunkle
+  Darstellung, pro Benutzer gespeichert. Damit gibt es erstmals eine
+  `users`-Tabelle — bis hierher war Identität allein der Anmeldename im
+  signierten Sitzungs-Cookie und in der Datenbank stand über Personen nichts.
+
+  Beide Werte reisen anschliessend in der Sitzung mit, sodass keine Seite dafür
+  eine Abfrage kostet. Das dunkle Theme wird zusätzlich über ein eigenes,
+  ungezeichnetes Cookie ausgeliefert: `data-theme` steht am `<html>`-Element und
+  muss im ersten Byte stimmen, sonst blitzt bei jeder Navigation kurz die helle
+  Seite auf. Das Cookie wirkt damit auch für nicht Angemeldete, und die meisten
+  Seiten hier sind öffentlich.
+
+- **Zeitzonen, endlich als Regel statt als Zufall.** Die Anwendung zeigte Zeit
+  bisher auf drei Arten gleichzeitig: fest `Europe/Berlin`, rohes ISO-UTC, und
+  in den Plots stillschweigend UTC — im Winter eine, im Sommer zwei Stunden
+  daneben, konstant genug, dass es niemandem auffiel. Plotly rechnet Zeitzonen
+  nicht um, also steckt die Ortszeit jetzt schon im Wert (`lib/time-zone.ts`).
+
+  Die Regel lautet: gespeichert wird immer UTC; angezeigt wird die wirksame Zone
+  — die aus dem Profil, sonst die des Browsers; und **jede Zeit, die in einer
+  anderen Zone steht, nennt sie.** Im Normalfall trägt damit keine Zeitangabe
+  einen Zusatz, weshalb ein Kürzel etwas bedeutet. Ohne JavaScript steht überall
+  UTC, sichtbar beschriftet, statt einer falschen Ortszeit ohne Hinweis.
+
+- **Datengruppen** unter Verwaltung → Datengruppen, für Administratoren. Sie
+  erklären, *welche* Verzeichnisgruppen als Datengruppen gelten — eine echte
+  Teilmenge dessen, was im LDAP steht.
+
+  Das trennt zwei Fragen, die beide von LDAP-Gruppen beantwortet werden: was
+  jemand tun darf (die drei Rollengruppen) und welche Daten gemeint sind. Der
+  Eintrag einer Rollengruppe wird abgewiesen, weil er sonst stillschweigend aus
+  „darf verwalten" ein „darf diese Daten sehen" machen würde. Mitgliedschaften
+  werden dabei **nicht** gespeichert: die Tabelle hält Namen, nie Personen, und
+  es gibt keinen Weg, über den diese Anwendung jemandem eine Gruppe erteilen
+  könnte. Noch ohne Wirkung — Messwerte tragen bisher keine Gruppe; die
+  Zuordnung ist der nächste Schritt (`docs/benutzereinstellungen.md`).
+
 - A configuration overview at `/management/config`, for administrators. It reads
   the running process rather than a document that can go stale, and answers the
   one question no file could: not *what may be set*, but *what took effect*.
@@ -68,6 +179,22 @@ reach its own configuration, and the ones the security model rests on.
   the catalogue behind the page. A setting can therefore no longer be added
   without a sentence explaining it, which is the omission that let the broken
   deployment go unnoticed through a release in the first place.
+- The legal pages are written in Markdown, in a text box. They used to be a
+  single-line field whose only formatting was `\n` typed as two characters,
+  which is a poor way to write an Impressum. Headings, paragraphs, lists, bold,
+  italic, links and rules are supported; a blank line separates paragraphs while
+  single line breaks are kept, so an address stays an address.
+
+  The renderer escapes the source **before** it produces any markup, so raw HTML
+  in the setting can never reach the page — a `<script>` comes out as the five
+  characters somebody typed. That ordering is the security property, and it
+  matters because these two pages are public: parsing first and sanitising
+  afterwards would leave it to be got right in two places instead of one. Links
+  are limited to `http`, `https`, `mailto` and internal paths, since
+  `[hier](javascript:…)` is otherwise a working script.
+
+  Values written before the box existed carry literal `\n` from the environment
+  file; both spell the same intent and both become a line break.
 - A setup account beside the directory, switched on with `ADMIN_USERNAME` and one
   of `ADMIN_PASSWORD_HASH` or `ADMIN_PW`. Until now a server without `LDAP_URL`
   had no login at all, and therefore no way to reach the pages on which LDAP
