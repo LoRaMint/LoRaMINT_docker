@@ -84,7 +84,16 @@ const block = (chunk: string): string => {
   // A paragraph. Single line breaks inside one are kept, because an address
   // block is written that way and turning it into one run-on line would be
   // wrong.
-  return `<p class="my-3 leading-relaxed">${lines.map(inline).join("<br>")}</p>`;
+  //
+  // The whole paragraph is formatted *before* the breaks are inserted, not line
+  // by line. Formatting each line on its own looks equivalent and is not: a
+  // `**` opened on one line and closed on the next would never find its partner,
+  // so a bold passage spanning a wrapped line came out as literal asterisks.
+  // Nobody writing prose keeps an emphasis inside one physical line on purpose,
+  // and the first real document this rendered - the privacy notice - tripped
+  // over it immediately.
+  const formatted = inline(lines.join("\n")).replace(/\n/g, "<br>");
+  return `<p class="my-3 leading-relaxed">${formatted}</p>`;
 };
 
 /**

@@ -77,6 +77,32 @@ describe("was gerendert wird", () => {
     expect(renderMarkdown("*betont*")).toContain("<em>betont</em>");
   });
 
+  /**
+   * Prose is wrapped at some column; an emphasis that runs over that column is
+   * the normal case, not an edge one. Formatting line by line would leave the
+   * asterisks standing - which is exactly what the privacy notice did.
+   */
+  test("fett darf über einen Zeilenumbruch hinweg gehen", () => {
+    const html = renderMarkdown(
+      "**Sie haben das Recht, jederzeit\nWiderspruch einzulegen.**",
+    );
+    expect(html).toContain("<strong>");
+    expect(html).toContain("<br>");
+    expect(html).not.toContain("**");
+  });
+
+  test("und kursiv ebenso", () => {
+    const html = renderMarkdown("Das ist *über zwei\nZeilen betont*.");
+    expect(html).toContain("<em>");
+    expect(html).not.toContain("*über");
+  });
+
+  test("ein Link, dessen Beschriftung umbricht, bleibt ein Link", () => {
+    const html = renderMarkdown("[Datenschutzerklärung von\nHetzner](https://a.example/)");
+    expect(html).toContain('href="https://a.example/"');
+    expect(html).not.toContain("](");
+  });
+
   test("fett gewinnt gegen kursiv, sonst wird ** falsch gelesen", () => {
     const html = renderMarkdown("**ganz wichtig**");
     expect(html).toContain("<strong>ganz wichtig</strong>");
