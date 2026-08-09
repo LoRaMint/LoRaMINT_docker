@@ -1,4 +1,6 @@
-import { ingesting, reading } from "./connections";
+import type { SQL } from "bun";
+import { ingesting, reading, readingAs } from "./connections";
+import { currentScope } from "../lib/request-context";
 import type { PaginationParams } from "../lib/pagination";
 import type { LogEntry, LogStatus, MutationResult, TtnDecodedPayload, ValidatedLogEntry } from "../types";
 
@@ -61,13 +63,13 @@ const mapRow = (row: Record<string, unknown>): LogEntry => ({
 });
 
 const list = async (pagination: PaginationParams) => {
-  const rows = await reading()`
+  const rows = await q((tx) => tx`
     SELECT id, device_eui, message, created_at
     FROM log_entries
     ORDER BY created_at DESC
     LIMIT ${pagination.perPage} OFFSET ${pagination.offset}
-  `;
-  const [{ count }] = await reading()`SELECT count(*)::int AS count FROM log_entries`;
+  `);
+  const [{ count }] = await q((tx) => tx`SELECT count(*)::int AS count FROM log_entries`);
   return { items: rows.map(mapRow), total: count as number };
 };
 
@@ -76,7 +78,7 @@ const list = async (pagination: PaginationParams) => {
  * entries that device has sent, ordered by most recent activity first.
  */
 const status = async (): Promise<LogStatus[]> => {
-  const rows = await reading()`
+  const rows = await q((tx) => tx`
     SELECT device_eui, message, last_seen, n
     FROM (
       SELECT device_eui, message, created_at AS last_seen,
@@ -89,7 +91,7 @@ const status = async (): Promise<LogStatus[]> => {
     ) t
     WHERE rn = 1
     ORDER BY last_seen DESC
-  `;
+  `);
   return (rows as Record<string, unknown>[]).map((r) => ({
     deviceEui: r.device_eui as string,
     message: r.message as string,
@@ -121,6 +123,20 @@ export type LogEntryFilter = {
  * surprising, and not worth an escaping scheme for a search box over 200-character
  * device messages.
  */
+
+/**
+ * Every read of this table, scoped to what the caller may see.
+ *
+ * The row-level policies in migration 007 read two session settings, and
+ * `set_config(..., true)` only lasts for a transaction - so a bare query has no
+ * scope and sees the public rows alone. That is the safety net rather than a
+ * nuisance: a path somebody forgets to wrap shows public data, never somebody
+ * else's. The public pages and the open API are deliberately left unwrapped for
+ * exactly that reason.
+ */
+const q = <T>(run: (tx: SQL) => Promise<T>): Promise<T> =>
+  readingAs(currentScope(), run);
+
 const filterClause = (filter: LogEntryFilter) => {
   const from = filter.from ? new Date(filter.from) : null;
   const to = filter.to ? new Date(filter.to) : null;
@@ -163,14 +179,14 @@ const listRows = async (
   const order = reading().unsafe(
     `${expression} ${sort.direction === "asc" ? "ASC" : "DESC"}, id`,
   );
-  const rows = await reading()`
+  const rows = await q((tx) => tx`
     SELECT id, device_eui, message, created_at
     FROM log_entries
     ${where}
     ORDER BY ${order}
     LIMIT ${pagination.perPage} OFFSET ${pagination.offset}
-  `;
-  const [{ count }] = await reading()`SELECT count(*)::int AS count FROM log_entries ${where}`;
+  `);
+  const [{ count }] = await q((tx) => tx`SELECT count(*)::int AS count FROM log_entries ${where}`);
   return {
     rows: rows as unknown as Record<string, unknown>[],
     total: count as number,
@@ -186,31 +202,31 @@ const idsMatching = async (
   limit: number,
   createdBefore: Date | null = null,
 ) => {
-  const rows = await reading()`
+  const rows = await q((tx) => tx`
     SELECT id FROM log_entries
     ${filterClause(filter)}
       AND (${createdBefore}::timestamptz IS NULL
            OR created_at < ${createdBefore}::timestamptz + interval '1 millisecond')
     ORDER BY created_at
     LIMIT ${limit}
-  `;
+  `);
   return (rows as unknown as { id: string }[]).map((row) => row.id);
 };
 
 /** The current state of specific rows, for previewing and for validation. */
 const byIds = async (ids: string[]) => {
   if (ids.length === 0) return [];
-  const rows = await reading()`
+  const rows = await q((tx) => tx`
     SELECT id, device_eui, message, created_at
     FROM log_entries WHERE id = ANY(${`{${ids.join(",")}}`}::uuid[])
     ORDER BY created_at DESC, id
-  `;
+  `);
   return rows as unknown as Record<string, unknown>[];
 };
 
 /** Distinct devices that have sent something, for the filter dropdown. */
 const metadata = async () => {
-  const rows = await reading()`SELECT DISTINCT device_eui AS v FROM log_entries ORDER BY v`;
+  const rows = await q((tx) => tx`SELECT DISTINCT device_eui AS v FROM log_entries ORDER BY v`);
   return {
     devices: (rows as unknown as { v: string }[])
       .map((row) => row.v)
@@ -252,12 +268,12 @@ const count = async (
   filter: LogEntryFilter = {},
   createdBefore: Date | null = null,
 ) => {
-  const [row] = await reading()`
+  const [row] = await q((tx) => tx`
     SELECT count(*)::int AS count FROM log_entries
     ${filterClause(filter)}
       AND (${createdBefore}::timestamptz IS NULL
            OR created_at < ${createdBefore}::timestamptz + interval '1 millisecond')
-  `;
+  `);
   return (row as { count: number }).count;
 };
 

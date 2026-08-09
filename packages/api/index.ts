@@ -18,6 +18,7 @@ import {
   parsePagination,
   createPagination,
   PaginationResponseSchema,
+  hasRole,
   readSession,
   readThemeCookie,
   requestContext,
@@ -25,6 +26,7 @@ import {
   THEME_COOKIE,
 } from "./lib";
 import { measurements, logEntries } from "./services";
+import type { Scope } from "./services/connections";
 import {
   TtnPayloadSchema,
   MeasurementSchema,
@@ -306,8 +308,13 @@ root.use(async (c, next) => {
   const fromCookie = readThemeCookie(getCookie(c, THEME_COOKIE));
   const darkMode = user?.darkMode ?? fromCookie ?? false;
 
+  // Worked out once here so no service has to be handed it: the data role and
+  // administrators see every group, everybody else sees the groups they are in,
+  // and an anonymous visitor sees only what is released publicly.
+  const scope: Scope = hasRole(user, "data", auth) ? "all" : (user?.groups ?? []);
+
   return requestContext.run(
-    { user, darkMode, timezone: user?.timezone ?? null },
+    { user, darkMode, timezone: user?.timezone ?? null, scope },
     next,
   );
 });

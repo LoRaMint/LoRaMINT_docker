@@ -2,7 +2,7 @@ import type { Hono, MiddlewareHandler } from "hono";
 import { ssr } from "../../../config/ssr";
 import { auth, manage, ttn } from "../../../config";
 import { deviceLog, devices, measurements } from "../../../services";
-import { currentUser, hasRole, parsePage, parseReason } from "../../../lib";
+import { currentScope, currentUser, hasRole, parsePage, parseReason } from "../../../lib";
 import {
   deviceProblems,
   nextDeviceId,
@@ -52,6 +52,7 @@ const actorFrom = (reason: string) => {
   return {
     username: user.username,
     displayName: user.displayName ?? null,
+    scope: currentScope(),
     reason,
   };
 };

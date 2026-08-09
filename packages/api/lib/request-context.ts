@@ -1,5 +1,6 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import type { Session } from "./session";
+import type { Scope } from "../services/connections";
 
 /**
  * Request-scoped state, so the shared Layout can render the signed-in user
@@ -29,6 +30,20 @@ export const requestContext = new AsyncLocalStorage<{
    * rule.
    */
   timezone?: string | null;
+  /**
+   * Which measurements this request may see, as the row-level policies want it.
+   *
+   * Worked out once by the middleware in index.ts and read by every service that
+   * touches `measurements` or `log_entries`, so no call site has to remember to
+   * pass it along - the same arrangement `currentUser` already uses.
+   *
+   * The raw directory groups are handed on without first intersecting them with
+   * the declared data groups. That is safe rather than sloppy: `group_name`
+   * carries a foreign key to `data_groups`, so a directory group nobody declared
+   * cannot match any row. Doing the intersection here would cost a query on
+   * every request to reach the same answer.
+   */
+  scope?: Scope;
 }>();
 
 /** The signed-in user for the request being handled, or null when anonymous. */
@@ -45,3 +60,9 @@ export const currentDarkMode = (): boolean =>
  */
 export const currentTimeZone = (): string | null =>
   requestContext.getStore()?.timezone ?? null;
+
+/**
+ * What this request may see. Defaults to nothing beyond the public rows, which
+ * is the right answer outside a request and for anonymous visitors alike.
+ */
+export const currentScope = (): Scope => requestContext.getStore()?.scope ?? [];

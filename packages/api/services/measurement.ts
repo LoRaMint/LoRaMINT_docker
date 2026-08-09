@@ -1,4 +1,6 @@
-import { ingesting, reading } from "./connections";
+import type { SQL } from "bun";
+import { ingesting, reading, readingAs } from "./connections";
+import { currentScope } from "../lib/request-context";
 import type { PaginationParams } from "../lib/pagination";
 import type {
   Datatype,
@@ -186,6 +188,20 @@ const mapRow = (row: Record<string, unknown>): Measurement => ({
  * value is null). Safe from SQL injection: all values remain parameterized,
  * only the fragment structure is assembled dynamically.
  */
+
+/**
+ * Every read of this table, scoped to what the caller may see.
+ *
+ * The row-level policies in migration 007 read two session settings, and
+ * `set_config(..., true)` only lasts for a transaction - so a bare query has no
+ * scope and sees the public rows alone. That is the safety net rather than a
+ * nuisance: a path somebody forgets to wrap shows public data, never somebody
+ * else's. The public pages and the open API are deliberately left unwrapped for
+ * exactly that reason.
+ */
+const q = <T>(run: (tx: SQL) => Promise<T>): Promise<T> =>
+  readingAs(currentScope(), run);
+
 const filterClause = (filter: MeasurementFilter) => {
   const from = filter.from ? new Date(filter.from) : null;
   const to = filter.to ? new Date(filter.to) : null;
@@ -209,12 +225,17 @@ const filterClause = (filter: MeasurementFilter) => {
  */
 const metadata = async (filter: MeasurementFilter = {}) => {
   const where = filterClause({ device_eui: filter.device_eui });
-  const [devices, measurands, sensors, locations] = await Promise.all([
-    reading()`SELECT DISTINCT device_eui AS v FROM measurements ${where} ORDER BY v`,
-    reading()`SELECT DISTINCT measurand  AS v FROM measurements ${where} ORDER BY v`,
-    reading()`SELECT DISTINCT sensor     AS v FROM measurements ${where} ORDER BY v`,
-    reading()`SELECT DISTINCT location   AS v FROM measurements ${where} ORDER BY v`,
-  ]);
+  // One transaction for all four, so the dropdowns cannot disagree with each
+  // other - and because the scope has to be set once for any of them to see
+  // more than the public rows.
+  const [devices, measurands, sensors, locations] = await q((tx) =>
+    Promise.all([
+      tx`SELECT DISTINCT device_eui AS v FROM measurements ${where} ORDER BY v`,
+      tx`SELECT DISTINCT measurand  AS v FROM measurements ${where} ORDER BY v`,
+      tx`SELECT DISTINCT sensor     AS v FROM measurements ${where} ORDER BY v`,
+      tx`SELECT DISTINCT location   AS v FROM measurements ${where} ORDER BY v`,
+    ]),
+  );
   const values = (rows: Record<string, unknown>[]) =>
     rows.map((r) => r.v as string).filter((v) => v != null);
   return {
@@ -241,13 +262,13 @@ const metadata = async (filter: MeasurementFilter = {}) => {
 const deviceActivity = async (): Promise<
   Map<string, { count: number; lastSeen: Date | null }>
 > => {
-  const rows = await reading()`
+  const rows = await q((tx) => tx`
     SELECT upper(device_eui) AS eui,
            count(*)::int AS n,
            max(COALESCE(recorded_at, created_at)) AS last_seen
       FROM measurements
      GROUP BY upper(device_eui)
-  `;
+  `);
   return new Map(
     (rows as Record<string, unknown>[]).map((r) => [
       r.eui as string,
@@ -263,7 +284,7 @@ const deviceActivity = async (): Promise<
  * from a single scan.
  */
 const status = async (): Promise<SensorStatus[]> => {
-  const rows = await reading()`
+  const rows = await q((tx) => tx`
     SELECT device_eui, sensor, location, measurand, unit, value, last_seen, n
     FROM (
       SELECT device_eui, sensor, location, measurand, unit, value,
@@ -277,7 +298,7 @@ const status = async (): Promise<SensorStatus[]> => {
     ) t
     WHERE rn = 1
     ORDER BY last_seen DESC
-  `;
+  `);
   return (rows as Record<string, unknown>[]).map((r) => ({
     deviceEui: r.device_eui as string,
     sensor: r.sensor as string,
@@ -292,14 +313,14 @@ const status = async (): Promise<SensorStatus[]> => {
 
 const list = async (pagination: PaginationParams, filter: MeasurementFilter = {}) => {
   const where = filterClause(filter);
-  const rows = await reading()`
+  const rows = await q((tx) => tx`
     SELECT id, device_eui, measurand, unit, datatype, sensor, location, value, time_method, recorded_at, created_at
     FROM measurements
     ${where}
     ORDER BY created_at DESC
     LIMIT ${pagination.perPage} OFFSET ${pagination.offset}
-  `;
-  const [{ count }] = await reading()`SELECT count(*)::int AS count FROM measurements ${where}`;
+  `);
+  const [{ count }] = await q((tx) => tx`SELECT count(*)::int AS count FROM measurements ${where}`);
   return { items: rows.map(mapRow), total: count as number };
 };
 
@@ -348,14 +369,14 @@ const listRows = async (
   const order = reading().unsafe(
     `${expression} ${sort.direction === "asc" ? "ASC" : "DESC"}, id`,
   );
-  const rows = await reading()`
+  const rows = await q((tx) => tx`
     SELECT id, device_eui, measurand, unit, datatype, sensor, location, value, time_method, recorded_at, created_at
     FROM measurements
     ${where}
     ORDER BY ${order}
     LIMIT ${pagination.perPage} OFFSET ${pagination.offset}
-  `;
-  const [{ count }] = await reading()`SELECT count(*)::int AS count FROM measurements ${where}`;
+  `);
+  const [{ count }] = await q((tx) => tx`SELECT count(*)::int AS count FROM measurements ${where}`);
   return {
     rows: rows as unknown as Record<string, unknown>[],
     total: count as number,
@@ -384,25 +405,25 @@ const idsMatching = async (
   limit: number,
   createdBefore: Date | null = null,
 ) => {
-  const rows = await reading()`
+  const rows = await q((tx) => tx`
     SELECT id FROM measurements
     ${filterClause(filter)}
       AND (${createdBefore}::timestamptz IS NULL
            OR created_at < ${createdBefore}::timestamptz + interval '1 millisecond')
     ORDER BY created_at
     LIMIT ${limit}
-  `;
+  `);
   return (rows as unknown as { id: string }[]).map((row) => row.id);
 };
 
 /** The current state of specific rows, for previewing and for validation. */
 const byIds = async (ids: string[]) => {
   if (ids.length === 0) return [];
-  const rows = await reading()`
+  const rows = await q((tx) => tx`
     SELECT id, device_eui, measurand, unit, datatype, sensor, location, value, time_method, recorded_at, created_at
     FROM measurements WHERE id = ANY(${`{${ids.join(",")}}`}::uuid[])
     ORDER BY COALESCE(recorded_at, created_at) DESC, id
-  `;
+  `);
   return rows as unknown as Record<string, unknown>[];
 };
 
@@ -451,12 +472,12 @@ const count = async (
   filter: MeasurementFilter = {},
   createdBefore: Date | null = null,
 ) => {
-  const [row] = await reading()`
+  const [row] = await q((tx) => tx`
     SELECT count(*)::int AS count FROM measurements
     ${filterClause(filter)}
       AND (${createdBefore}::timestamptz IS NULL
            OR created_at < ${createdBefore}::timestamptz + interval '1 millisecond')
-  `;
+  `);
   return (row as { count: number }).count;
 };
 
@@ -490,12 +511,12 @@ const exportCsvStream = (filter: MeasurementFilter = {}) => {
   return new ReadableStream({
     async start(controller) {
       controller.enqueue(encoder.encode(header));
-      const rows = await reading()`
+      const rows = await q((tx) => tx`
         SELECT id, device_eui, measurand, unit, datatype, sensor, location, value, time_method, recorded_at, created_at
         FROM measurements
         ${filterClause(filter)}
         ORDER BY created_at DESC
-      `;
+      `);
       for (const r of rows as Record<string, unknown>[]) {
         const fields = [
           r.id,

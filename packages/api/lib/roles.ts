@@ -1,69 +1,124 @@
 import type { SessionUser } from "./session";
 
 /**
- * What a signed-in user is allowed to do, derived from their directory groups.
+ * What a signed-in user is allowed to do.
  *
- * Three levels, each one containing the one below it:
+ * **This used to be a ladder** - `data` ⊂ `management` ⊂ `admin`, so being in the
+ * admin group was enough to get everything below it. It is not one any more. The
+ * three groups now name three separate areas of responsibility that do not
+ * contain one another:
  *
- *   data        LDAP_DATA_GROUP        read-only: "Daten > SQL".
- *   management  LDAP_MANAGEMENT_GROUP  the above, plus the "Verwaltung"
- *                                      section - editing measurements and
- *                                      devices.
- *   admin       LDAP_ADMIN_GROUP       the above, plus the SQL page on a
- *                                      connection that may write.
+ *   data        LDAP_DATA_GROUP        measurements of *every* group: read,
+ *                                      correct, and move between groups.
+ *   management  LDAP_MANAGEMENT_GROUP  devices: register, rename, and decide
+ *                                      which group a device's readings belong
+ *                                      to. No measurement editing.
+ *   admin       LDAP_ADMIN_GROUP       everything, including configuration, the
+ *                                      declaration of data groups and the
+ *                                      writable SQL console.
  *
- * Because it is a ladder, a person needs exactly one group: putting someone in
- * the admin group is enough, they do not also have to be in the other two. That
- * is the whole point of the ordering - a permission model where you can forget
- * to grant a lower level is one that will be got wrong eventually.
+ * Someone who only manages devices no longer edits measurements, and someone who
+ * only edits measurements does not touch devices. Whoever needs both is put in
+ * both groups.
+ *
+ * **There is a fourth source of rights, and it is not on this list.** Membership
+ * of a *data group* - see services/data-groups.ts - carries read and write on
+ * that group's measurements, on its own, without any of the three roles. That is
+ * deliberately not modelled as a role: a role says what kind of thing you may
+ * do, a data group says which rows it applies to. `dataScope` below is where the
+ * two meet.
+ *
+ * `admin` remains the one containing role, because "admin may do everything" is
+ * the property that keeps a locked-out deployment recoverable.
  */
 export type Role = "data" | "management" | "admin";
 
-/** The levels, weakest first. A role includes every role before it. */
-const LADDER = ["data", "management", "admin"] as const;
+const ROLES: readonly Role[] = ["data", "management", "admin"] as const;
 
 export type RoleConfig = {
-  /** Group granting the data level, or null when no restriction is configured. */
+  /** Group granting the data role, or null when no restriction is configured. */
   dataGroup: string | null;
-  /** Group granting the management level. Null means nobody reaches it. */
+  /** Group granting the management role. Null means nobody reaches it. */
   managementGroup: string | null;
-  /** Group granting the admin level. Null means nobody reaches it. */
+  /** Group granting the admin role. Null means nobody reaches it. */
   adminGroup: string | null;
 };
+
+const groupFor = (role: Role, config: RoleConfig): string | null =>
+  role === "data"
+    ? config.dataGroup
+    : role === "management"
+      ? config.managementGroup
+      : config.adminGroup;
 
 const inGroup = (user: SessionUser, group: string | null) =>
   group !== null && user.groups.includes(group);
 
 /**
- * How far up the ladder `user` gets: the index of their highest level, or -1
- * when they hold none.
+ * Whether `user` holds `role`.
+ *
+ * No ordering: holding `management` says nothing about `data`. The two
+ * exceptions are stated where they are decided, not hidden in a comparison.
  */
-const levelOf = (user: SessionUser | null, config: RoleConfig): number => {
-  if (!user) return -1;
-  // The local setup account authenticated against the environment and holds no
-  // directory groups, so none of the checks below could ever grant it anything.
-  // It is the way in before a directory is configured - and that is only useful
-  // at the top of the ladder, where the configuration pages are.
-  if (user.setup) return LADDER.indexOf("admin");
-  if (inGroup(user, config.adminGroup)) return LADDER.indexOf("admin");
-  if (inGroup(user, config.managementGroup)) return LADDER.indexOf("management");
-  // No group configured: every signed-in user may read, which is what a
-  // deployment that never set this up expects. The two levels above always need
-  // their group - configured-but-held-by-nobody would otherwise be
-  // indistinguishable from unconfigured.
-  if (config.dataGroup === null || inGroup(user, config.dataGroup)) {
-    return LADDER.indexOf("data");
-  }
-  return -1;
-};
-
-/** Whether `user` reaches at least `role`. */
 export const hasRole = (
   user: SessionUser | null,
   role: Role,
   config: RoleConfig,
-): boolean => levelOf(user, config) >= LADDER.indexOf(role);
+): boolean => {
+  if (!user) return false;
 
-/** Every level `user` reaches, weakest first. */
+  // The local setup account authenticated against the environment and holds no
+  // directory groups at all, so nothing below could ever grant it anything. It
+  // exists to configure a server that has no directory yet - which is only
+  // useful if it can reach everything.
+  if (user.setup) return true;
+
+  // Admin contains the others. Not a ladder: the two below do not contain each
+  // other, and this is the single line that makes an exception.
+  if (inGroup(user, config.adminGroup)) return true;
+
+  // An unconfigured data group means every signed-in user may read, which is
+  // what a deployment that never set this up expects. The other two always need
+  // their group - configured-but-held-by-nobody must not be indistinguishable
+  // from unconfigured, or editing rights get granted by accident.
+  if (role === "data" && config.dataGroup === null) return true;
+
+  return inGroup(user, groupFor(role, config));
+};
+
+/** Every role `user` holds, for display. */
 export const rolesOf = (user: SessionUser | null, config: RoleConfig): Role[] =>
-  LADDER.slice(0, levelOf(user, config) + 1) as Role[];
+  ROLES.filter((role) => hasRole(user, role, config));
+
+/**
+ * Which measurements this user may see and change.
+ *
+ * `"all"` for the data role and for administrators; otherwise the data groups
+ * they are in, which may be none. This is what `services/connections.ts` turns
+ * into the session variables the row-level policies read, and what the route
+ * guards use to decide whether the management pages are worth showing at all.
+ *
+ * An empty array is a real answer and means "nothing beyond what is public" -
+ * not an error, and not a reason to fall back to showing everything.
+ */
+export const dataScope = (
+  user: SessionUser | null,
+  config: RoleConfig,
+  declaredGroups: readonly string[],
+): "all" | string[] => {
+  if (!user) return [];
+  if (hasRole(user, "data", config)) return "all";
+
+  const declared = new Set(declaredGroups);
+  return user.groups.filter((group) => declared.has(group));
+};
+
+/** Whether this user reaches the measurement pages at all. */
+export const canReachData = (
+  user: SessionUser | null,
+  config: RoleConfig,
+  declaredGroups: readonly string[],
+): boolean => {
+  const scope = dataScope(user, config, declaredGroups);
+  return scope === "all" || scope.length > 0;
+};
