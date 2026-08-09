@@ -41,4 +41,60 @@
     --radius-field: 0.25rem;
     --border: 1px;
 }
+/*
+ * The dark counterpart, selected by data-theme on the <html> element - see
+ * lib/theme.ts for why that decision is made on the server and never corrected
+ * afterwards.
+ *
+ * Not the light theme inverted. The petrol blue that carries the brand is
+ * #143C55, which is nearly the darkest colour on the page here and therefore
+ * useless as a primary: a button in it would disappear. It is lightened until it
+ * reads as the same colour but can be seen, and the base tones are tinted
+ * towards it rather than being neutral grey, so the two themes look related
+ * rather than merely opposite.
+ *
+ * The content colours are picked against their own background, not carried over.
+ * White on the lightened primary would be the sort of pale-on-pale that passes a
+ * glance and fails to be readable.
+ */
+@plugin "daisyui/theme" {
+    name: "loramint-dark";
+    color-scheme: dark;
+
+    /* Primary: das Petrol-Blau, so weit aufgehellt dass es sichtbar bleibt */
+    --color-primary: #5c9ec2;
+    --color-primary-content: #0b1a24;
+
+    /* Secondary: das Rot, aufgehellt fuer dunklen Grund */
+    --color-secondary: #e05a50;
+    --color-secondary-content: #240705;
+
+    /* Accent: Weinrot, ebenfalls angehoben */
+    --color-accent: #b8797c;
+    --color-accent-content: #1b0f11;
+
+    /* Neutral: das Blaugrau, unveraendert brauchbar */
+    --color-neutral: #51707a;
+    --color-neutral-content: #f2f6f8;
+
+    /* Base: dunkle Toene, ins Petrol getoent statt neutral grau */
+    --color-base-100: #141f27;
+    --color-base-200: #1b2932;
+    --color-base-300: #26363f;
+    --color-base-content: #e6edf1;
+
+    /* Semantic */
+    --color-success: #8fc457;
+    --color-success-content: #101a08;
+    --color-warning: #e6a817;
+    --color-warning-content: #241a02;
+    --color-error: #e8635a;
+    --color-error-content: #250806;
+    --color-info: #7fadba;
+    --color-info-content: #0b1a1f;
+
+    --radius-box: 0.5rem;
+    --radius-field: 0.25rem;
+    --border: 1px;
+}
 @source "../../frontend";

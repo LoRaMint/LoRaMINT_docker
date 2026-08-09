@@ -19,8 +19,10 @@ import {
   createPagination,
   PaginationResponseSchema,
   readSession,
+  readThemeCookie,
   requestContext,
   SESSION_COOKIE,
+  THEME_COOKIE,
 } from "./lib";
 import { measurements, logEntries } from "./services";
 import {
@@ -296,7 +298,18 @@ root.use(async (c, next) => {
     auth.enabled || setupAccount.enabled
       ? readSession(getCookie(c, SESSION_COOKIE), auth.session.secret!)
       : null;
-  return requestContext.run({ user }, next);
+
+  // The session wins over the cookie where both speak, because the session is
+  // the signed copy of what the user actually saved. The cookie is what covers
+  // the case the session cannot: a visitor who is not signed in at all, on one
+  // of the many public pages here.
+  const fromCookie = readThemeCookie(getCookie(c, THEME_COOKIE));
+  const darkMode = user?.darkMode ?? fromCookie ?? false;
+
+  return requestContext.run(
+    { user, darkMode, timezone: user?.timezone ?? null },
+    next,
+  );
 });
 
 root.route("/_ssr", routes(ssrConfig));

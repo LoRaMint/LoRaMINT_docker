@@ -62,7 +62,15 @@ const rowsFor = (env: Env, detail: Map<string, StoredSetting>) =>
       // input that showed it would put it back on the screen the reveal button
       // is careful to keep it off.
       editValue:
-        setting.kind === "secret" ? "" : (effectiveValue(setting, env) ?? ""),
+        setting.kind === "secret"
+          ? ""
+          : setting.kind === "markdown"
+            ? (effectiveValue(setting, env) ?? "").replace(/\\n/g, "\n")
+            : (effectiveValue(setting, env) ?? ""),
+      // A text box rather than a one-line field, and the legacy backslash-n from
+      // the environment file shown as the line break it stands for - otherwise
+      // the first save would store the escape sequence as literal characters.
+      multiline: setting.kind === "markdown",
       stranded: strandedInEnv(setting, env),
       note: detail.get(setting.key)?.note ?? "",
       updatedBy: detail.get(setting.key)?.updatedBy ?? null,

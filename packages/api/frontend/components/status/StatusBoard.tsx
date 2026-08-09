@@ -1,4 +1,7 @@
 import type { SensorStatus, LogStatus } from "../../../types";
+import TableFrame, { EmptyRow } from "../TableFrame";
+import { localTimeText } from "../LocalTime";
+import SectionHeading from "../SectionHeading";
 
 /** Human-readable "vor X min/Std/Tagen" relative to now (German). */
 function relativeTime(date: Date): string {
@@ -13,10 +16,11 @@ function relativeTime(date: Date): string {
   return `vor ${days} ${days === 1 ? "Tag" : "Tagen"}`;
 }
 
-/** Absolute timestamp in local (Berlin) time. */
-function absoluteTime(date: Date): string {
-  return new Date(date).toLocaleString("de-DE", { timeZone: "Europe/Berlin" });
-}
+/**
+ * The tooltip behind the relative time ("vor 3 Std"). A `title` cannot hold an
+ * element, so this is the string form - see frontend/components/LocalTime.tsx.
+ */
+const absoluteTime = (date: Date): string => localTimeText(date);
 
 /**
  * Status board tables: the latest measurement per device+sensor and the latest
@@ -31,9 +35,8 @@ export default function StatusBoard(props: {
   return (
     <>
       {/* Measurements */}
-      <h3 class="text-lg font-semibold mb-3">Messwerte</h3>
-      <div class="overflow-x-auto rounded-box border border-base-300 mb-8">
-        <table class="table">
+      <SectionHeading>Messwerte</SectionHeading>
+      <TableFrame class="mb-8">
           <thead>
             <tr>
               <th>Gerät</th>
@@ -47,11 +50,7 @@ export default function StatusBoard(props: {
           </thead>
           <tbody>
             {props.sensors.length === 0 ? (
-              <tr>
-                <td colspan="7" class="text-center text-base-content/60 py-6">
-                  Noch keine Daten
-                </td>
-              </tr>
+              <EmptyRow columns={7}>Noch keine Daten</EmptyRow>
             ) : (
               props.sensors.map((s) => (
                 <tr>
@@ -72,13 +71,11 @@ export default function StatusBoard(props: {
               ))
             )}
           </tbody>
-        </table>
-      </div>
+        </TableFrame>
 
       {/* Logs */}
-      <h3 class="text-lg font-semibold mb-3">Logs</h3>
-      <div class="overflow-x-auto rounded-box border border-base-300">
-        <table class="table">
+      <SectionHeading>Logs</SectionHeading>
+      <TableFrame>
           <thead>
             <tr>
               <th>Gerät</th>
@@ -89,11 +86,7 @@ export default function StatusBoard(props: {
           </thead>
           <tbody>
             {props.logs.length === 0 ? (
-              <tr>
-                <td colspan="4" class="text-center text-base-content/60 py-6">
-                  Noch keine Daten
-                </td>
-              </tr>
+              <EmptyRow columns={4}>Noch keine Daten</EmptyRow>
             ) : (
               props.logs.map((l) => (
                 <tr>
@@ -109,8 +102,7 @@ export default function StatusBoard(props: {
               ))
             )}
           </tbody>
-        </table>
-      </div>
+        </TableFrame>
     </>
   );
 }

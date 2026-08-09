@@ -16,6 +16,8 @@ export type {
 export { STEP_LABELS } from "./ttn";
 export { deviceLog } from "./device-log";
 export type { DeviceAction, DeviceLogEntry, DeviceOutcome } from "./device-log";
+export { rememberSignIn, savePreferences, userRecord } from "./users";
+export type { Preferences, UserRecord } from "./users";
 export { managed } from "./manage";
 export type {
   Actor,

@@ -1,5 +1,5 @@
 import Layout from "../../components/layout/Layout";
-import PageHeading from "../../components/manage/PageHeading";
+import PageHeading from "../../components/PageHeading";
 import { allResources } from "./resources";
 
 /**

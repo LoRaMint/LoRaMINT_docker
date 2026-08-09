@@ -1,5 +1,5 @@
 import Layout from "../../components/layout/Layout";
-import PageHeading from "../../components/manage/PageHeading";
+import PageHeading from "../../components/PageHeading";
 import FilterBar from "../../components/manage/FilterBar";
 import DataTable from "../../components/manage/DataTable";
 import type { ColumnSpec, FilterSpec } from "../../components/manage/spec";
@@ -13,6 +13,7 @@ import {
   type SortDirection,
 } from "../../../lib/manage-view";
 import { actionLabel, revertState, tableLabel } from "./audit-labels";
+import Notice from "../../components/Notice";
 
 /**
  * The change log, read as *operations* rather than as entries.
@@ -135,16 +136,9 @@ export default function AuditPage(props: {
       />
 
       {props.message && MESSAGES[props.message] && (
-        <p
-          role={MESSAGES[props.message]!.tone === "error" ? "alert" : undefined}
-          class={
-            MESSAGES[props.message]!.tone === "error"
-              ? "rounded-box border border-error bg-error/10 px-4 py-3 mb-4"
-              : "rounded-box border border-success/40 bg-success/10 px-4 py-3 mb-4"
-          }
-        >
+        <Notice tone={MESSAGES[props.message]!.tone}>
           {MESSAGES[props.message]!.text}
-        </p>
+        </Notice>
       )}
 
       <FilterBar

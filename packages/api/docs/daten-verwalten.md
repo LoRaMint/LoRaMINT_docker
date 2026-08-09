@@ -385,7 +385,7 @@ jede Unterseite hat oben einen Rücksprung „← Daten verwalten".
   es sieht.
 - **Datenbankrolle.** `loramint_manage`, angelegt und aufgefrischt von
   `scripts/ensure-roles.ts` beim Containerstart (von Hand:
-  `dev_scripts/create-manage-role.sql`). `SELECT/INSERT/UPDATE/DELETE` auf
+  `dev_scripts/ROLLEN.md`). `SELECT/INSERT/UPDATE/DELETE` auf
   `measurements` und `log_entries`, auf `audit_log` nur `SELECT` und `INSERT` —
   daher ist das Protokoll aus der Oberfläche heraus nicht zu ändern. Fehlt die
   Rolle, öffnen die Seiten lesend und sagen es.

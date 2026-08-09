@@ -243,14 +243,6 @@ describe("Plausibilitätsprüfungen", () => {
     expect(warningsFor(setting, env())).toEqual([]);
   });
 
-  test("warnt vor fehlender Verwaltungsverbindung", () => {
-    const setting = settingFor("DATABASE_URL_MANAGE")!;
-    expect(warningsFor(setting, env())).toHaveLength(1);
-    expect(
-      warningsFor(setting, env({ DATABASE_URL_MANAGE: "postgres://a:b@c/d" })),
-    ).toEqual([]);
-  });
-
   test("warnt vor TRUSTED_PROXIES=0, nicht vor der Vorgabe", () => {
     const setting = settingFor("TRUSTED_PROXIES")!;
     expect(warningsFor(setting, env({ TRUSTED_PROXIES: "0" }))).toHaveLength(1);
@@ -266,7 +258,7 @@ describe("Plausibilitätsprüfungen", () => {
   });
 
   test("eine gesunde Konfiguration erzeugt gar keine Warnung", () => {
-    const healthy = env({ DATABASE_URL_MANAGE: "postgres://a:b@c/d" });
+    const healthy = env();
     stored({
       TTN_URL: "https://eu1.cloud.thethings.network",
       TTN_APPLICATION_ID: "loramint",

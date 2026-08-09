@@ -20,7 +20,7 @@ import { sql } from "bun"
  * afterwards; an update only keeps what moved.
  *
  * On privileges: the read-only and admin SQL roles pick this table up through
- * the ALTER DEFAULT PRIVILEGES in dev_scripts/create-*-role.sql, so the admin
+ * the ALTER DEFAULT PRIVILEGES in scripts/ensure-roles.ts, so the admin
  * role can correct an entry through the SQL console and the read-only role can
  * read it. Those defaults only apply to tables created by the role that ran
  * them - migrations and role setup both run as the owner today. If that ever

@@ -1,6 +1,7 @@
 import Layout from "../../components/layout/Layout";
-import PageHeading from "../../components/manage/PageHeading";
+import PageHeading from "../../components/PageHeading";
 import { actionLabel, tableLabel } from "./audit-labels";
+import Notice from "../../components/Notice";
 
 /**
  * What taking something back is about to do, before it does it.
@@ -31,7 +32,7 @@ export default function ConfirmRevertPage(props: {
         back={{ href: `${PATH}${props.view}`, label: "Zurück zum Protokoll" }}
       />
 
-      <div class="rounded-box border border-warning bg-warning/10 px-4 py-3 mb-4 max-w-3xl">
+      <div class="max-w-3xl"><Notice tone="warning">
         <p>
           <strong>
             {count} Änderung{count === 1 ? "" : "en"}
@@ -44,7 +45,7 @@ export default function ConfirmRevertPage(props: {
           bleiben stehen, und die Rücknahme kommt als eigener Vorgang dazu — sie
           lässt sich später genauso wieder zurücknehmen.
         </p>
-      </div>
+      </Notice></div>
 
       <form method="post" action={`${PATH}/revert`} class="max-w-3xl">
         {props.fields.map((field) => (

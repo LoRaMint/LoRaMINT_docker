@@ -1,7 +1,10 @@
 import Layout from "../../components/layout/Layout";
-import PageHeading from "../../components/manage/PageHeading";
+import TableFrame from "../../components/TableFrame";
+import PageHeading from "../../components/PageHeading";
 import type { ColumnSpec, ResourceSpec } from "../../components/manage/spec";
 import type { RowChange } from "../../../services/manage";
+import Notice from "../../components/Notice";
+import { Muted } from "../../components/Row";
 
 /**
  * What "Auswahl speichern" is about to do, listed cell by cell.
@@ -43,22 +46,21 @@ export default function ConfirmSavePage(props: {
       />
 
       {blocked ? (
-        <p role="alert" class="rounded-box border border-error bg-error/10 px-4 py-3 mb-4">
+        <Notice tone="error">
           So lässt sich das nicht speichern. Es wurde nichts geändert – bitte die
           markierten Felder korrigieren.
-        </p>
+        </Notice>
       ) : (
-        <p class="rounded-box border border-warning bg-warning/10 px-4 py-3 mb-4">
+        <Notice tone="warning">
           <strong>
             {total} Feld{total === 1 ? "" : "er"}
           </strong>{" "}
           in {props.changes.length} Zeile{props.changes.length === 1 ? "" : "n"} wird
           geändert. Gespeichert ist noch nichts.
-        </p>
+        </Notice>
       )}
 
-      <div class="overflow-x-auto rounded-box border border-base-300 mb-4">
-        <table class="table table-sm table-zebra">
+      <TableFrame class="mb-4">
           <thead>
             <tr>
               <th>Zeile</th>
@@ -77,14 +79,14 @@ export default function ConfirmSavePage(props: {
                     <td>{labelOf(props.spec.columns, column)}</td>
                     <td class="font-mono text-sm">
                       {field.from === null ? (
-                        <span class="text-base-content/40 italic">leer</span>
+                        <Muted>leer</Muted>
                       ) : (
                         field.from
                       )}
                     </td>
                     <td class="font-mono text-sm">
                       {field.to === null ? (
-                        <span class="text-base-content/40 italic">leer</span>
+                        <Muted>leer</Muted>
                       ) : (
                         field.to
                       )}
@@ -97,8 +99,7 @@ export default function ConfirmSavePage(props: {
               }),
             )}
           </tbody>
-        </table>
-      </div>
+        </TableFrame>
 
       {props.reason && (
         <p class="text-sm text-base-content/70 mb-4">

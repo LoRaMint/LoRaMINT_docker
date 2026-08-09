@@ -1,6 +1,8 @@
 import type { JSX } from "solid-js";
+import TableFrame, { EmptyRow } from "../TableFrame";
 import type { SortDirection } from "../../../lib/manage-view";
 import type { ColumnSpec } from "./spec";
+import { Muted } from "../Row";
 
 /**
  * The management table: the result of a query, and in edit mode the form that
@@ -44,7 +46,7 @@ export const formatValue = (value: unknown) => {
 export function Cell(props: { value: unknown }) {
   const v = props.value;
   if (v === null || v === undefined) {
-    return <span class="text-base-content/40 italic">NULL</span>;
+    return <Muted>NULL</Muted>;
   }
   if (v instanceof Date) return <>{v.toISOString()}</>;
   if (typeof v === "object") return <>{JSON.stringify(v)}</>;
@@ -77,8 +79,7 @@ export default function DataTable(props: {
     props.columns.length + (props.selectable ? 1 : 0) + (props.rowActions ? 1 : 0);
 
   return (
-    <div class="overflow-x-auto rounded-box border border-base-300">
-      <table class="table table-sm table-zebra">
+    <TableFrame>
         <thead>
           <tr>
             {props.selectable && (
@@ -113,11 +114,7 @@ export default function DataTable(props: {
         </thead>
         <tbody>
           {props.rows.length === 0 ? (
-            <tr>
-              <td colspan={columnCount} class="text-center text-base-content/60 py-6">
-                {props.emptyText}
-              </td>
-            </tr>
+            <EmptyRow columns={columnCount}>{props.emptyText}</EmptyRow>
           ) : (
             props.rows.map((row) => {
               const id = String(row.id ?? "");
@@ -174,7 +171,6 @@ export default function DataTable(props: {
             })
           )}
         </tbody>
-      </table>
-    </div>
+      </TableFrame>
   );
 }

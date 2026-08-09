@@ -18,7 +18,10 @@ import {
   logEntries,
   auditLog,
   authenticate,
+  rememberSignIn,
   runConsoleSql,
+  savePreferences,
+  userRecord,
 } from "../../services";
 import {
   clientAddress,
@@ -28,7 +31,10 @@ import {
   loginThrottle,
   rolesOf,
   SESSION_COOKIE,
+  themeCookieValue,
+  THEME_COOKIE,
   type Role,
+  type SessionUser,
 } from "../../lib";
 import HomePage from "./home/page";
 import PlotsPage from "./plots/page";
@@ -47,6 +53,8 @@ import {
 } from "./management/routes";
 import { registerDeviceRoutes } from "./management/devices-routes";
 import { registerConfigRoutes } from "./management/config-routes";
+import { registerDataGroupRoutes } from "./management/data-groups-routes";
+import { dataGroupsOf, listDataGroups } from "../../services/data-groups";
 import ImpressumPage from "./impressum/page";
 import DatenschutzPage from "./datenschutz/page";
 
@@ -182,6 +190,46 @@ if (auth.enabled || setupAccount.enabled) {
     );
   };
 
+  /**
+   * Writes both cookies at once, because they have to agree.
+   *
+   * The session carries the preferences so pages can read them without a query;
+   * the theme cookie exists so the HTML shell is right in its first byte, which
+   * the session alone cannot guarantee for a visitor who then signs out. Setting
+   * one without the other is how a user ends up looking at a light page while the
+   * profile insists they chose dark, so there is one function that does both and
+   * every caller uses it.
+   *
+   * They are protected differently on purpose: the session is signed and
+   * httpOnly because it says who you are, the theme cookie is neither because it
+   * says what colour the page is. The script in the Layout has to be able to read
+   * and write it.
+   */
+  const issueSession = (c: Context, user: SessionUser) => {
+    setCookie(
+      c,
+      SESSION_COOKIE,
+      createSession(user, auth.session.secret!, auth.session.ttlHours),
+      {
+        path: "/",
+        httpOnly: true,
+        sameSite: "Lax",
+        secure: auth.session.secureCookie,
+        maxAge: auth.session.ttlHours * 3600,
+      },
+    );
+
+    setCookie(c, THEME_COOKIE, themeCookieValue(user.darkMode === true), {
+      path: "/",
+      httpOnly: false,
+      sameSite: "Lax",
+      secure: auth.session.secureCookie,
+      // Deliberately outlives the session: signing out should not throw the
+      // choice away and hand somebody a bright white login page at night.
+      maxAge: 365 * 24 * 3600,
+    });
+  };
+
   pages.post("/login", async (c) => {
     const form = await c.req.parseBody();
     const username = typeof form.username === "string" ? form.username : "";
@@ -221,18 +269,22 @@ if (auth.enabled || setupAccount.enabled) {
 
     loginThrottle.recordSuccess(username, address);
 
-    setCookie(
-      c,
-      SESSION_COOKIE,
-      createSession(result.data, auth.session.secret!, auth.session.ttlHours),
-      {
-        path: "/",
-        httpOnly: true,
-        sameSite: "Lax",
-        secure: auth.session.secureCookie,
-        maxAge: auth.session.ttlHours * 3600,
-      },
+    // Records the sign-in and hands back what this person chose last time. It
+    // never throws: somebody the directory accepted is signed in whether or not
+    // the preferences table could be reached, because refusing them a session
+    // over a cosmetic setting would turn a nicety into an outage.
+    const preferences = await rememberSignIn(
+      result.data.username,
+      result.data.displayName,
     );
+
+    issueSession(c, {
+      ...result.data,
+      ...(preferences.timezone ? { timezone: preferences.timezone } : {}),
+      ...(typeof preferences.darkMode === "boolean"
+        ? { darkMode: preferences.darkMode }
+        : {}),
+    });
     return c.redirect("/", 303);
   });
 
@@ -267,16 +319,64 @@ if (auth.enabled || setupAccount.enabled) {
       await next();
     });
 
-  // Open to anyone signed in: it only shows what the session already contains.
+  // Open to anyone signed in, and the only page where a user writes anything
+  // about themselves. What they may write is their own presentation - never a
+  // group, which decides access and comes from the directory.
   pages.get(
     "/profile",
     requireLogin,
-    ...ssr((c) => {
+    ...ssr(async (c) => {
       c.get("page").title = "Profil";
       const user = currentUser()!;
-      return <ProfilePage user={user} roles={rolesOf(user, auth)} />;
+      // Awaited here and not in the prop: Solid compiles props into getters, and
+      // a getter cannot be async - the page would receive a Promise.
+      const record = await userRecord(user.username);
+      const declared = await listDataGroups();
+      return (
+        <ProfilePage
+          user={user}
+          roles={rolesOf(user, auth)}
+          record={record}
+          dataGroups={dataGroupsOf(user, declared.map((group) => group.name))}
+          saved={c.req.query("saved") === "1"}
+          {...(c.req.query("error") ? { error: c.req.query("error")! } : {})}
+        />
+      );
     }),
   );
+
+  pages.post("/profile", requireLogin, sameOrigin, async (c) => {
+    const user = currentUser()!;
+    const form = await c.req.parseBody();
+    const timezone = typeof form.timezone === "string" ? form.timezone : null;
+    // An unchecked box sends nothing at all, which is how a checkbox says false.
+    const darkMode = form.darkMode === "on";
+
+    const outcome = await savePreferences(user.username, { timezone, darkMode });
+    if (!outcome.ok) {
+      return c.redirect(`/profile?error=${encodeURIComponent(outcome.error)}`, 303);
+    }
+
+    // Re-issued rather than left to expire: the session carries the preferences
+    // so pages need no query for them, which only works if saving updates it. An
+    // 8-hour-old cookie insisting on the old timezone is exactly the bug that
+    // looks like the save silently failing.
+    //
+    // Built field by field rather than spread over the old session: spreading
+    // would carry the previous timezone along, and clearing the field back to
+    // "use the browser's" would then appear to do nothing.
+    issueSession(c, {
+      username: user.username,
+      displayName: user.displayName,
+      groups: user.groups,
+      ...(user.setup ? { setup: true as const } : {}),
+      ...(outcome.preferences.timezone
+        ? { timezone: outcome.preferences.timezone }
+        : {}),
+      darkMode,
+    });
+    return c.redirect("/profile?saved=1", 303);
+  });
 
   // The SQL console. Both roles use the same page; which connection it runs on
   // is decided per request, so an administrator gets write access and everyone
@@ -378,6 +478,11 @@ if (auth.enabled || setupAccount.enabled) {
   // database roles and the shape of every secret, which is deployment knowledge
   // rather than something the management role needs.
   registerConfigRoutes(pages, {
+    requireAdmin: requireRole("admin"),
+    sameOrigin,
+  });
+
+  registerDataGroupRoutes(pages, {
     requireAdmin: requireRole("admin"),
     sameOrigin,
   });

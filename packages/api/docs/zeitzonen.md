@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| **Status** | Geplant, noch nicht umgesetzt |
-| **Stand** | 2026-08-08 |
-| **Meilenstein** | offen (`version_meilstones.md`) |
+| **Status** | Umgesetzt, mit einer Präzisierung |
+| **Stand** | 2026-08-09 |
+| **Meilenstein** | 1.7 |
 | **Geltung** | Alle Zeitangaben der Oberfläche, besonders `/plots` |
 
 Dieses Dokument beschreibt, **wie die Anwendung Zeit anzeigen soll** — nicht, wie
@@ -12,7 +12,14 @@ sie es heute tut. Es ist die Vorgabe, gegen die die Umsetzung geprüft wird;
 weicht die Implementierung ab, ist entweder das Dokument oder der Code zu
 korrigieren, nicht beides stillschweigend auseinanderzulassen.
 
-Schwesterdokumente: `daten-verwalten.md` (1.5), `geraete-verwalten.md` (1.6).
+Schwesterdokumente: `daten-verwalten.md` (1.5), `geraete-verwalten.md` (1.6),
+`benutzereinstellungen.md` (1.7).
+
+> **Präzisierung durch `benutzereinstellungen.md`, Abschnitt 4.** Die drei
+> Vorgaben unten gelten unverändert, mit zwei Ergänzungen: die Vorgabezone kann
+> aus dem Benutzerprofil kommen und geht dann der Browserzone vor, und das
+> Zonenkürzel erscheint **nur bei Abweichung** von der wirksamen Zone statt
+> pauschal. Die dortige Fassung gewinnt, wo beide etwas sagen.
 
 ---
 

@@ -1,4 +1,4 @@
-import { sql } from "bun";
+import { ingesting, reading } from "./connections";
 import type { PaginationParams } from "../lib/pagination";
 import type { LogEntry, LogStatus, MutationResult, TtnDecodedPayload, ValidatedLogEntry } from "../types";
 
@@ -31,20 +31,21 @@ const validate = (payload: TtnDecodedPayload, deviceEui: string): MutationResult
 //====================================
 
 const store = async (data: ValidatedLogEntry): Promise<MutationResult<LogEntry>> => {
-  const [row] = await sql`
-    INSERT INTO log_entries (device_eui, message)
-    VALUES (${data.deviceEui}, ${data.message})
-    RETURNING id, device_eui, message, created_at
+  // Id and arrival time are made here rather than read back: `RETURNING` needs
+  // SELECT on the columns it returns, and granting that would let the webhook's
+  // role read every message ever stored. See services/measurement.ts for the
+  // measurement that established this.
+  const id = crypto.randomUUID();
+  const createdAt = new Date();
+
+  await ingesting()`
+    INSERT INTO log_entries (id, device_eui, message, created_at)
+    VALUES (${id}::uuid, ${data.deviceEui}, ${data.message}, ${createdAt})
   `;
 
   return {
     ok: true,
-    data: {
-      id: row.id,
-      deviceEui: row.device_eui,
-      message: row.message,
-      createdAt: row.created_at,
-    },
+    data: { id, deviceEui: data.deviceEui, message: data.message, createdAt },
   };
 };
 
@@ -60,13 +61,13 @@ const mapRow = (row: Record<string, unknown>): LogEntry => ({
 });
 
 const list = async (pagination: PaginationParams) => {
-  const rows = await sql`
+  const rows = await reading()`
     SELECT id, device_eui, message, created_at
     FROM log_entries
     ORDER BY created_at DESC
     LIMIT ${pagination.perPage} OFFSET ${pagination.offset}
   `;
-  const [{ count }] = await sql`SELECT count(*)::int AS count FROM log_entries`;
+  const [{ count }] = await reading()`SELECT count(*)::int AS count FROM log_entries`;
   return { items: rows.map(mapRow), total: count as number };
 };
 
@@ -75,7 +76,7 @@ const list = async (pagination: PaginationParams) => {
  * entries that device has sent, ordered by most recent activity first.
  */
 const status = async (): Promise<LogStatus[]> => {
-  const rows = await sql`
+  const rows = await reading()`
     SELECT device_eui, message, last_seen, n
     FROM (
       SELECT device_eui, message, created_at AS last_seen,
@@ -124,7 +125,7 @@ const filterClause = (filter: LogEntryFilter) => {
   const from = filter.from ? new Date(filter.from) : null;
   const to = filter.to ? new Date(filter.to) : null;
   const pattern = filter.q ? `%${filter.q}%` : null;
-  return sql`
+  return reading()`
     WHERE (${filter.device_eui ?? null}::text IS NULL OR device_eui = ${filter.device_eui ?? null})
       AND (${pattern}::text IS NULL OR message ILIKE ${pattern})
       AND (${from}::timestamptz IS NULL OR created_at >= ${from})
@@ -159,17 +160,17 @@ const listRows = async (
   const expression = SORT_EXPRESSIONS[sort.column] ?? SORT_EXPRESSIONS.created_at!;
   // Appending id keeps the order total: entries sharing a timestamp would
   // otherwise be free to swap places between two pages and hide one of themselves.
-  const order = sql.unsafe(
+  const order = reading().unsafe(
     `${expression} ${sort.direction === "asc" ? "ASC" : "DESC"}, id`,
   );
-  const rows = await sql`
+  const rows = await reading()`
     SELECT id, device_eui, message, created_at
     FROM log_entries
     ${where}
     ORDER BY ${order}
     LIMIT ${pagination.perPage} OFFSET ${pagination.offset}
   `;
-  const [{ count }] = await sql`SELECT count(*)::int AS count FROM log_entries ${where}`;
+  const [{ count }] = await reading()`SELECT count(*)::int AS count FROM log_entries ${where}`;
   return {
     rows: rows as unknown as Record<string, unknown>[],
     total: count as number,
@@ -185,7 +186,7 @@ const idsMatching = async (
   limit: number,
   createdBefore: Date | null = null,
 ) => {
-  const rows = await sql`
+  const rows = await reading()`
     SELECT id FROM log_entries
     ${filterClause(filter)}
       AND (${createdBefore}::timestamptz IS NULL
@@ -199,7 +200,7 @@ const idsMatching = async (
 /** The current state of specific rows, for previewing and for validation. */
 const byIds = async (ids: string[]) => {
   if (ids.length === 0) return [];
-  const rows = await sql`
+  const rows = await reading()`
     SELECT id, device_eui, message, created_at
     FROM log_entries WHERE id = ANY(${`{${ids.join(",")}}`}::uuid[])
     ORDER BY created_at DESC, id
@@ -209,7 +210,7 @@ const byIds = async (ids: string[]) => {
 
 /** Distinct devices that have sent something, for the filter dropdown. */
 const metadata = async () => {
-  const rows = await sql`SELECT DISTINCT device_eui AS v FROM log_entries ORDER BY v`;
+  const rows = await reading()`SELECT DISTINCT device_eui AS v FROM log_entries ORDER BY v`;
   return {
     devices: (rows as unknown as { v: string }[])
       .map((row) => row.v)
@@ -251,7 +252,7 @@ const count = async (
   filter: LogEntryFilter = {},
   createdBefore: Date | null = null,
 ) => {
-  const [row] = await sql`
+  const [row] = await reading()`
     SELECT count(*)::int AS count FROM log_entries
     ${filterClause(filter)}
       AND (${createdBefore}::timestamptz IS NULL

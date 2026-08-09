@@ -1,12 +1,12 @@
 import Layout from "../../components/layout/Layout";
+import PageHeading from "../../components/PageHeading";
+import SectionHeading from "../../components/SectionHeading";
 
 export default function HomePage() {
   return (
     <Layout>
       {/* Hero */}
-      <h2 class="text-xl font-bold border-b border-base-300 pb-2 mb-4 mt-8">
-        LoRaMINT
-      </h2>
+      <PageHeading title="LoRaMINT" />
       <div class="py-10 text-center">
         <img
           src="/public/logo_loramint.svg"
@@ -19,9 +19,7 @@ export default function HomePage() {
       </div>
 
       {/* Wie funktioniert es? */}
-      <h2 class="text-xl font-bold border-b border-base-300 pb-2 mb-4 mt-12">
-        Wie funktioniert es?
-      </h2>
+      <SectionHeading>Wie funktioniert es?</SectionHeading>
 
       <div class="grid gap-6 lg:grid-cols-2 items-start">
         <div>

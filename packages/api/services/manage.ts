@@ -9,7 +9,7 @@ import type { MutationResult } from "../types";
  *
  * Everything here runs on DATABASE_URL_MANAGE, a role that may read and write
  * the data tables but only append to `audit_log` - see
- * dev_scripts/create-manage-role.sql. Reading for the pages themselves stays on
+ * dev_scripts/ROLLEN.md. Reading for the pages themselves stays on
  * the application's own connection like everywhere else; only changes come
  * through here. The point is that "the pages cannot rewrite the log" is a fact
  * about the database rather than a claim about this file.

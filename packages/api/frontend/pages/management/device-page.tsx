@@ -1,9 +1,13 @@
 import Layout from "../../components/layout/Layout";
-import PageHeading from "../../components/manage/PageHeading";
-import Notice from "../../components/manage/Notice";
+import Row from "../../components/Row";
+import LocalTime from "../../components/LocalTime";
+import PageHeading from "../../components/PageHeading";
+import Field from "../../components/Field";
+import Notice from "../../components/Notice";
 import { formatEui, formatHex } from "../../../lib/ttn-ids";
 import type { TtnDeviceDetail } from "../../../services/ttn";
 import { DEVICE_MESSAGES } from "./devices-page";
+import SectionHeading from "../../components/SectionHeading";
 
 /**
  * One device, laid out the way the TTN console lays it out - general
@@ -16,18 +20,6 @@ import { DEVICE_MESSAGES } from "./devices-page";
  * rather than a greyed-out control, because a disabled button invites a click
  * and then explains nothing.
  */
-
-const formatDateTime = (date: string) =>
-  new Date(date).toLocaleString("de-DE", { timeZone: "Europe/Berlin" });
-
-function Row(props: { label: string; children: unknown }) {
-  return (
-    <div class="grid grid-cols-1 sm:grid-cols-[14rem_1fr] gap-1 sm:gap-4 py-2 border-b border-base-200 last:border-0">
-      <div class="text-base-content/70">{props.label}</div>
-      <div>{props.children as never}</div>
-    </div>
-  );
-}
 
 export default function DevicePage(props: {
   device: TtnDeviceDetail;
@@ -67,7 +59,7 @@ export default function DevicePage(props: {
         </Notice>
       )}
 
-      <h3 class="font-bold mt-6 mb-2">Allgemein</h3>
+      <SectionHeading>Allgemein</SectionHeading>
       <div class="rounded-box border border-base-300 px-4 py-2">
         <Row label="Geräte-ID">
           <span class="font-mono text-sm">{device.deviceId}</span>
@@ -76,11 +68,11 @@ export default function DevicePage(props: {
         <Row label="LoRaWAN-Version">{device.lorawanVersion ?? "–"}</Row>
         <Row label="Regional Parameters">{device.regionalParameters ?? "–"}</Row>
         <Row label="Angelegt am">
-          {device.createdAt ? formatDateTime(device.createdAt) : "–"}
+          {device.createdAt ? <LocalTime at={device.createdAt} /> : "–"}
         </Row>
       </div>
 
-      <h3 class="font-bold mt-6 mb-2">Aktivierung</h3>
+      <SectionHeading>Aktivierung</SectionHeading>
       <div class="rounded-box border border-base-300 px-4 py-2">
         <Row label="AppEUI / JoinEUI">
           <span class="font-mono text-sm">
@@ -121,14 +113,14 @@ export default function DevicePage(props: {
         </Row>
       </div>
 
-      <h3 class="font-bold mt-6 mb-2">Messwerte</h3>
+      <SectionHeading>Messwerte</SectionHeading>
       <div class="rounded-box border border-base-300 px-4 py-2">
         <Row label="Zuletzt empfangen">
-          {props.activity.lastSeen
-            ? props.activity.lastSeen.toLocaleString("de-DE", {
-                timeZone: "Europe/Berlin",
-              })
-            : "Noch nichts empfangen."}
+          {props.activity.lastSeen ? (
+            <LocalTime at={props.activity.lastSeen} />
+          ) : (
+            "Noch nichts empfangen."
+          )}
         </Row>
         <Row label="Anzahl">{props.activity.count}</Row>
         <Row label="">
@@ -145,38 +137,29 @@ export default function DevicePage(props: {
         </Row>
       </div>
 
-      <h3 class="font-bold mt-6 mb-2">Umbenennen</h3>
+      <SectionHeading>Umbenennen</SectionHeading>
       {props.writable ? (
         <form method="post" action={`${path}/rename`} class="max-w-2xl grid gap-2">
-          <label class="form-control w-full">
-            <div class="label">
-              <span class="label-text">Name</span>
-            </div>
+          <Field label="Name">
             <input
               type="text"
               name="name"
               value={device.name ?? ""}
               autocomplete="off"
-              class="input input-bordered w-full"
+              class="input w-full"
             />
-          </label>
-          <label class="form-control w-full">
-            <div class="label">
-              <span class="label-text">Grund</span>
-            </div>
+          </Field>
+          <Field
+            label="Grund"
+            hint="Steht im Geräteprotokoll. Die Messwerte bleiben unberührt – nur die Bezeichnung in TTN ändert sich."
+          >
             <input
               type="text"
               name="reason"
               autocomplete="off"
-              class="input input-bordered w-full"
+              class="input w-full"
             />
-            <div class="label">
-              <span class="label-text-alt text-base-content/60">
-                Steht im Geräteprotokoll. Die Messwerte bleiben unberührt – nur
-                die Bezeichnung in TTN ändert sich.
-              </span>
-            </div>
-          </label>
+          </Field>
           <div>
             <button type="submit" class="btn btn-primary">
               Namen speichern

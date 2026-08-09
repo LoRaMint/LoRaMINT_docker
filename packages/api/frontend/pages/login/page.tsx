@@ -10,8 +10,8 @@ import type { AuthError } from "../../../services";
  * is ever rendered.
  *
  * Note on styling: daisyUI 5 dropped the v4 form classes (`form-control`,
- * `label-text`, `input-bordered`), so the field layout uses plain Tailwind and
- * only the `input` / `btn` components that v5 actually emits.
+ * `label-text`, `input-bordered`), so fields go through components/Field.tsx,
+ * which is built from plain Tailwind for exactly that reason.
  */
 /**
  * The codes this page understands: what the directory can say, plus the one the

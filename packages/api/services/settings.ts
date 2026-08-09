@@ -1,4 +1,5 @@
-import { sql, SQL } from "bun";
+import { SQL } from "bun";
+import { reading } from "./connections";
 import { manage } from "../config";
 import { CATALOG, settingFor } from "../lib/config-catalog";
 import { rememberSetting, replaceSettings, storedSetting } from "../lib/settings-store";
@@ -64,7 +65,7 @@ export const refreshSettingsIfStale = async (): Promise<void> => {
 };
 
 export const loadSettings = async (): Promise<void> => {
-  const rows = (await sql`SELECT key, value FROM settings`) as unknown as {
+  const rows = (await reading()`SELECT key, value FROM settings`) as unknown as {
     key: string;
     value: string;
   }[];
@@ -127,7 +128,7 @@ export type StoredSetting = {
 
 /** The notes and the who/when, for the configuration page. */
 export const settingsDetail = async (): Promise<Map<string, StoredSetting>> => {
-  const rows = (await sql`
+  const rows = (await reading()`
     SELECT key, value, note, updated_by, updated_at FROM settings
   `) as unknown as {
     key: string;

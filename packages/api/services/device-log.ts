@@ -1,4 +1,5 @@
-import { sql, SQL } from "bun";
+import { SQL } from "bun";
+import { reading } from "./connections";
 import { manage } from "../config";
 import type { PaginationParams } from "../lib/pagination";
 import type { Actor } from "./manage";
@@ -47,14 +48,14 @@ export type DeviceLogEntry = {
 /** The log, newest first. */
 const list = async (pagination: PaginationParams) => {
   const [rows, counted] = await Promise.all([
-    sql`
+    reading()`
       SELECT id, occurred_at, username, display_name, action, device_id,
              device_eui, outcome, details, reason
         FROM device_log
        ORDER BY occurred_at DESC, id DESC
        LIMIT ${pagination.perPage} OFFSET ${pagination.offset}
     `,
-    sql`SELECT count(*)::int AS count FROM device_log`,
+    reading()`SELECT count(*)::int AS count FROM device_log`,
   ]);
 
   const entries = (rows as unknown as Record<string, unknown>[]).map((row) => ({

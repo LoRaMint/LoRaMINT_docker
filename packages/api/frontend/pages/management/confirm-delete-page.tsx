@@ -1,7 +1,8 @@
 import Layout from "../../components/layout/Layout";
-import PageHeading from "../../components/manage/PageHeading";
+import PageHeading from "../../components/PageHeading";
 import DataTable from "../../components/manage/DataTable";
 import { columnsByKey, type ResourceSpec } from "../../components/manage/spec";
+import Notice from "../../components/Notice";
 
 /**
  * What a deletion is about to remove - as rows, not as a number.
@@ -46,13 +47,13 @@ export default function ConfirmDeletePage(props: {
       />
 
       {props.changedSince && (
-        <p role="alert" class="rounded-box border border-error bg-error/10 px-4 py-3 mb-4">
+        <Notice tone="error">
           Die Trefferzahl hat sich seit der Vorschau geändert ({props.changedSince.was} →{" "}
           {props.changedSince.now}). Es wurde nichts gelöscht – bitte erneut prüfen.
-        </p>
+        </Notice>
       )}
 
-      <div class="rounded-box border border-warning bg-warning/10 px-4 py-3 mb-4">
+      <Notice tone="warning">
         <p>
           <strong>
             {props.total} {props.spec.title}
@@ -73,7 +74,7 @@ export default function ConfirmDeletePage(props: {
             Vorgang lässt sich dort anhalten.
           </p>
         )}
-      </div>
+      </Notice>
 
       <DataTable
         columns={columns}

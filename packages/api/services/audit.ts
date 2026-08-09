@@ -1,4 +1,4 @@
-import { sql } from "bun";
+import { reading } from "./connections";
 import type { PaginationParams } from "../lib/pagination";
 
 /**
@@ -44,7 +44,7 @@ export type AuditFilter = {
 const filterClause = (filter: AuditFilter) => {
   const from = filter.from ? new Date(filter.from) : null;
   const to = filter.to ? new Date(filter.to) : null;
-  return sql`
+  return reading()`
     WHERE (${filter.username ?? null}::text   IS NULL OR username   = ${filter.username ?? null})
       AND (${filter.action ?? null}::text     IS NULL OR action     = ${filter.action ?? null})
       AND (${filter.table_name ?? null}::text IS NULL OR table_name = ${filter.table_name ?? null})
@@ -91,10 +91,10 @@ const listBatches = async (
 ) => {
   const where = filterClause(filter);
   const expression = SORT_EXPRESSIONS[sort.column] ?? SORT_EXPRESSIONS.occurred_at!;
-  const order = sql.unsafe(
+  const order = reading().unsafe(
     `${expression} ${sort.direction === "asc" ? "ASC" : "DESC"}, batch_id`,
   );
-  const rows = await sql`
+  const rows = await reading()`
     SELECT batch_id,
            min(occurred_at)  AS occurred_at,
            min(username)     AS username,
@@ -103,14 +103,14 @@ const listBatches = async (
            min(table_name)   AS table_name,
            min(reason)       AS reason,
            count(*)::int     AS row_count,
-           count(*) FILTER (WHERE ${sql.unsafe(REVERTED_BY)} IS NOT NULL)::int AS reverted_count
+           count(*) FILTER (WHERE ${reading().unsafe(REVERTED_BY)} IS NOT NULL)::int AS reverted_count
     FROM audit_log
     ${where}
     GROUP BY batch_id
     ORDER BY ${order}
     LIMIT ${pagination.perPage} OFFSET ${pagination.offset}
   `;
-  const [{ count }] = await sql`
+  const [{ count }] = await reading()`
     SELECT count(DISTINCT batch_id)::int AS count FROM audit_log ${where}
   `;
   return {
@@ -121,10 +121,10 @@ const listBatches = async (
 
 /** Every entry of one operation, each with the entry that took it back. */
 const batch = async (batchId: string) => {
-  const rows = await sql`
+  const rows = await reading()`
     SELECT id, occurred_at, username, display_name, action, table_name, row_id,
            batch_id, changes, reason, reverts_id,
-           ${sql.unsafe(REVERTED_BY)} AS reverted_by
+           ${reading().unsafe(REVERTED_BY)} AS reverted_by
     FROM audit_log
     WHERE batch_id = ${batchId}::uuid
     ORDER BY occurred_at, id
@@ -135,10 +135,10 @@ const batch = async (batchId: string) => {
 /** Specific entries, for showing what an undo is about to do. */
 const entriesByIds = async (ids: string[]) => {
   if (ids.length === 0) return [];
-  const rows = await sql`
+  const rows = await reading()`
     SELECT id, occurred_at, username, action, table_name, row_id, batch_id,
            changes, reason,
-           ${sql.unsafe(REVERTED_BY)} AS reverted_by
+           ${reading().unsafe(REVERTED_BY)} AS reverted_by
     FROM audit_log
     WHERE id = ANY(${`{${ids.join(",")}}`}::uuid[])
     ORDER BY occurred_at, id
@@ -161,15 +161,15 @@ export const decodeChanges = (value: unknown): unknown => {
 };
 
 const count = async () => {
-  const [row] = await sql`SELECT count(*)::int AS count FROM audit_log`;
+  const [row] = await reading()`SELECT count(*)::int AS count FROM audit_log`;
   return (row as { count: number }).count;
 };
 
 /** Distinct values for the filter dropdowns, so they only offer what exists. */
 const metadata = async () => {
   const [actions, tables] = await Promise.all([
-    sql`SELECT DISTINCT action AS v FROM audit_log ORDER BY v`,
-    sql`SELECT DISTINCT table_name AS v FROM audit_log ORDER BY v`,
+    reading()`SELECT DISTINCT action AS v FROM audit_log ORDER BY v`,
+    reading()`SELECT DISTINCT table_name AS v FROM audit_log ORDER BY v`,
   ]);
   const values = (rows: unknown) =>
     (rows as { v: string }[]).map((row) => row.v).filter((v) => v != null);

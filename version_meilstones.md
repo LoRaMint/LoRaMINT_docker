@@ -12,3 +12,5 @@ und tabellarisch aufgelistet.
 | LDAP-Auth                 | 1.5 | LDAP-Auth für kommende Funktionen |
 | Datenbankzugriff          | 1.5 | Bearbeiten von Datenbankeinträge nach LDAP-Auth |
 | Registrieren von Geräten  | 1.6 | Registrieren von Geräten über TTN-Rest-API für User |
+| Benutzereinstellungen      | 1.7 | Zeitzone und dunkle Darstellung pro Benutzer, einheitliche Zeitanzeige, Datengruppen als Teilmenge der LDAP-Gruppen |
+| Messwerte nach Gruppen     | 1.8 | Messwerte einer Datengruppe zuordnen; lesen und ändern nur mit Rolle **und** Gruppe |

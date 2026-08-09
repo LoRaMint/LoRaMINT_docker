@@ -1,4 +1,4 @@
-import { sql } from "bun";
+import { ingesting, reading } from "./connections";
 import type { PaginationParams } from "../lib/pagination";
 import type {
   Datatype,
@@ -121,27 +121,43 @@ const validate = (payload: TtnDecodedPayload, deviceEui: string): MutationResult
 // STORAGE
 //====================================
 
+/**
+ * Writes one measurement, through the connection that may do nothing else.
+ *
+ * Id and arrival time are made here rather than read back, and that is not a
+ * detail: `INSERT ... RETURNING` needs SELECT on the columns it returns, which
+ * would mean granting the webhook's role the right to read the whole table. The
+ * route reachable from the internet would then be able to read every
+ * measurement this application has ever stored. Generating both is what lets the
+ * role hold `INSERT` and nothing else - it was measured, not assumed: with
+ * RETURNING the insert fails with "permission denied for table measurements".
+ *
+ * Both values are also written explicitly rather than left to the column
+ * defaults, so what comes back describes the row that is actually there.
+ */
 const store = async (data: ValidatedMeasurement): Promise<MutationResult<Measurement>> => {
-  const [row] = await sql`
-    INSERT INTO measurements (device_eui, measurand, unit, datatype, sensor, location, value, time_method, recorded_at)
-    VALUES (${data.deviceEui}, ${data.measurand}, ${data.unit}, ${data.datatype}, ${data.sensor}, ${data.location}, ${data.value}, ${data.timeMethod}, ${data.recordedAt})
-    RETURNING id, device_eui, measurand, unit, datatype, sensor, location, value, time_method, recorded_at, created_at
+  const id = crypto.randomUUID();
+  const createdAt = new Date();
+
+  await ingesting()`
+    INSERT INTO measurements (id, device_eui, measurand, unit, datatype, sensor, location, value, time_method, recorded_at, created_at)
+    VALUES (${id}::uuid, ${data.deviceEui}, ${data.measurand}, ${data.unit}, ${data.datatype}, ${data.sensor}, ${data.location}, ${data.value}, ${data.timeMethod}, ${data.recordedAt}, ${createdAt})
   `;
 
   return {
     ok: true,
     data: {
-      id: row.id,
-      deviceEui: row.device_eui,
-      measurand: row.measurand,
-      unit: row.unit,
-      datatype: row.datatype,
-      sensor: row.sensor,
-      location: row.location,
-      value: row.value,
-      timeMethod: row.time_method,
-      recordedAt: row.recorded_at,
-      createdAt: row.created_at,
+      id,
+      deviceEui: data.deviceEui,
+      measurand: data.measurand,
+      unit: data.unit,
+      datatype: data.datatype,
+      sensor: data.sensor,
+      location: data.location,
+      value: data.value,
+      timeMethod: data.timeMethod,
+      recordedAt: data.recordedAt,
+      createdAt,
     },
   };
 };
@@ -173,7 +189,7 @@ const mapRow = (row: Record<string, unknown>): Measurement => ({
 const filterClause = (filter: MeasurementFilter) => {
   const from = filter.from ? new Date(filter.from) : null;
   const to = filter.to ? new Date(filter.to) : null;
-  return sql`
+  return reading()`
     WHERE (${filter.device_eui ?? null}::text IS NULL OR device_eui = ${filter.device_eui ?? null})
       AND (${filter.measurand ?? null}::text  IS NULL OR measurand  = ${filter.measurand  ?? null})
       AND (${filter.sensor ?? null}::text     IS NULL OR sensor     = ${filter.sensor     ?? null})
@@ -194,10 +210,10 @@ const filterClause = (filter: MeasurementFilter) => {
 const metadata = async (filter: MeasurementFilter = {}) => {
   const where = filterClause({ device_eui: filter.device_eui });
   const [devices, measurands, sensors, locations] = await Promise.all([
-    sql`SELECT DISTINCT device_eui AS v FROM measurements ${where} ORDER BY v`,
-    sql`SELECT DISTINCT measurand  AS v FROM measurements ${where} ORDER BY v`,
-    sql`SELECT DISTINCT sensor     AS v FROM measurements ${where} ORDER BY v`,
-    sql`SELECT DISTINCT location   AS v FROM measurements ${where} ORDER BY v`,
+    reading()`SELECT DISTINCT device_eui AS v FROM measurements ${where} ORDER BY v`,
+    reading()`SELECT DISTINCT measurand  AS v FROM measurements ${where} ORDER BY v`,
+    reading()`SELECT DISTINCT sensor     AS v FROM measurements ${where} ORDER BY v`,
+    reading()`SELECT DISTINCT location   AS v FROM measurements ${where} ORDER BY v`,
   ]);
   const values = (rows: Record<string, unknown>[]) =>
     rows.map((r) => r.v as string).filter((v) => v != null);
@@ -225,7 +241,7 @@ const metadata = async (filter: MeasurementFilter = {}) => {
 const deviceActivity = async (): Promise<
   Map<string, { count: number; lastSeen: Date | null }>
 > => {
-  const rows = await sql`
+  const rows = await reading()`
     SELECT upper(device_eui) AS eui,
            count(*)::int AS n,
            max(COALESCE(recorded_at, created_at)) AS last_seen
@@ -247,7 +263,7 @@ const deviceActivity = async (): Promise<
  * from a single scan.
  */
 const status = async (): Promise<SensorStatus[]> => {
-  const rows = await sql`
+  const rows = await reading()`
     SELECT device_eui, sensor, location, measurand, unit, value, last_seen, n
     FROM (
       SELECT device_eui, sensor, location, measurand, unit, value,
@@ -276,14 +292,14 @@ const status = async (): Promise<SensorStatus[]> => {
 
 const list = async (pagination: PaginationParams, filter: MeasurementFilter = {}) => {
   const where = filterClause(filter);
-  const rows = await sql`
+  const rows = await reading()`
     SELECT id, device_eui, measurand, unit, datatype, sensor, location, value, time_method, recorded_at, created_at
     FROM measurements
     ${where}
     ORDER BY created_at DESC
     LIMIT ${pagination.perPage} OFFSET ${pagination.offset}
   `;
-  const [{ count }] = await sql`SELECT count(*)::int AS count FROM measurements ${where}`;
+  const [{ count }] = await reading()`SELECT count(*)::int AS count FROM measurements ${where}`;
   return { items: rows.map(mapRow), total: count as number };
 };
 
@@ -329,17 +345,17 @@ const listRows = async (
   const expression = SORT_EXPRESSIONS[sort.column] ?? SORT_EXPRESSIONS.recorded_at!;
   // Appending id keeps the order total: rows sharing a timestamp would otherwise
   // be free to swap places between two pages and hide one of themselves.
-  const order = sql.unsafe(
+  const order = reading().unsafe(
     `${expression} ${sort.direction === "asc" ? "ASC" : "DESC"}, id`,
   );
-  const rows = await sql`
+  const rows = await reading()`
     SELECT id, device_eui, measurand, unit, datatype, sensor, location, value, time_method, recorded_at, created_at
     FROM measurements
     ${where}
     ORDER BY ${order}
     LIMIT ${pagination.perPage} OFFSET ${pagination.offset}
   `;
-  const [{ count }] = await sql`SELECT count(*)::int AS count FROM measurements ${where}`;
+  const [{ count }] = await reading()`SELECT count(*)::int AS count FROM measurements ${where}`;
   return {
     rows: rows as unknown as Record<string, unknown>[],
     total: count as number,
@@ -368,7 +384,7 @@ const idsMatching = async (
   limit: number,
   createdBefore: Date | null = null,
 ) => {
-  const rows = await sql`
+  const rows = await reading()`
     SELECT id FROM measurements
     ${filterClause(filter)}
       AND (${createdBefore}::timestamptz IS NULL
@@ -382,7 +398,7 @@ const idsMatching = async (
 /** The current state of specific rows, for previewing and for validation. */
 const byIds = async (ids: string[]) => {
   if (ids.length === 0) return [];
-  const rows = await sql`
+  const rows = await reading()`
     SELECT id, device_eui, measurand, unit, datatype, sensor, location, value, time_method, recorded_at, created_at
     FROM measurements WHERE id = ANY(${`{${ids.join(",")}}`}::uuid[])
     ORDER BY COALESCE(recorded_at, created_at) DESC, id
@@ -435,7 +451,7 @@ const count = async (
   filter: MeasurementFilter = {},
   createdBefore: Date | null = null,
 ) => {
-  const [row] = await sql`
+  const [row] = await reading()`
     SELECT count(*)::int AS count FROM measurements
     ${filterClause(filter)}
       AND (${createdBefore}::timestamptz IS NULL
@@ -474,7 +490,7 @@ const exportCsvStream = (filter: MeasurementFilter = {}) => {
   return new ReadableStream({
     async start(controller) {
       controller.enqueue(encoder.encode(header));
-      const rows = await sql`
+      const rows = await reading()`
         SELECT id, device_eui, measurand, unit, datatype, sensor, location, value, time_method, recorded_at, created_at
         FROM measurements
         ${filterClause(filter)}

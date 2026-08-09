@@ -1,6 +1,8 @@
 import Layout from "../../components/layout/Layout";
-import PageHeading from "../../components/manage/PageHeading";
-import Notice from "../../components/manage/Notice";
+import TableFrame, { EmptyRow } from "../../components/TableFrame";
+import LocalTime from "../../components/LocalTime";
+import PageHeading from "../../components/PageHeading";
+import Notice from "../../components/Notice";
 import Planned from "../../components/Planned";
 import { formatEui } from "../../../lib/ttn-ids";
 
@@ -93,9 +95,6 @@ const STATE: Record<DeviceState, { label: string; badge: string; title: string }
       "Messwerte unter einer DevEUI, die in TTN nicht (mehr) registriert ist.",
   },
 };
-
-const formatDateTime = (date: Date) =>
-  new Date(date).toLocaleString("de-DE", { timeZone: "Europe/Berlin" });
 
 //====================================
 // PAGE
@@ -205,8 +204,7 @@ export default function ManageDevicesPage(props: {
         </a>
       </div>
 
-      <div class="overflow-x-auto rounded-box border border-base-300">
-        <table class="table table-sm table-zebra">
+      <TableFrame>
           <thead>
             <tr>
               <th>Name</th>
@@ -219,12 +217,8 @@ export default function ManageDevicesPage(props: {
           </thead>
           <tbody>
             {props.rows.length === 0 && (
-              <tr>
-                <td colspan={6} class="text-center text-base-content/60 py-6">
-                  In dieser Application ist noch kein Gerät registriert, und
-                  Messwerte sind auch keine da.
-                </td>
-              </tr>
+              <EmptyRow columns={6}>In dieser Application ist noch kein Gerät registriert, und
+                  Messwerte sind auch keine da.</EmptyRow>
             )}
             {props.rows.map((row) => (
               <tr>
@@ -257,7 +251,7 @@ export default function ManageDevicesPage(props: {
                   )}
                 </td>
                 <td class="whitespace-nowrap">
-                  {row.lastSeen ? formatDateTime(row.lastSeen) : "–"}
+                  {row.lastSeen ? <LocalTime at={row.lastSeen} /> : "–"}
                 </td>
                 <td class="text-right">{row.count}</td>
                 <td>
@@ -271,8 +265,7 @@ export default function ManageDevicesPage(props: {
               </tr>
             ))}
           </tbody>
-        </table>
-      </div>
+        </TableFrame>
 
       <p class="text-sm text-base-content/60 mt-3 max-w-3xl">
         „stumm" heisst: in TTN registriert, aber in den letzten 24 Stunden kam

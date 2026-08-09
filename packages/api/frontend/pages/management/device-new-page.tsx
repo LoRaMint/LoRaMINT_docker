@@ -1,6 +1,7 @@
 import Layout from "../../components/layout/Layout";
-import PageHeading from "../../components/manage/PageHeading";
-import Notice from "../../components/manage/Notice";
+import PageHeading from "../../components/PageHeading";
+import Field from "../../components/Field";
+import Notice from "../../components/Notice";
 import type { DeviceInput } from "../../../lib/ttn-ids";
 
 /**
@@ -17,8 +18,12 @@ import type { DeviceInput } from "../../../lib/ttn-ids";
  * ways to register a device that never joins.
  */
 
-/** One labelled input, with its problem underneath when it has one. */
-function Field(props: {
+/**
+ * One labelled text input. A thin wrapper over the shared Field, worth having
+ * because this page has eight of them and each would otherwise repeat the same
+ * input element.
+ */
+function TextField(props: {
   name: string;
   label: string;
   value: string;
@@ -29,29 +34,22 @@ function Field(props: {
   autocomplete?: string;
 }) {
   return (
-    <label class="form-control w-full">
-      <div class="label">
-        <span class="label-text">{props.label}</span>
-      </div>
+    <Field
+      label={props.label}
+      class="w-full"
+      {...(props.problem ? { problem: props.problem } : {})}
+      {...(props.hint ? { hint: props.hint } : {})}
+    >
       <input
         type={props.type ?? "text"}
         name={props.name}
         value={props.value}
         autocomplete={props.autocomplete ?? "off"}
-        class={`input input-bordered w-full ${props.problem ? "input-error" : ""} ${
+        class={`input w-full ${props.problem ? "input-error" : ""} ${
           props.mono ? "font-mono" : ""
         }`}
       />
-      {props.problem ? (
-        <div class="label">
-          <span class="label-text-alt text-error">{props.problem}</span>
-        </div>
-      ) : props.hint ? (
-        <div class="label">
-          <span class="label-text-alt text-base-content/60">{props.hint}</span>
-        </div>
-      ) : null}
-    </label>
+    </Field>
   );
 }
 
@@ -93,14 +91,14 @@ export default function DeviceNewPage(props: {
         action="/management/devices/new"
         class="max-w-2xl grid gap-2"
       >
-        <Field
+        <TextField
           name="name"
           label="Name"
           value={props.values.name}
           problem={props.problems.name}
           hint="Steht später in der Übersicht, etwa „Fenster 8b“."
         />
-        <Field
+        <TextField
           name="devEui"
           label="DevEUI"
           value={props.values.devEui}
@@ -108,7 +106,7 @@ export default function DeviceNewPage(props: {
           hint="16 Hexzeichen, z. B. A8 40 41 D6 C1 84 DB 82"
           mono
         />
-        <Field
+        <TextField
           name="joinEui"
           label="AppEUI / JoinEUI"
           value={props.values.joinEui}
@@ -116,7 +114,7 @@ export default function DeviceNewPage(props: {
           hint="16 Hexzeichen, bei den LA66-Modulen für alle gleich."
           mono
         />
-        <Field
+        <TextField
           name="appKey"
           label="AppKey"
           value={props.values.appKey}
@@ -126,7 +124,7 @@ export default function DeviceNewPage(props: {
           autocomplete="new-password"
           mono
         />
-        <Field
+        <TextField
           name="deviceId"
           label="Geräte-ID"
           value={props.values.deviceId}
@@ -149,30 +147,24 @@ export default function DeviceNewPage(props: {
           <p>Aktivierung: OTAA</p>
         </div>
 
-        <label class="form-control w-full">
-          <div class="label">
-            <span class="label-text">Grund</span>
-          </div>
+        <Field
+          label="Grund"
+          {...(props.reasonProblem
+            ? { problem: props.reasonProblem }
+            : {
+                hint: "Steht im Geräteprotokoll und ist das Einzige, was den Vorgang dort erklärt.",
+              })}
+        >
           <input
             type="text"
             name="reason"
             value={props.reason}
             autocomplete="off"
-            class={`input input-bordered w-full ${
+            class={`input w-full ${
               props.reasonProblem ? "input-error" : ""
             }`}
           />
-          <div class="label">
-            <span
-              class={`label-text-alt ${
-                props.reasonProblem ? "text-error" : "text-base-content/60"
-              }`}
-            >
-              {props.reasonProblem ??
-                "Steht im Geräteprotokoll und ist das Einzige, was den Vorgang dort erklärt."}
-            </span>
-          </div>
-        </label>
+        </Field>
 
         <div class="flex flex-wrap gap-3 mt-2">
           <button type="submit" class="btn btn-primary">

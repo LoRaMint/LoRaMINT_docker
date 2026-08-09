@@ -1,5 +1,7 @@
 import type { JSX } from "solid-js";
+import TableFrame from "../../../components/TableFrame";
 import Layout from "../../../components/layout/Layout";
+import SectionHeading from "../../../components/SectionHeading";
 
 /** A note / callout block (the "> …" blockquotes in the source guide). */
 function Note(props: { children: JSX.Element }) {
@@ -57,7 +59,6 @@ function Figure(props: { src: string; alt: string; caption?: string }) {
 }
 
 const h2 = "text-xl font-bold border-b border-base-300 pb-2 mb-4 mt-12";
-const h3 = "text-lg font-semibold mt-6 mb-2";
 const p = "my-3 leading-relaxed text-base-content/90";
 
 /**
@@ -92,7 +93,7 @@ export default function AnleitungPage() {
 
         {/* 0 */}
         <h2 class={h2}>Materialien und Vorbereitungen</h2>
-        <h3 class={h3}>Hardware</h3>
+        <SectionHeading>Hardware</SectionHeading>
         <ul class="list-disc pl-6 space-y-1 text-base-content/90">
           <li>ESP32-Board (z. B. ESP32-S3) mit USB-Kabel</li>
           <li>
@@ -113,7 +114,7 @@ export default function AnleitungPage() {
 
         {/* 1 */}
         <h2 class={h2}>1. Thonny und MicroPython einrichten</h2>
-        <h3 class={h3}>Thonny installieren</h3>
+        <SectionHeading>Thonny installieren</SectionHeading>
         <p class={p}>
           Thonny ist das Programm, mit dem du auf deinem Computer Code schreibst
           und ihn auf das ESP32-Board überträgst.
@@ -133,7 +134,7 @@ export default function AnleitungPage() {
           </li>
         </ol>
 
-        <h3 class={h3}>MicroPython auf den ESP32 flashen</h3>
+        <SectionHeading>MicroPython auf den ESP32 flashen</SectionHeading>
         <p class={p}>
           Damit das Board Python „versteht", spielst du ihm einmalig{" "}
           <strong>MicroPython</strong> auf – das ist eine abgespeckte
@@ -179,7 +180,7 @@ export default function AnleitungPage() {
           <li>Danach den Dialog schließen und mit <strong>OK</strong> bestätigen.</li>
         </ol>
 
-        <h3 class={h3}>Board mit Thonny verbinden</h3>
+        <SectionHeading>Board mit Thonny verbinden</SectionHeading>
         <ol class="list-decimal pl-6 space-y-2 text-base-content/90">
           <li>
             Unten in Thonny erscheint die <strong>Shell</strong> – ein
@@ -212,8 +213,7 @@ export default function AnleitungPage() {
         </p>
         <Figure src={`${IMG}/esp32_wiring.png`} alt="Verkabelung von ESP32, LA66 und BME280" caption="Verkabelung von ESP32, LA66 und BME280 (zum Vergrößern anklicken)" />
         <p class="font-semibold mt-4">ESP32 ↔ LA66 (Funkmodul)</p>
-        <div class="overflow-x-auto rounded-box border border-base-300 my-3">
-          <table class="table">
+        <TableFrame class="my-3">
             <thead>
               <tr><th>ESP32</th><th>LA66</th></tr>
             </thead>
@@ -223,8 +223,7 @@ export default function AnleitungPage() {
               <tr><td><code>GND</code> (Minus)</td><td><code>GND</code></td></tr>
               <tr><td><code>3V3</code> (Strom)</td><td><code>3V3</code></td></tr>
             </tbody>
-          </table>
-        </div>
+          </TableFrame>
 
         {/* 3 */}
         <h2 class={h2}>3. Die loramint-Bibliothek auf das Board laden</h2>
@@ -336,7 +335,7 @@ lora.check_connection()    # gibt eine Statusmeldung aus`}</Code>
           Antenne prüfen.
         </p>
 
-        <h3 class={h3}>Damit das Programm nach dem Einschalten von allein läuft</h3>
+        <SectionHeading>Damit das Programm nach dem Einschalten von allein läuft</SectionHeading>
         <p class={p}>
           Ein Programm mit dem Namen <code>main.py</code> startet der ESP32
           automatisch, sobald er Strom bekommt. So speicherst du dein Beispiel
