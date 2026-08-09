@@ -125,3 +125,22 @@ objectClass: groupOfNames
 cn: loramint-management
 description: May open the Verwaltung section, and everything below it
 member: uid=aschmidt,ou=people,dc=loramint,dc=test
+
+# Two groups that are *not* role groups: they say which data something is about,
+# not what anybody may do. The application only treats them as data groups once
+# an administrator declares them on /management/groups - being in one grants
+# nothing by itself, which is the property worth being able to try out here.
+#
+# mruf is in both a role group and a data group, aschmidt in a data group only.
+dn: cn=klasse-8b,ou=groups,dc=loramint,dc=test
+objectClass: groupOfNames
+cn: klasse-8b
+description: A data group - scope, not privilege
+member: uid=mruf,ou=people,dc=loramint,dc=test
+
+dn: cn=ag-wetter,ou=groups,dc=loramint,dc=test
+objectClass: groupOfNames
+cn: ag-wetter
+description: A second data group, to test the intersection
+member: uid=mruf,ou=people,dc=loramint,dc=test
+member: uid=aschmidt,ou=people,dc=loramint,dc=test

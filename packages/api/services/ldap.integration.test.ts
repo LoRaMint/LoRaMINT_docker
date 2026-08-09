@@ -236,13 +236,24 @@ describe("LDAP failure handling", () => {
  * Group membership drives what a user may do (services/catalog.ts), so it is
  * resolved at sign-in. The fixture puts everyone in `loramint` and only mruf in
  * `loramint-admin`.
+ *
+ * It also contains two groups that are *not* role groups - `klasse-8b` and
+ * `ag-wetter`. The directory does not distinguish them in any way; only the
+ * declaration in `data_groups` does, and that happens well after this point.
+ * These tests therefore expect them in the list: resolution returns what the
+ * directory says, and deciding what a group *means* is somebody else's job.
  */
 describe.skipIf(!reachable)("group resolution", () => {
   test("finds the groups a user belongs to", async () => {
     const result = await authenticateWith(withGroups, "mruf", "geheim123");
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect([...result.data.groups].sort()).toEqual(["loramint", "loramint-admin"]);
+    expect([...result.data.groups].sort()).toEqual([
+      "ag-wetter",
+      "klasse-8b",
+      "loramint",
+      "loramint-admin",
+    ]);
   });
 
   test("a user gets exactly their own groups, not someone else's", async () => {
@@ -252,9 +263,11 @@ describe.skipIf(!reachable)("group resolution", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect([...result.data.groups].sort()).toEqual([
+      "ag-wetter",
       "loramint",
       "loramint-management",
     ]);
+    expect(result.data.groups).not.toContain("klasse-8b");
     expect(result.data.groups).not.toContain("loramint-admin");
   });
 

@@ -139,7 +139,10 @@ export default function Layout(props: { children: JSX.Element }) {
               // Administrators only: the page lists bind accounts, database
               // roles and the shape of every secret.
               ...(adminUser
-                ? [{ href: "/management/config", label: "Konfiguration" }]
+                ? [
+                    { href: "/management/groups", label: "Datengruppen" },
+                    { href: "/management/config", label: "Konfiguration" },
+                  ]
                 : []),
             ],
           },
@@ -290,6 +293,27 @@ export default function Layout(props: { children: JSX.Element }) {
           document.addEventListener("keydown", function (e) {
             if (e.key === "Escape") menus.forEach(function (d) { d.open = false; });
           });
+        })();
+      `}</script>
+
+      {/* Times into the browser's zone - but only when the user has not chosen
+          one. data-timezone on <html> carries that choice (config/ssr.ts); when
+          it is set the server already rendered in it and there is nothing left
+          to do. When it is empty the server wrote UTC with the suffix, and this
+          replaces both, which is why the suffix disappears here rather than
+          being appended. See frontend/components/LocalTime.tsx. */}
+      <script>{`
+        (function () {
+          if (document.documentElement.dataset.timezone) return;
+          var times = document.querySelectorAll("time[data-local]");
+          for (var i = 0; i < times.length; i++) {
+            var at = new Date(times[i].getAttribute("datetime"));
+            if (isNaN(at.getTime())) continue;
+            times[i].textContent = at.toLocaleString("de-DE", {
+              dateStyle: "medium",
+              timeStyle: "short"
+            });
+          }
         })();
       `}</script>
     </div>

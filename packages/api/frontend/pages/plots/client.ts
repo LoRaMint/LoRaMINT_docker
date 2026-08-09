@@ -5,10 +5,84 @@
  * globally by the preceding <script>). No aggregation, no error bars.
  */
 
+import { COMMON_ZONES, otherZones, wallClockIn } from "../../../lib/time-zone";
+
 // Plotly is provided globally by /public/vendor/plotly.min.js (classic script).
 declare const Plotly: any;
 
 const API = "/api/v1";
+
+/**
+ * The zone this plot is drawn in: the user's choice from the HTML shell, else
+ * the browser's.
+ *
+ * This is the fix for the bug that prompted the whole timezone work. Plotly is
+ * handed date strings and does **not** convert between zones, so feeding it the
+ * `…Z` strings the CSV export produces drew a UTC axis while every other page
+ * showed local time - an hour out in winter, two in summer, and consistent
+ * enough that nobody spotted it. The local time therefore has to be inside the
+ * value before Plotly sees it; see lib/time-zone.ts.
+ */
+const effectiveZone = (): string =>
+  document.documentElement.dataset.timezone ||
+  Intl.DateTimeFormat().resolvedOptions().timeZone ||
+  "UTC";
+
+const ZONE_STORAGE_KEY = "loramint.plots.timezone";
+
+/** The zone the plot is currently drawn in: the picker, else the effective one. */
+const plotZone = (): string => timezoneSel().value || effectiveZone();
+
+/**
+ * Fills the picker and restores the last choice.
+ *
+ * The first entry stays empty and means "my own zone" - which one that is can
+ * only be known here, so it is written into the label rather than into the
+ * value. Anything the user picks instead is remembered, because switching a plot
+ * to UTC to compare it with somebody else is not a thing one wants to redo after
+ * every reload.
+ */
+function setUpTimeZones() {
+  const sel = timezoneSel();
+  const own = effectiveZone();
+  const first = sel.options[0];
+  if (first) first.textContent = `Eigene Zeitzone (${own})`;
+
+  // The likely answers first, then the rest behind a heading. A picker of four
+  // hundred entries hides Europe/Berlin; a picker of eleven hides everything
+  // else. Grouped, it does neither.
+  const group = (label: string, zones: readonly string[]) => {
+    const filtered = zones.filter((zone) => zone !== own);
+    if (filtered.length === 0) return;
+    const box = document.createElement("optgroup");
+    box.label = label;
+    for (const zone of filtered) {
+      const opt = document.createElement("option");
+      opt.value = zone;
+      opt.textContent = zone;
+      box.appendChild(opt);
+    }
+    sel.appendChild(box);
+  };
+
+  group("Häufig", COMMON_ZONES);
+  group("Alle Zeitzonen", otherZones());
+
+  try {
+    const stored = localStorage.getItem(ZONE_STORAGE_KEY);
+    if (stored) sel.value = stored;
+  } catch {
+    // Private browsing refuses storage; the picker simply starts at the default.
+  }
+
+  sel.addEventListener("change", () => {
+    try {
+      localStorage.setItem(ZONE_STORAGE_KEY, sel.value);
+    } catch {
+      // As above - not remembering the choice is not worth an error.
+    }
+  });
+}
 
 // Base colour per measurand; sensors within a measurand are told apart by dash.
 const MEASURAND_COLORS = [
@@ -36,6 +110,7 @@ const locationSel = () => $<HTMLSelectElement>("location");
 const measurandsBox = () => $<HTMLDivElement>("measurands");
 const sensorsBox = () => $<HTMLDivElement>("sensors");
 const layoutSel = () => $<HTMLSelectElement>("layout");
+const timezoneSel = () => $<HTMLSelectElement>("timezone");
 const fromInput = () => $<HTMLInputElement>("from");
 const toInput = () => $<HTMLInputElement>("to");
 const statusEl = () => $<HTMLSpanElement>("status");
@@ -159,6 +234,9 @@ async function fetchSeries(
 
   const wanted = new Set(sensors);
   const bySensor = new Map<string, Series>();
+  // Read once for the whole batch rather than per row: it is the same for all of
+  // them, and changing it mid-series would put points on two different clocks.
+  const zone = plotZone();
   for (let r = 1; r < rows.length; r++) {
     const row = rows[r];
     if (!row || row.length <= iValue) continue;
@@ -174,7 +252,10 @@ async function fetchSeries(
       s = { measurand: row[iMeasurand] ?? measurand, sensor, unit: row[iUnit] ?? "", points: [] };
       bySensor.set(sensor, s);
     }
-    s.points.push({ t, value });
+    // Converted here rather than at draw time, so the sort below and Plotly both
+    // see the same value. It is a *naive* local timestamp with no Z and no
+    // offset - that is the point, and it must never be turned back into a Date.
+    s.points.push({ t: wallClockIn(t, zone), value });
   }
 
   const series = Array.from(bySensor.values());
@@ -203,11 +284,31 @@ function buildFigure(groups: Map<string, Series[]>, mode: "overlay" | "stacked")
   const n = measurands.length;
   const traces: any[] = [];
   const layout: any = {
-    margin: { l: 60, r: 60, t: 30, b: 60 },
+    // Bottom margin sized for what actually stands there: two lines of tick
+    // label (Plotly puts the date under the time) plus the axis title.
+    margin: { l: 60, r: 60, t: 60, b: 80 },
     showlegend: true,
-    legend: { orientation: "h" },
+    /**
+     * Above the plot, not below it.
+     *
+     * A horizontal legend left to Plotly lands just under the x axis, where the
+     * axis title already is, and the two print on top of each other. Nudging it
+     * further down does not fix it reliably: the legend's `y` is in paper
+     * coordinates, so the distance it needs depends on the height of the plot -
+     * which changes with the window and, in stacked mode, with the number of
+     * measurands. Moving it to the top removes the collision by construction
+     * rather than by a number that happens to work at one size.
+     */
+    legend: { orientation: "h", y: 1.02, yanchor: "bottom", x: 0, xanchor: "left" },
     hovermode: "x unified",
-    xaxis: { type: "date", title: { text: "Zeit" } },
+    // The zone is always named here, even when it is the user's own, because a
+    // plot is the one thing on this site that leaves it: downloaded as a PNG,
+    // pasted into a report, compared with somebody else's. An unlabelled axis is
+    // fine on screen and useless a week later.
+    xaxis: {
+      type: "date",
+      title: { text: `Zeit (${plotZone()})`, standoff: 12 },
+    },
   };
 
   measurands.forEach((measurand, mi) => {
@@ -349,6 +450,7 @@ async function init() {
   $<HTMLButtonElement>("plot").addEventListener("click", plot);
   $<HTMLButtonElement>("download").addEventListener("click", downloadImage);
   formatSel().addEventListener("change", syncScaleEnabled);
+  setUpTimeZones();
   syncScaleEnabled();
 }
 

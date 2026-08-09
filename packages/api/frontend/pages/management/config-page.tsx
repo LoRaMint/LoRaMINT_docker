@@ -1,6 +1,9 @@
 import Layout from "../../components/layout/Layout";
+import TableFrame from "../../components/TableFrame";
+import LocalTime from "../../components/LocalTime";
 import PageHeading from "../../components/PageHeading";
 import Notice from "../../components/Notice";
+import SectionHeading from "../../components/SectionHeading";
 import {
   GROUP_SECTIONS,
   type FeatureState,
@@ -114,6 +117,8 @@ export type ConfigRow = {
   editValue: string;
   /** True when the same name is still set in the environment, where it is ignored. */
   stranded: boolean;
+  /** True for longer text: a box instead of a one-line field. */
+  multiline: boolean;
   /** What somebody wrote down about this setting. */
   note: string;
   updatedBy: string | null;
@@ -252,9 +257,8 @@ export default function ConfigPage(props: {
         <div class="min-w-0 flex-1">
           {/* The block that answers "why is this feature off" without a search. */}
           <section id={panelId("overview")} data-config-panel>
-            <h3 class="font-bold mb-2">Funktionen</h3>
-            <div class="overflow-x-auto rounded-box border border-base-300">
-              <table class="table table-sm">
+            <SectionHeading>Funktionen</SectionHeading>
+            <TableFrame>
                 <tbody>
                   {props.features.map((feature) => (
                     <tr>
@@ -272,8 +276,7 @@ export default function ConfigPage(props: {
                     </tr>
                   ))}
                 </tbody>
-              </table>
-            </div>
+              </TableFrame>
             <p class="text-sm text-base-content/60 mt-3 max-w-3xl">
               Jede optionale Funktion mit ihrem Zustand und der Einstellung, die
               ihn verursacht. Die Einzelheiten stehen in den Bereichen links.
@@ -282,9 +285,8 @@ export default function ConfigPage(props: {
 
           {props.groups.map((group) => (
         <section id={panelId(group.group)} data-config-panel>
-          <h3 class="font-bold mb-2">{group.label}</h3>
-          <div class="overflow-x-auto rounded-box border border-base-300">
-            <table class="table table-sm">
+          <SectionHeading>{group.label}</SectionHeading>
+          <TableFrame>
               <thead>
                 <tr>
                   <th class="w-64">Name</th>
@@ -356,23 +358,55 @@ export default function ConfigPage(props: {
                           <form
                             method="post"
                             action="/management/config/save"
-                            class="flex flex-wrap items-center gap-2 mt-2"
+                            class={`gap-2 mt-2 ${
+                              row.multiline
+                                ? "flex flex-col items-start"
+                                : "flex flex-wrap items-center"
+                            }`}
                           >
                             <input type="hidden" name="key" value={row.key} />
-                            <input
-                              type={row.revealable ? "password" : "text"}
-                              name="value"
-                              value={row.editValue}
-                              autocomplete="off"
-                              spellcheck={false}
-                              placeholder={
-                                row.revealable
-                                  ? "unverändert lassen"
-                                  : "leer = nicht gesetzt"
-                              }
-                              class="input input-xs input-bordered font-mono w-72"
-                              aria-label={`Wert für ${row.key}`}
-                            />
+                            {row.multiline ? (
+                              <>
+                                <textarea
+                                  name="value"
+                                  rows={14}
+                                  spellcheck={false}
+                                  placeholder="leer = die Seite gibt es nicht"
+                                  class="textarea font-mono text-xs w-full max-w-3xl leading-relaxed"
+                                  aria-label={`Inhalt von ${row.key}`}
+                                >
+                                  {row.editValue}
+                                </textarea>
+                                <div class="text-xs text-base-content/60 max-w-3xl">
+                                  Markdown: <code># Überschrift</code>,{" "}
+                                  <code>## Unterüberschrift</code>,{" "}
+                                  <code>- Aufzählung</code>,{" "}
+                                  <code>1. nummeriert</code>,{" "}
+                                  <code>**fett**</code>, <code>*kursiv*</code>,{" "}
+                                  <code>[Text](https://…)</code>,{" "}
+                                  <code>---</code> für eine Trennlinie. Eine
+                                  Leerzeile trennt Absätze; einzelne Umbrüche
+                                  bleiben erhalten, damit eine Anschrift eine
+                                  Anschrift bleibt. HTML wird als Text
+                                  dargestellt, nicht ausgeführt.
+                                </div>
+                              </>
+                            ) : (
+                              <input
+                                type={row.revealable ? "password" : "text"}
+                                name="value"
+                                value={row.editValue}
+                                autocomplete="off"
+                                spellcheck={false}
+                                placeholder={
+                                  row.revealable
+                                    ? "unverändert lassen"
+                                    : "leer = nicht gesetzt"
+                                }
+                                class="input input-xs font-mono w-72"
+                                aria-label={`Wert für ${row.key}`}
+                              />
+                            )}
                             {/* A note, not a reason: it explains why the setting
                                 stands where it stands and stays beside the value
                                 it explains. Prefilled, so saving does not wipe
@@ -383,7 +417,7 @@ export default function ConfigPage(props: {
                               value={row.note}
                               placeholder="Notiz – warum steht das so?"
                               autocomplete="off"
-                              class="input input-xs input-bordered w-64"
+                              class="input input-xs w-64"
                               aria-label={`Notiz zu ${row.key}`}
                             />
                             <button type="submit" class="btn btn-xs btn-primary">
@@ -407,9 +441,7 @@ export default function ConfigPage(props: {
                         {row.updatedBy && row.updatedAt && (
                           <div class="text-xs text-base-content/50 mt-2">
                             Zuletzt geändert von {row.updatedBy} am{" "}
-                            {new Date(row.updatedAt).toLocaleString("de-DE", {
-                              timeZone: "Europe/Berlin",
-                            })}
+                            <LocalTime at={row.updatedAt} />
                           </div>
                         )}
                         {row.warnings.map((warning) => (
@@ -439,12 +471,11 @@ export default function ConfigPage(props: {
                   );
                 })}
               </tbody>
-            </table>
-          </div>
+            </TableFrame>
 
           <p class="text-sm text-base-content/60 mt-3 max-w-3xl">
             „Datenbank" heisst, dass der Wert hier eingestellt wurde;
-            „Umgebung", dass er von aussen kommt; „Vorgabe", dass die Anwendung
+            „Umgebung", dass er von aussen kommt; „Default", dass die Anwendung
             ihren eingebauten Wert benutzt. Geheimnisse und
             Verbindungszeichenfolgen werden nie vollständig gerendert; was ein
             Administrator aufdeckt, steht nur in dieser einen Antwort und wird

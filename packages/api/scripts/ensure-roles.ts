@@ -101,6 +101,15 @@ const SPECS: RoleSpec[] = [
       // gets UPDATE and DELETE as well. The record of a change still lands in
       // audit_log, which this role can only append to.
       { privileges: "SELECT, INSERT, UPDATE, DELETE", on: "settings" },
+      // Written on every sign-in and whenever somebody saves a preference, so
+      // this is the one table an ordinary user causes a write to. UPDATE is
+      // needed for the upsert, DELETE so an account can be removed when a person
+      // leaves.
+      { privileges: "SELECT, INSERT, UPDATE, DELETE", on: "users" },
+      // Maintained by administrators only. The privilege sits on the role
+      // because that is the role every human-triggered write goes through; who
+      // may reach the page is decided in lib/roles.ts, not here.
+      { privileges: "SELECT, INSERT, UPDATE, DELETE", on: "data_groups" },
     ],
     // Deliberately empty: a table added by a later migration grants this role
     // nothing until someone adds a line above. A default privilege here would

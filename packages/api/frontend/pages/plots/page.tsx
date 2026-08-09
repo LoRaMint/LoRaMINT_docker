@@ -1,4 +1,6 @@
 import Layout from "../../components/layout/Layout";
+import PageHeading from "../../components/PageHeading";
+import Field, { FieldGroup } from "../../components/Field";
 
 /**
  * Interactive plot page. The markup is server-rendered (static shell); all
@@ -8,64 +10,69 @@ import Layout from "../../components/layout/Layout";
  */
 export default function PlotsPage() {
   const controlClass =
-    "select select-bordered w-full";
+    "select w-full";
   return (
     <Layout>
-      <h2 class="text-xl font-bold border-b border-base-300 pb-2 mb-4 mt-8">
-        Plots
-      </h2>
-      <p class="mb-6 max-w-2xl text-base-content/80">
-        Messreihen interaktiv darstellen: Gerät, Messgrößen, Sensoren und
-        Zeitraum wählen, dann die Datenpunkte als verbundene Linien plotten.
-      </p>
+      <PageHeading
+        title="Plots"
+        intro={
+          <>
+            Messreihen interaktiv darstellen: Gerät, Messgrößen, Sensoren und
+            Zeitraum wählen, dann die Datenpunkte als verbundene Linien plotten.
+          </>
+        }
+      />
 
       {/* Control panel */}
       <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3 rounded-box border border-base-300 p-4 mb-6">
-        <label class="form-control">
-          <span class="label-text mb-1">Gerät (device_eui)</span>
-          <select id="device" class={controlClass}></select>
-        </label>
+        <Field label={<>Gerät (device_eui)</>}>
+<select id="device" class={controlClass}></select>
+</Field>
 
-        <label class="form-control">
-          <span class="label-text mb-1">Location</span>
-          <select id="location" class={controlClass}>
+        <Field label={<>Location</>}>
+<select id="location" class={controlClass}>
             <option value="">– alle –</option>
           </select>
-        </label>
+</Field>
 
-        <label class="form-control">
-          <span class="label-text mb-1">Layout</span>
-          <select id="layout" class={controlClass}>
+        <Field label={<>Layout</>}>
+<select id="layout" class={controlClass}>
             <option value="overlay">Überlagert (mehrere Y-Achsen)</option>
             <option value="stacked">Gestapelt (Einzeldiagramme)</option>
           </select>
-        </label>
+</Field>
 
-        <div class="form-control">
-          <span class="label-text mb-1">Messgrößen</span>
-          <div
+        {/* Empty option = the effective zone, which only the browser knows.
+            The island fills the label in and preselects it. A plot is the one
+            thing here that leaves the site - downloaded, pasted into a report -
+            so the zone is switchable and always named on the axis. */}
+        <Field label={<>Zeitzone</>}>
+<select id="timezone" class={controlClass}>
+            <option value="">Eigene Zeitzone</option>
+          </select>
+</Field>
+
+        <FieldGroup label="Messgrößen">
+<div
             id="measurands"
             class="rounded-box border border-base-300 p-2 h-32 overflow-auto flex flex-col gap-1"
           ></div>
-        </div>
+        </FieldGroup>
 
-        <div class="form-control">
-          <span class="label-text mb-1">Sensoren (leer = alle)</span>
-          <div
+        <FieldGroup label="Sensoren (leer = alle)">
+<div
             id="sensors"
             class="rounded-box border border-base-300 p-2 h-32 overflow-auto flex flex-col gap-1"
           ></div>
-        </div>
+        </FieldGroup>
 
         <div class="grid gap-4 content-start">
-          <label class="form-control">
-            <span class="label-text mb-1">Von</span>
-            <input id="from" type="datetime-local" class="input input-bordered w-full" />
-          </label>
-          <label class="form-control">
-            <span class="label-text mb-1">Bis</span>
-            <input id="to" type="datetime-local" class="input input-bordered w-full" />
-          </label>
+          <Field label={<>Von</>}>
+<input id="from" type="datetime-local" class="input w-full" />
+</Field>
+          <Field label={<>Bis</>}>
+<input id="to" type="datetime-local" class="input w-full" />
+</Field>
         </div>
 
         <div class="flex items-end gap-3 lg:col-span-3">
@@ -80,25 +87,23 @@ export default function PlotsPage() {
       {/* Export controls */}
       <div class="mt-4">
         <div class="flex flex-wrap items-end gap-4">
-          <label class="form-control flex flex-col items-start">
-            <span class="label-text mb-1">Format</span>
-            <select id="export-format" class="select select-bordered w-40">
+          <Field label={<>Format</>} class="flex flex-col items-start">
+<select id="export-format" class="select w-40">
               <option value="png">PNG (Pixel)</option>
               <option value="svg">SVG (Vektor)</option>
             </select>
-          </label>
-          <label class="form-control flex flex-col items-start">
-            <span class="label-text mb-1">Auflösungsfaktor (1–5)</span>
-            <input
+</Field>
+          <Field label={<>Auflösungsfaktor (1–5)</>} class="flex flex-col items-start">
+<input
               id="export-scale"
               type="number"
               min="1"
               max="5"
               step="1"
               value="4"
-              class="input input-bordered w-40"
+              class="input w-40"
             />
-          </label>
+</Field>
           <button id="download" class="btn btn-outline">Herunterladen</button>
         </div>
         <p class="text-sm text-base-content/60 mt-2">

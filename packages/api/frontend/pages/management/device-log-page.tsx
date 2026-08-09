@@ -1,4 +1,6 @@
 import Layout from "../../components/layout/Layout";
+import TableFrame, { EmptyRow } from "../../components/TableFrame";
+import LocalTime from "../../components/LocalTime";
 import PageHeading from "../../components/PageHeading";
 import { pageLink, pageWindow } from "../../../lib/manage-view";
 import type { DeviceLogEntry } from "../../../services/device-log";
@@ -34,9 +36,6 @@ const OUTCOMES: Record<string, { label: string; badge: string; title: string }> 
       "etwas zurückgeblieben.",
   },
 };
-
-const formatDateTime = (date: Date) =>
-  new Date(date).toLocaleString("de-DE", { timeZone: "Europe/Berlin" });
 
 /** The one line of detail worth showing inline for each kind of entry. */
 const detailOf = (entry: DeviceLogEntry): string => {
@@ -76,8 +75,7 @@ export default function DeviceLogPage(props: {
         }
       />
 
-      <div class="overflow-x-auto rounded-box border border-base-300">
-        <table class="table table-sm table-zebra">
+      <TableFrame>
           <thead>
             <tr>
               <th>Zeitpunkt</th>
@@ -90,18 +88,16 @@ export default function DeviceLogPage(props: {
           </thead>
           <tbody>
             {props.entries.length === 0 && (
-              <tr>
-                <td colspan={6} class="text-center text-base-content/60 py-6">
-                  Hier ist noch nichts passiert.
-                </td>
-              </tr>
+              <EmptyRow columns={6}>Hier ist noch nichts passiert.</EmptyRow>
             )}
             {props.entries.map((entry) => {
               const detail = detailOf(entry);
               const outcome = OUTCOMES[entry.outcome];
               return (
                 <tr>
-                  <td class="whitespace-nowrap">{formatDateTime(entry.occurred_at)}</td>
+                  <td class="whitespace-nowrap">
+                    <LocalTime at={entry.occurred_at} />
+                  </td>
                   <td>{entry.display_name ?? entry.username}</td>
                   <td>{ACTIONS[entry.action] ?? entry.action}</td>
                   <td>
@@ -132,8 +128,7 @@ export default function DeviceLogPage(props: {
               );
             })}
           </tbody>
-        </table>
-      </div>
+        </TableFrame>
 
       {totalPages > 1 && (
         <div class="join mt-4">

@@ -1,4 +1,5 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
+import { isValidTimeZone } from "./time-zone";
 
 /**
  * Stateless session cookies: the signed payload *is* the session, there is no
@@ -39,6 +40,22 @@ export type SessionUser = {
    * can already sign in as anybody.
    */
   setup?: boolean;
+  /**
+   * The user's own preferences, copied out of the `users` table at sign-in so no
+   * page has to query for them.
+   *
+   * They ride along here rather than being looked up per request because they
+   * are needed on *every* rendered page and are worth no round trip. The copy
+   * going stale is harmless in a way a stale group would not be: the only writer
+   * is the user themselves, on their own profile page, and that page re-issues
+   * the cookie as it saves. Nobody else can change these, so there is nothing to
+   * be out of date with.
+   *
+   * Absent means "never chose one" - for the timezone that is an instruction
+   * (use the browser's), not a missing value.
+   */
+  timezone?: string;
+  darkMode?: boolean;
 };
 
 type SessionPayload = SessionUser & {
@@ -72,6 +89,10 @@ export const createSession = (
     displayName: user.displayName,
     groups: user.groups,
     ...(user.setup ? { setup: true as const } : {}),
+    // Only written when chosen, so the payload of somebody who never touched
+    // their profile stays exactly as small as it was before this existed.
+    ...(user.timezone ? { timezone: user.timezone } : {}),
+    ...(typeof user.darkMode === "boolean" ? { darkMode: user.darkMode } : {}),
     exp: Math.floor(Date.now() / 1000) + ttlHours * 3600,
   };
   const body = encode(Buffer.from(JSON.stringify(payload), "utf8"));
@@ -125,5 +146,17 @@ export const readSession = (
     // read strictly and a payload without it is an ordinary session. The
     // signature is what makes trusting it safe - see SessionUser.
     ...(payload.setup === true ? { setup: true as const } : {}),
+    // Checked here and not only when it was stored. The value reaches
+    // Intl.DateTimeFormat, which throws a RangeError on a name it does not know,
+    // and that would not produce a wrong time - it would produce a user for whom
+    // no page renders at all until somebody edits the row by hand. A cookie
+    // signed by an older version, or one carrying a zone the tz database has
+    // since dropped, must degrade to "use the browser's" instead.
+    ...(typeof payload.timezone === "string" && isValidTimeZone(payload.timezone)
+      ? { timezone: payload.timezone }
+      : {}),
+    ...(typeof payload.darkMode === "boolean"
+      ? { darkMode: payload.darkMode }
+      : {}),
   };
 };
