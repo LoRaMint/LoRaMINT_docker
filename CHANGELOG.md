@@ -5,6 +5,52 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### ⚠ Breaking — read before upgrading
+
+**Die Rollenleiter entfällt.** `loramint-data`, `loramint-management` und
+`loramint-admin` enthalten einander nicht mehr, sondern benennen drei getrennte
+Zuständigkeiten. Wer bisher nur in der Verwaltungsgruppe war, **verliert das
+Bearbeiten von Messwerten** und braucht zusätzlich die Datengruppe. Admin
+enthält weiterhin alles.
+
+**Neue Messwerte sind ohne Gerätezuordnung nirgends öffentlich sichtbar.** Nach
+dem Update muss unter Verwaltung → Datengruppen eine Gruppe erklärt und auf der
+Geräteseite jedem Gerät zugewiesen werden. Der vorhandene Bestand wird von der
+Migration freigegeben, damit die öffentlichen Seiten nicht ausfallen.
+
+**Die SQL-Konsole steht jedem Angemeldeten offen**, zeigt aber nur noch die
+eigenen und die öffentlichen Zeilen. Schreibend bleibt sie Administratoren
+vorbehalten.
+
+### Added
+- **Messwerte gehören Gruppen.** Die Gruppe hängt am **Gerät**: beim Eintreffen
+  bekommt der Messwert die Gruppe seines Geräts eingestempelt und behält sie.
+  Ein Gerät lässt sich später umhängen, ohne dass historische Daten den Besitzer
+  wechseln — die Eigenschaft, die den Gerätetausch gefahrlos macht.
+
+  Zwei Angaben je Messwert: die Gruppe entscheidet, wer ändern darf, die
+  Freigabe, ob jeder lesen darf. Die Kombination ist der Normalfall — eine
+  Klasse veröffentlicht ihre Wetterdaten, korrigieren darf sie nur die Klasse.
+
+  Durchgesetzt wird das von **Postgres**, nicht vom Anwendungscode. Das ist keine
+  Vorliebe: die SQL-Konsole lässt jeden Angemeldeten seine Abfrage selbst
+  schreiben, und kein Filter im Code überlebt das. Die Regel fällt geschlossen
+  aus — ohne gesetzten Geltungsbereich bleiben genau die öffentlichen Zeilen,
+  auch nach dem Trick `COMMIT; SELECT …`.
+
+  Die Zuordnung setzt ein Trigger beim Einfügen und überschreibt dabei, was der
+  Einfügende mitgibt. So gilt für jeden Schreibweg dasselbe — Webhook,
+  Verwaltungsseiten, Konsole — und die Ingest-Rolle behält ihr `INSERT` ohne
+  jedes Leserecht.
+
+- **Datengruppen wirken.** Die Mitgliedschaft in einer Datengruppe ist eine
+  eigenständige Quelle von Rechten: sie trägt Lesen und Ändern der Messwerte
+  dieser Gruppe, ganz ohne Rolle. Umhängen zwischen Gruppen bleibt der Datenrolle
+  vorbehalten, und zwar baulich — die gewöhnliche Schreibrolle bekommt die beiden
+  Spalten spaltenweise entzogen, eine eigene Rolle `loramint_regroup` hat sie.
+
 ## [1.7.0] - 2026-08-09
 
 ### ⚠ Breaking — read before upgrading

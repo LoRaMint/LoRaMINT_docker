@@ -180,30 +180,79 @@ findet. Nach jeder Theme-Ergänzung muss `bun run build` laufen, nicht nur
 
 ---
 
-## 6. Der zweite Schritt (nur Kontext, nicht Teil dieser Umsetzung)
+## 6. Messwerte gehören Gruppen
 
-Messwerte werden **an Gruppen gebunden, nie an Personen**. Also:
+Umgesetzt. Der Zuschnitt weicht von dem ab, was hier zuerst stand — die
+Entscheidungen sind unten begründet.
+
+### Die Gruppe hängt am Gerät
 
 ```
-measurements.group_name  VARCHAR(100) NULL  REFERENCES data_groups(name)
+device_groups   device_eui   PK        n Geräte : 1 Gruppe
+                group_name   → data_groups
+                public_read  BOOLEAN
 ```
 
-Zwei Fragen entscheiden dann über die Tragfähigkeit, und beide sind hier nur
-festgehalten, nicht beantwortet:
+Ein `BEFORE INSERT`-Trigger stempelt beim Eintreffen `group_name` und
+`public_read` vom Gerät auf den Messwert und **überschreibt**, was der
+Einfügende mitgibt. Ein Gerät lässt sich später umhängen, ohne dass historische
+Daten den Besitzer wechseln — das ist die Eigenschaft, die den Gerätetausch
+gefahrlos macht.
 
-**Wo der Filter sitzt.** Es gibt rund 16 Leseabfragen auf `measurements`; eine
-vergessene genügt, damit fremde Daten sichtbar werden. Entweder zentral in
-`filterClause`, sodass keine Abfrage ohne ihn gebaut werden kann — oder als **Row
-Level Security** in Postgres, wo keine Abfrage sie umgehen *kann*. Letzteres
-entspricht der Linie dieses Projekts: die Zusage wäre eine Eigenschaft der
-Datenbank statt ein Versprechen des Codes. Der Preis ist `SET LOCAL` je
-Transaktion, was mit den gepoolten Verbindungen aus `services/connections.ts`
-sorgfältig gemacht werden muss.
+Der Trigger ist `SECURITY DEFINER` mit festgenageltem `search_path`. Damit
+behält die Ingest-Rolle ihre Form: `INSERT` auf zwei Tabellen und **kein**
+`SELECT`. Die Gruppe im Anwendungscode nachzuschlagen hätte genau das aufgegeben.
 
-**Was mit den vorhandenen Messwerten geschieht.** Alle bestehenden Zeilen haben
-keine Gruppe. Sind sie für jeden mit Datenrolle sichtbar, oder für niemanden, bis
-sie jemand zuordnet? Das ist die eigentliche Migrationsfrage, und sie will vor
-dem Bauen entschieden sein.
+### Zwei Spalten, nicht eine
+
+`group_name` sagt, wer ändern darf; `public_read`, ob jeder lesen darf. Die
+Kombination ist der Normalfall — die Klasse veröffentlicht ihre Wetterdaten,
+korrigieren darf sie nur die Klasse. `public_read` gibt nie ein Schreibrecht.
+
+### Durchgesetzt von der Datenbank
+
+Row Level Security, nicht `filterClause`. Das war offen und ist entschieden: die
+SQL-Konsole lässt jeden Angemeldeten seine Abfrage selbst schreiben, und **kein
+Filter im Anwendungscode überlebt das.** RLS ist der einzige Mechanismus, der
+auch freies SQL bindet.
+
+Zwei Sitzungsvariablen, gesetzt mit `set_config(…, true)` in einer Transaktion
+(`readingAs`/`writingAs` in `services/connections.ts`). **Nicht gesetzt heisst
+nur öffentlich** — für anonyme Besucher, für jede Abfrage ausserhalb einer
+Transaktion, und für den Trick `COMMIT; SELECT …`, nach dem die Variable weg ist.
+Die Regel fällt geschlossen aus; beide Richtungen sind nachgemessen.
+
+### Das Rechtemodell ohne Leiter
+
+| Zuständigkeit | wer |
+| --- | --- |
+| Messwerte aller Gruppen, inkl. Umhängen und Freigabe | `loramint-data` |
+| Geräte, inkl. Gruppenzuordnung und Freigabe | `loramint-management` |
+| Messwerte der eigenen Gruppe — Werte, nicht die Gruppe | Mitgliedschaft, ohne Rolle |
+| alles Übrige | `loramint-admin` |
+
+`data` und `management` enthalten einander **nicht** mehr. Wer beides braucht,
+ist in beiden Gruppen.
+
+`loramint_manage` bekommt `UPDATE` spaltenweise, ohne `group_name` und
+`public_read`; die neue Rolle `loramint_regroup` hat genau diese zwei. Ein
+Gruppenmitglied kann fremde Messwerte damit baulich nicht an sich ziehen.
+
+### Der Altbestand
+
+Die Migration setzt alle vorhandenen Zeilen auf `public_read = true`. Ohne das
+wären `/plots`, `/export`, `/status` und die offene API nach dem Update leer, da
+sie ohne Anmeldung erreichbar sind.
+
+### Offen
+
+- **Das Änderungsprotokoll hat keine eigene Gruppe.** `audit_log` enthält die
+  vollen Zeileninhalte vor und nach jeder Änderung und ist deshalb auf die
+  Datenrolle beschränkt. Damit sieht ein Gruppenmitglied die Geschichte seiner
+  eigenen Messwerte nicht. Die saubere Lösung ist eine Gruppenspalte dort.
+- **Altbestand eines Geräts nachziehen.** Beim Zuordnen wird bewusst nichts
+  rückwirkend geändert. Ob es dafür eine ausdrückliche Aktion geben soll, ist
+  nicht entschieden.
 
 ---
 

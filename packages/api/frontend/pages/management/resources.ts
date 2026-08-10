@@ -42,6 +42,11 @@ const measurements: ResourceSpec = {
     { key: "datatype", label: "Datentyp", secondary: true },
     { key: "time_method", label: "Zeitverfahren", secondary: true },
     { key: "created_at", label: "Eingang", kind: "datetime", secondary: true },
+    // Not editable here. Both are written only by the trigger on insert and by
+    // the regroup role, so offering a field would promise something the database
+    // refuses - see migration 007 and services/connections.ts.
+    { key: "group_name", label: "Gruppe", secondary: true },
+    { key: "public_read", label: "Öffentlich", secondary: true },
     { key: "id", label: "ID", secondary: true },
   ],
   defaultColumns: ["recorded_at", "measurand", "value", "unit", "sensor", "location"],
@@ -80,6 +85,11 @@ const logEntries: ResourceSpec = {
     { key: "created_at", label: "Zeitpunkt", kind: "datetime" },
     { key: "device_eui", label: "Gerät" },
     { key: "message", label: "Meldung", editable: true },
+    // Not editable here. Both are written only by the trigger on insert and by
+    // the regroup role, so offering a field would promise something the database
+    // refuses - see migration 007 and services/connections.ts.
+    { key: "group_name", label: "Gruppe", secondary: true },
+    { key: "public_read", label: "Öffentlich", secondary: true },
     { key: "id", label: "ID", secondary: true },
   ],
   defaultColumns: ["created_at", "device_eui", "message"],

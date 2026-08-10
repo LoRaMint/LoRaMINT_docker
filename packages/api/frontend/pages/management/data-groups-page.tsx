@@ -75,9 +75,32 @@ export default function DataGroupsPage(props: {
                   <td>
                     <code>{group.name}</code>
                   </td>
-                  <td>{group.label ?? <span class="text-base-content/40">–</span>}</td>
-                  <td class="max-w-md">
-                    {group.note ?? <span class="text-base-content/40">–</span>}
+                  {/* Editable in place: a label typed once is the thing most
+                      likely to want correcting, and taking the group away and
+                      re-declaring it would be a strange way to fix a typo. */}
+                  <td colspan={2}>
+                    <form
+                      method="post"
+                      action="/management/groups/describe"
+                      class="flex flex-wrap items-center gap-2"
+                    >
+                      <input type="hidden" name="name" value={group.name} />
+                      <input
+                        name="label"
+                        value={group.label ?? ""}
+                        placeholder="Bezeichnung"
+                        class="input input-sm w-40"
+                      />
+                      <input
+                        name="note"
+                        value={group.note ?? ""}
+                        placeholder="Notiz"
+                        class="input input-sm w-64"
+                      />
+                      <button type="submit" class="btn btn-ghost btn-xs">
+                        Übernehmen
+                      </button>
+                    </form>
                   </td>
                   <td class="whitespace-nowrap text-base-content/60">
                     <LocalTime at={group.createdAt} />
