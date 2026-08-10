@@ -2,6 +2,8 @@ import type { Hono, MiddlewareHandler } from "hono";
 import { ssr } from "../../../config/ssr";
 import { auth, manage, ttn } from "../../../config";
 import { deviceLog, devices, measurements } from "../../../services";
+import { assignDevice, assignmentFor } from "../../../services/device-groups";
+import { listDataGroups } from "../../../services/data-groups";
 import { currentScope, currentUser, hasRole, parsePage, parseReason } from "../../../lib";
 import {
   deviceProblems,
@@ -340,12 +342,24 @@ export const registerDeviceRoutes = (
     const stats = device.data.devEui
       ? activity.get(device.data.devEui.toUpperCase())
       : undefined;
+    // The group this device's future readings will carry, and the declared
+    // groups to pick from. Loaded here so both places that render the page get
+    // them without repeating the two queries.
+    const [assignment, groups] = await Promise.all([
+      device.data.devEui ? assignmentFor(device.data.devEui) : null,
+      listDataGroups(),
+    ]);
+
     return {
       device: device.data,
       activity: {
         count: stats?.count ?? 0,
         lastSeen: stats?.lastSeen ?? null,
       },
+      assignment: assignment
+        ? { groupName: assignment.groupName, publicRead: assignment.publicRead }
+        : null,
+      groups: groups.map((group) => ({ name: group.name, label: group.label })),
     };
   };
 
@@ -362,6 +376,8 @@ export const registerDeviceRoutes = (
         <DevicePage
           device={loaded.device}
           activity={loaded.activity}
+          assignment={loaded.assignment}
+          groups={loaded.groups}
           writable={manage.writable}
           // The button is only offered to administrators; the route behind it
           // checks again, which is what makes this line merely cosmetic.
@@ -379,6 +395,43 @@ export const registerDeviceRoutes = (
    * goes into the log rather than onto the page: the page shows fixed sentences
    * only, and the log is where the detail belongs.
    */
+  /**
+   * Which group this device's readings belong to, from now on.
+   *
+   * Deliberately does not touch measurements that already exist. Reassigning a
+   * device is a normal thing to do at the end of a term, and if it rewrote the
+   * history the readings of the previous class would silently change hands.
+   */
+  pages.post(
+    `${PATH}/:deviceId/group`,
+    guards.requireRole,
+    guards.sameOrigin,
+    async (c) => {
+      const deviceId = c.req.param("deviceId");
+      const back = (msg: string) =>
+        c.redirect(`${PATH}/${encodeURIComponent(deviceId)}?msg=${msg}`, 303);
+
+      if (!ttn.enabled) return c.redirect(PATH, 303);
+      if (!manage.writable) return back("nowrite");
+
+      const detail = await devices.getDevice(deviceId);
+      if (!detail.ok || !detail.data.devEui) return back("failed");
+
+      const form = await c.req.parseBody();
+      const groupName =
+        typeof form.groupName === "string" && form.groupName.trim().length > 0
+          ? form.groupName.trim()
+          : null;
+
+      const result = await assignDevice(
+        detail.data.devEui,
+        { groupName, publicRead: form.publicRead === "on" },
+        currentUser()!.username,
+      );
+      return back(result.ok ? "assigned" : "notagroup");
+    },
+  );
+
   pages.post(
     `${PATH}/:deviceId/rename`,
     guards.requireRole,
@@ -439,6 +492,8 @@ export const registerDeviceRoutes = (
         <DevicePage
           device={loaded.device}
           activity={loaded.activity}
+          assignment={loaded.assignment}
+          groups={loaded.groups}
           writable={manage.writable}
           maySeeKey
           appKey={key.ok ? key.data : null}
