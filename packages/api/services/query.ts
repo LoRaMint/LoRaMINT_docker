@@ -1,5 +1,7 @@
 import { SQL } from "bun";
 import { sqlConsole } from "../config";
+import { setScope } from "./connections";
+import { currentScope } from "../lib/request-context";
 import type { MutationResult } from "../types";
 import type { Role } from "../lib/roles";
 import { hasMultipleStatements, singleStatement } from "../lib/sql-statements";
@@ -130,6 +132,12 @@ const executeOn = async (
       // SET LOCAL: reverted when the transaction ends, so it cannot leak into
       // another request sharing the connection pool.
       await tx.unsafe(`SET LOCAL statement_timeout = ${sqlConsole.timeoutMs}`);
+      // The same transaction tells the row-level policies who is asking. Without
+      // it the console would answer every question about measurements with the
+      // public rows - and with it, a query written by hand is bound by exactly
+      // the same rule as a page. This is the only way to limit free-form SQL;
+      // no filter in application code survives a query the user wrote.
+      await setScope(tx as never, currentScope());
       return await tx.unsafe(text, values);
     })) as unknown as Record<string, unknown>[];
 
@@ -242,6 +250,12 @@ export const runConsoleSqlOn = async (
       unsafe: (q: string) => Promise<unknown>;
     }): Promise<Executed> => {
       await tx.unsafe(`SET LOCAL statement_timeout = ${sqlConsole.timeoutMs}`);
+      // The same transaction tells the row-level policies who is asking. Without
+      // it the console would answer every question about measurements with the
+      // public rows - and with it, a query written by hand is bound by exactly
+      // the same rule as a page. This is the only way to limit free-form SQL;
+      // no filter in application code survives a query the user wrote.
+      await setScope(tx as never, currentScope());
       const raw = (await tx.unsafe(limited.text)) as unknown as Record<
         string,
         unknown

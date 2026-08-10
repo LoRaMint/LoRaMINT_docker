@@ -26,8 +26,23 @@ import { createHmac } from "node:crypto";
 export const DB_ROLES = {
   /** Reads for the whole application, and the SQL page for everyone but admins. */
   readonly: "loramint_readonly",
-  /** Every change made by a person on the management pages. */
+  /**
+   * Every change made by a person on the management pages - values only.
+   *
+   * Deliberately without `group_name` and `public_read`; those are granted
+   * column by column to `regroup` below. Correcting a reading and moving it to
+   * another group are different operations, and only one of them can hand data
+   * to somebody who did not have it.
+   */
   manage: "loramint_manage",
+  /**
+   * Moving a measurement between groups, and releasing it for everyone.
+   *
+   * Its own role rather than two more columns on `manage`, so a member of one
+   * data group cannot pull somebody else's readings into their own group even if
+   * a route were ever to let them try. The database refuses it, not the form.
+   */
+  regroup: "loramint_regroup",
   /** The SQL page for administrators. */
   admin: "loramint_admin_sql",
   /** The webhook, and nothing else. */

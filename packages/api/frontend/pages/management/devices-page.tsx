@@ -30,6 +30,18 @@ export const DEVICE_MESSAGES: Record<
   { text: string; tone: "success" | "error" }
 > = {
   renamed: { text: "Gerät umbenannt.", tone: "success" },
+  assigned: {
+    text:
+      "Zuordnung gespeichert. Sie gilt für Messwerte, die ab jetzt eintreffen – " +
+      "bereits empfangene behalten ihre bisherige Gruppe.",
+    tone: "success",
+  },
+  notagroup: {
+    text:
+      "Die gewählte Gruppe ist nicht als Datengruppe erklärt. Erst unter " +
+      "Verwaltung → Datengruppen eintragen.",
+    tone: "error",
+  },
   renamefailed: {
     text:
       "The Things Network hat das Umbenennen abgelehnt. Der Name ist unverändert; " +

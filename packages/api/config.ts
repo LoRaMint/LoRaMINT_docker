@@ -209,6 +209,19 @@ export const ingest = {
   },
 };
 
+/**
+ * The connection that may move a measurement between groups, and nothing else.
+ *
+ * Separate from `manage` on purpose: that role is granted UPDATE column by
+ * column and does not hold `group_name` or `public_read`, so the ordinary
+ * correction path cannot reassign data. See services/connections.ts.
+ */
+export const regroup = {
+  get databaseUrl() {
+    return roleDsn(ownerDsn(), DB_ROLES.regroup);
+  },
+};
+
 //====================================
 // DEVICE MANAGEMENT (TTN)
 //====================================

@@ -1,139 +1,115 @@
 import { describe, expect, test } from "bun:test";
-import { hasRole, rolesOf, type RoleConfig } from "./roles";
+import { canReachData, dataScope, hasRole, rolesOf, type RoleConfig } from "./roles";
 import type { SessionUser } from "./session";
 
-const user = (groups: string[]): SessionUser => ({
-  username: "u",
-  displayName: "U",
+const CONFIG: RoleConfig = {
+  dataGroup: "loramint-data",
+  managementGroup: "loramint-management",
+  adminGroup: "loramint-admin",
+};
+
+const user = (...groups: string[]): SessionUser => ({
+  username: "mruf",
+  displayName: "Matthias Ruf",
   groups,
 });
 
-const configured: RoleConfig = {
-  dataGroup: "daten",
-  managementGroup: "verwaltung",
-  adminGroup: "admins",
-};
+describe("die Leiter ist weg", () => {
+  /**
+   * The change this file exists for. Before, `management` contained `data` and
+   * whoever managed devices also edited measurements. The three areas no longer
+   * contain one another.
+   */
+  test("management allein gibt kein Recht an Messwerten", () => {
+    const person = user("loramint-management");
+    expect(hasRole(person, "management", CONFIG)).toBe(true);
+    expect(hasRole(person, "data", CONFIG)).toBe(false);
+  });
 
-describe("the ladder", () => {
-  test("one group is enough - each level contains the ones below it", () => {
-    // The property that makes the model safe to hand out: nobody has to
-    // remember to also add the lower groups.
-    expect(rolesOf(user(["daten"]), configured)).toEqual(["data"]);
-    expect(rolesOf(user(["verwaltung"]), configured)).toEqual(["data", "management"]);
-    expect(rolesOf(user(["admins"]), configured)).toEqual([
+  test("data allein gibt kein Recht an Geräten", () => {
+    const person = user("loramint-data");
+    expect(hasRole(person, "data", CONFIG)).toBe(true);
+    expect(hasRole(person, "management", CONFIG)).toBe(false);
+  });
+
+  test("wer beides braucht, ist in beiden Gruppen", () => {
+    expect(rolesOf(user("loramint-data", "loramint-management"), CONFIG)).toEqual([
       "data",
       "management",
-      "admin",
     ]);
   });
 
-  test("an administrator reaches every level", () => {
+  /** The one exception, and it is deliberate: a locked-out server must be recoverable. */
+  test("admin enthält weiterhin alles", () => {
+    const person = user("loramint-admin");
     for (const role of ["data", "management", "admin"] as const) {
-      expect(hasRole(user(["admins"]), role, configured)).toBe(true);
+      expect(hasRole(person, role, CONFIG)).toBe(true);
     }
   });
 
-  test("a manager reaches management and below, but not admin", () => {
-    expect(hasRole(user(["verwaltung"]), "data", configured)).toBe(true);
-    expect(hasRole(user(["verwaltung"]), "management", configured)).toBe(true);
-    expect(hasRole(user(["verwaltung"]), "admin", configured)).toBe(false);
+  test("das Einrichtungskonto ebenfalls, es hat gar keine Gruppen", () => {
+    const setup: SessionUser = {
+      username: "setup",
+      displayName: "Setup",
+      groups: [],
+      setup: true,
+    };
+    expect(rolesOf(setup, CONFIG)).toEqual(["data", "management", "admin"]);
   });
 
-  test("the data level reaches nothing above it", () => {
-    expect(hasRole(user(["daten"]), "management", configured)).toBe(false);
-    expect(hasRole(user(["daten"]), "admin", configured)).toBe(false);
+  test("ohne Anmeldung nichts", () => {
+    expect(rolesOf(null, CONFIG)).toEqual([]);
+    expect(hasRole(null, "data", CONFIG)).toBe(false);
   });
 
-  test("holding several groups is harmless - the highest one wins", () => {
-    expect(rolesOf(user(["daten", "verwaltung", "admins"]), configured)).toEqual([
-      "data",
-      "management",
-      "admin",
-    ]);
-    expect(rolesOf(user(["daten", "verwaltung"]), configured)).toEqual([
-      "data",
-      "management",
-    ]);
-  });
-
-  test("an unrelated group grants nothing", () => {
-    expect(rolesOf(user(["schueler"]), configured)).toEqual([]);
-  });
-
-  test("group names are matched exactly", () => {
-    expect(hasRole(user(["Admins"]), "admin", configured)).toBe(false);
-    expect(hasRole(user(["admins-2"]), "admin", configured)).toBe(false);
-    expect(hasRole(user(["verwaltungs"]), "management", configured)).toBe(false);
+  /**
+   * A deployment that never configured the data group expects every signed-in
+   * user to be able to read. The other two must not behave that way, or an
+   * unconfigured server would hand out editing rights.
+   */
+  test("nicht eingerichtete Datengruppe lässt jeden lesen", () => {
+    const open = { ...CONFIG, dataGroup: null };
+    expect(hasRole(user(), "data", open)).toBe(true);
+    expect(hasRole(user(), "management", { ...CONFIG, managementGroup: null })).toBe(false);
+    expect(hasRole(user(), "admin", { ...CONFIG, adminGroup: null })).toBe(false);
   });
 });
 
-describe("with nothing configured", () => {
-  const open: RoleConfig = {
-    dataGroup: null,
-    managementGroup: null,
-    adminGroup: null,
-  };
+describe("welche Zeilen jemand sieht", () => {
+  const DECLARED = ["klasse-8b", "ag-wetter"];
 
-  test("every signed-in user keeps the read-only level", () => {
-    // Otherwise adding this feature would lock out a deployment that never set
-    // up groups, which is a change nobody asked for.
-    expect(rolesOf(user([]), open)).toEqual(["data"]);
+  test("die Datenrolle sieht alles", () => {
+    expect(dataScope(user("loramint-data"), CONFIG, DECLARED)).toBe("all");
+    expect(dataScope(user("loramint-admin"), CONFIG, DECLARED)).toBe("all");
   });
 
-  test("but nobody climbs higher by accident", () => {
-    expect(hasRole(user(["admins"]), "management", open)).toBe(false);
-    expect(hasRole(user(["admins"]), "admin", open)).toBe(false);
-  });
-});
-
-describe("with only some levels configured", () => {
-  test("an admin group alone still leaves reading open to everyone", () => {
-    const config: RoleConfig = {
-      dataGroup: null,
-      managementGroup: null,
-      adminGroup: "admins",
-    };
-    expect(rolesOf(user([]), config)).toEqual(["data"]);
-    // And the admin group still skips straight to the top, without a management
-    // group existing to pass through.
-    expect(rolesOf(user(["admins"]), config)).toEqual([
-      "data",
-      "management",
-      "admin",
-    ]);
+  /**
+   * The fourth source of rights: membership alone, without any role. This is
+   * what lets a class edit its own readings without being given the run of every
+   * other group's data.
+   */
+  test("Gruppenzugehörigkeit allein genügt für die eigenen Zeilen", () => {
+    expect(dataScope(user("klasse-8b"), CONFIG, DECLARED)).toEqual(["klasse-8b"]);
+    expect(canReachData(user("klasse-8b"), CONFIG, DECLARED)).toBe(true);
   });
 
-  test("a data group alone means nobody manages or administers", () => {
-    const config: RoleConfig = {
-      dataGroup: "daten",
-      managementGroup: null,
-      adminGroup: null,
-    };
-    expect(rolesOf(user(["daten"]), config)).toEqual(["data"]);
-    expect(rolesOf(user(["daten", "admins"]), config)).toEqual(["data"]);
+  test("eine nicht erklärte Verzeichnisgruppe zählt nicht", () => {
+    expect(dataScope(user("chor"), CONFIG, DECLARED)).toEqual([]);
+    expect(canReachData(user("chor"), CONFIG, DECLARED)).toBe(false);
   });
 
-  test("a management group without a data group still admits everyone to reading", () => {
-    const config: RoleConfig = {
-      dataGroup: null,
-      managementGroup: "verwaltung",
-      adminGroup: null,
-    };
-    expect(rolesOf(user([]), config)).toEqual(["data"]);
-    expect(rolesOf(user(["verwaltung"]), config)).toEqual(["data", "management"]);
+  /**
+   * An empty scope is an answer, not a failure. Falling back to "show
+   * everything" when somebody belongs to nothing is the mistake this asserts
+   * against.
+   */
+  test("wer in keiner Gruppe ist, sieht nichts über das Öffentliche hinaus", () => {
+    expect(dataScope(user("loramint-management"), CONFIG, DECLARED)).toEqual([]);
+    expect(canReachData(user("loramint-management"), CONFIG, DECLARED)).toBe(false);
   });
-});
 
-describe("anonymous visitors", () => {
-  test("reach no level, whatever is configured", () => {
-    for (const config of [
-      configured,
-      { dataGroup: null, managementGroup: null, adminGroup: null },
-    ] satisfies RoleConfig[]) {
-      expect(rolesOf(null, config)).toEqual([]);
-      for (const role of ["data", "management", "admin"] as const) {
-        expect(hasRole(null, role, config)).toBe(false);
-      }
-    }
+  test("Geräteverwalter mit eigener Datengruppe sieht genau diese", () => {
+    const person = user("loramint-management", "ag-wetter");
+    expect(dataScope(person, CONFIG, DECLARED)).toEqual(["ag-wetter"]);
   });
 });

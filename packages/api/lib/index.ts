@@ -9,6 +9,7 @@ export {
   currentUser,
   currentDarkMode,
   currentTimeZone,
+  currentScope,
 } from "./request-context";
 export {
   readThemeCookie,
@@ -29,7 +30,7 @@ export {
 export { loginThrottle, LoginThrottle, DEFAULT_LIMITS } from "./login-throttle";
 export type { ThrottleLimits } from "./login-throttle";
 export { clientAddress, UNKNOWN_ADDRESS } from "./client-address";
-export { hasRole, rolesOf } from "./roles";
+export { hasRole, rolesOf, dataScope, canReachData } from "./roles";
 export type { Role, RoleConfig } from "./roles";
 export {
   changedFields,

@@ -151,6 +151,7 @@ export const declareDataGroup = async (
     if (rows.length === 0) {
       return { ok: false, error: `„${name}“ ist bereits als Datengruppe eingetragen.` };
     }
+    forgetDeclaredNames();
     return { ok: true };
   } catch (err) {
     console.error("data-groups: could not declare", name, err);
@@ -188,6 +189,7 @@ export const describeDataGroup = async (
 export const withdrawDataGroup = async (name: string): Promise<GroupResult> => {
   try {
     await writing()`DELETE FROM data_groups WHERE name = ${name}`;
+    forgetDeclaredNames();
     return { ok: true };
   } catch (err) {
     console.error("data-groups: could not withdraw", name, err);
@@ -198,4 +200,41 @@ export const withdrawDataGroup = async (name: string): Promise<GroupResult> => {
         "Daten zugeordnet.",
     };
   }
+};
+
+//====================================
+// THE DECLARED NAMES, CHEAPLY
+//====================================
+
+/**
+ * The declared group names, cached for a few seconds.
+ *
+ * Every request from a signed-in user needs them - to work out which rows that
+ * person may see and whether the measurement pages are worth offering - and a
+ * query per request for a table with a handful of rows would be waste. The
+ * window is the same as the settings cache uses, short enough that declaring a
+ * group is noticed before anybody has finished switching windows.
+ */
+const MAX_AGE_MS = 5000;
+let cached: { names: string[]; at: number } | null = null;
+
+export const declaredNames = async (): Promise<string[]> => {
+  if (cached && Date.now() - cached.at < MAX_AGE_MS) return cached.names;
+  try {
+    const rows = await reading()`SELECT name FROM data_groups`;
+    cached = { names: rows.map((row: any) => row.name as string), at: Date.now() };
+  } catch (err) {
+    // A hiccup on the way to the database must not widen anybody's access. The
+    // last known list is better than an empty one; an empty one is better than
+    // guessing.
+    console.error("data-groups: could not refresh the declared names:", err);
+    if (!cached) return [];
+    cached = { ...cached, at: Date.now() };
+  }
+  return cached.names;
+};
+
+/** Drops the cache, so a change made through the pages is visible at once. */
+export const forgetDeclaredNames = (): void => {
+  cached = null;
 };

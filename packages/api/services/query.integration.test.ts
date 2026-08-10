@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { connect } from "node:net";
 import { maxRows, runConsoleSqlOn, runReadOnlyOn, timeoutMs } from "./query";
 import { DB_ROLES, roleDsn } from "../lib/db-roles";
+import { requestContext } from "../lib/request-context";
 
 /**
  * Integration tests for the read-only query service against a real Postgres -
@@ -20,6 +21,14 @@ import { DB_ROLES, roleDsn } from "../lib/db-roles";
 
 // The page runs on the restricted role, so that is what has to be tested: the
 // same queries against the application's own superuser connection do escape.
+/**
+ * The console reads who is asking out of the request context, so a test calling
+ * it directly has to say. `"all"` stands for the data role: under test here is
+ * what the console does with a statement, not who is allowed to open the page.
+ */
+const asDataRole = <T>(run: () => Promise<T>): Promise<T> =>
+  requestContext.run({ user: null, scope: "all" }, run);
+
 const DSN =
   roleDsn(Bun.env.DATABASE_URL ?? "", DB_ROLES.readonly);
 
@@ -218,7 +227,8 @@ describe.skipIf(!reachable)("transaction and privilege escapes", () => {
 });
 
 describe.skipIf(!reachable)("SQL console, writable", () => {
-  const run = (text: string) => runConsoleSqlOn(ADMIN_DSN, text, { writable: true });
+  const run = (text: string) =>
+    asDataRole(() => runConsoleSqlOn(ADMIN_DSN, text, { writable: true }));
 
   test("returns a table for a query", async () => {
     const result = await run("SELECT 1 AS a");
@@ -252,10 +262,12 @@ describe.skipIf(!reachable)("SQL console, writable", () => {
     expect(inserted.data.affected).toBe(1);
 
     // Confirmed straight away: the confirmation step has its own tests below.
-    const deleted = await runConsoleSqlOn(
-      ADMIN_DSN,
-      `DELETE FROM log_entries WHERE message = '${marker}'`,
-      { writable: true, confirmed: true },
+    const deleted = await asDataRole(() =>
+      runConsoleSqlOn(
+        ADMIN_DSN,
+        `DELETE FROM log_entries WHERE message = '${marker}'`,
+        { writable: true, confirmed: true },
+      ),
     );
     expect(deleted.ok).toBe(true);
     if (!deleted.ok || deleted.data.kind !== "command") {
@@ -344,7 +356,9 @@ describe.skipIf(!reachable)("SQL console, writable", () => {
  */
 describe.skipIf(!reachable)("SQL console: confirmation before deleting", () => {
   const run = (text: string, confirmed = false) =>
-    runConsoleSqlOn(ADMIN_DSN, text, { writable: true, confirmed });
+    asDataRole(() =>
+      runConsoleSqlOn(ADMIN_DSN, text, { writable: true, confirmed }),
+    );
 
   /** Two throwaway log rows to delete, and the marker that finds them. */
   const seed = async () => {
@@ -440,7 +454,8 @@ describe.skipIf(!reachable)("SQL console: confirmation before deleting", () => {
  * database refuses the writes, not that the page declines to send them.
  */
 describe.skipIf(!reachable)("SQL console, read-only", () => {
-  const run = (text: string) => runConsoleSqlOn(DSN, text, { writable: false });
+  const run = (text: string) =>
+    asDataRole(() => runConsoleSqlOn(DSN, text, { writable: false }));
 
   test("runs a query and returns rows", async () => {
     const result = await run("SELECT 1 AS a");

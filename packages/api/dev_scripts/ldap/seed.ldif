@@ -137,6 +137,7 @@ objectClass: groupOfNames
 cn: klasse-8b
 description: A data group - scope, not privilege
 member: uid=mruf,ou=people,dc=loramint,dc=test
+member: uid=k8b,ou=people,dc=loramint,dc=test
 
 dn: cn=ag-wetter,ou=groups,dc=loramint,dc=test
 objectClass: groupOfNames
@@ -144,3 +145,17 @@ cn: ag-wetter
 description: A second data group, to test the intersection
 member: uid=mruf,ou=people,dc=loramint,dc=test
 member: uid=aschmidt,ou=people,dc=loramint,dc=test
+
+# A member of a data group and of nothing else - no role group at all.
+#
+# Every other fixture user is in `loramint`, which is LDAP_DATA_GROUP, so they
+# all hold the data role and none of them can show what group membership does on
+# its own. This one can: it reaches the measurement pages and the SQL console,
+# sees its own group's readings and the public ones, and nothing else.
+dn: uid=k8b,ou=people,dc=loramint,dc=test
+objectClass: inetOrgPerson
+uid: k8b
+cn: Klasse 8b Konto
+sn: Achtb
+displayName: Klasse 8b
+userPassword: klasse8b

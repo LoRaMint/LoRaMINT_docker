@@ -26,6 +26,7 @@ import {
 import {
   clientAddress,
   createSession,
+  canReachData,
   currentUser,
   hasRole,
   loginThrottle,
@@ -311,6 +312,23 @@ if (auth.enabled || setupAccount.enabled) {
    * rather than telling them what they are missing. Anonymous visitors still get
    * the login, so a bookmark keeps working after the session expires.
    */
+  /**
+   * The measurement pages, for whoever may see any measurements at all.
+   *
+   * Not `requireRole("data")`: since the ladder went, membership of a data group
+   * is a source of rights on its own, and somebody in `klasse-8b` with no role
+   * at all may correct their own class's readings. What they then see is decided
+   * by the row-level policies, not here - this only keeps the page from being a
+   * dead end for people who would find nothing on it.
+   */
+  const requireDataAccess = createMiddleware(async (c, next) => {
+    const user = currentUser();
+    if (!user) return c.redirect("/login", 303);
+    const declared = (await listDataGroups()).map((group) => group.name);
+    if (!canReachData(user, auth, declared)) return c.notFound();
+    await next();
+  });
+
   const requireRole = (role: Role) =>
     createMiddleware(async (c, next) => {
       const user = currentUser();
@@ -399,9 +417,13 @@ if (auth.enabled || setupAccount.enabled) {
       );
     };
 
+    // Open to anyone signed in. What a statement may see is decided by the
+    // row-level policies and not by this guard - which is the only way to bound
+    // a query somebody wrote themselves. Writing still needs `admin`, decided
+    // further in.
     pages.get(
       "/sql",
-      requireRole("data"),
+      requireLogin,
       ...ssr((c) => {
         c.get("page").title = "SQL";
         return renderConsole("", false);
@@ -412,7 +434,7 @@ if (auth.enabled || setupAccount.enabled) {
     // refresh and reachable from a foreign page by a link or an image tag.
     pages.post(
       "/sql",
-      requireRole("data"),
+      requireLogin,
       ...ssr(async (c) => {
         c.get("page").title = "SQL";
         const form = await c.req.parseBody();
@@ -428,7 +450,7 @@ if (auth.enabled || setupAccount.enabled) {
 
   pages.get(
     "/management/data",
-    requireRole("management"),
+    requireDataAccess,
     ...ssr(async (c) => {
       c.get("page").title = "Daten verwalten";
       const [measurementCount, logCount, auditCount] = await Promise.all([
@@ -452,15 +474,26 @@ if (auth.enabled || setupAccount.enabled) {
   // once in ./management/routes and differ only in the backend handed in.
   for (const backend of [measurementBackend, logEntryBackend]) {
     registerResourceRoutes(pages, backend as never, {
-      requireRole: requireRole("management"),
+      requireRole: requireDataAccess,
       sameOrigin,
     });
   }
 
-  // The change log is read by the same role that writes the data it records.
-  // Taking something back is a rung higher, because that changes data again.
+  /**
+   * The change log, for the data role rather than for anyone who may edit
+   * something.
+   *
+   * It would read more naturally as "whoever may change measurements may see the
+   * record of changes", and that is what this said at first - wrongly.
+   * `audit_log` carries the full contents of every row before and after, and it
+   * has no row-level policy of its own, so a member of one data group reading it
+   * would see other groups' measurements through the back door. Giving it a
+   * group of its own is the proper fix and is not done here.
+   *
+   * Taking something back changes data again and stays with administrators.
+   */
   registerAuditRoutes(pages, {
-    requireRead: requireRole("management"),
+    requireRead: requireRole("data"),
     requireAdmin: requireRole("admin"),
     sameOrigin,
   });

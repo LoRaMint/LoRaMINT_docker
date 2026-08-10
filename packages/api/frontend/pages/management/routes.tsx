@@ -9,6 +9,7 @@ import type { ManagedTable } from "../../../services/manage";
 import {
   buildQuery,
   changedFields,
+  currentScope,
   currentUser,
   hasRole,
   isConfirmed,
@@ -293,6 +294,7 @@ export const registerResourceRoutes = <F,>(
       const result = await managed.updateRows(backend.table, changes, {
         username: user.username,
         displayName: user.displayName ?? null,
+        scope: currentScope(),
         reason,
       });
       if (!result.ok) return back("failed");
@@ -415,6 +417,7 @@ export const registerResourceRoutes = <F,>(
         {
           username: user.username,
           displayName: user.displayName ?? null,
+          scope: currentScope(),
           reason,
         },
         // Every block of one deletion joins the batch the first block opened, so
@@ -636,6 +639,7 @@ export const registerAuditRoutes = (
         {
           username: user.username,
           displayName: user.displayName ?? null,
+          scope: currentScope(),
           reason,
         },
       );

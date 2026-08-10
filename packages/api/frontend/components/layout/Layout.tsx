@@ -1,6 +1,6 @@
 import type { JSX } from "solid-js";
 import { legal, auth, sqlConsole, setupAccount } from "../../../config";
-import { currentUser, hasRole } from "../../../lib";
+import { currentScope, currentUser, hasRole } from "../../../lib";
 
 const tabClass =
   "tab tab-lifted [--tab-border-color:theme(colors.base-300)] text-base-content/80 hover:text-base-content hover:[--tab-border-color:theme(colors.primary)]";
@@ -101,9 +101,14 @@ function AuthControl() {
 
 export default function Layout(props: { children: JSX.Element }) {
   const user = currentUser();
-  const dataUser = hasRole(user, "data", auth);
+  const dataRole = hasRole(user, "data", auth);
   const managementUser = hasRole(user, "management", auth);
   const adminUser = hasRole(user, "admin", auth);
+  // Not a role: since the ladder went, being in one data group is enough to have
+  // measurements worth showing. The scope is worked out once per request in
+  // index.ts, because rendering cannot query for it.
+  const scope = currentScope();
+  const dataUser = scope === "all" || scope.length > 0;
   // The same condition the login routes are registered under in
   // frontend/pages/index.tsx: a sign-in exists as soon as either way in is
   // configured. Offering the button without a route behind it would be worse
@@ -125,17 +130,29 @@ export default function Layout(props: { children: JSX.Element }) {
         { href: "/plots", label: "Plots" },
         { href: "/export", label: "Export" },
         { href: "/status", label: "Status" },
-        ...(sqlConsole.enabled && dataUser ? [{ href: "/sql", label: "SQL" }] : []),
+        ...(sqlConsole.enabled && user ? [{ href: "/sql", label: "SQL" }] : []),
       ],
     },
-    ...(managementUser
+    // The three areas no longer contain one another, so the section is built
+    // from what this person actually holds rather than from one gate. Somebody
+    // who only manages devices sees one entry here, and that is correct.
+    ...(dataUser || dataRole || managementUser || adminUser
       ? [
           {
             label: "Verwaltung",
             items: [
-              { href: "/management/data", label: "Daten verwalten" },
-              { href: "/management/devices", label: "Geräte verwalten" },
-              { href: "/management/data/audit", label: "Änderungsprotokoll" },
+              ...(dataUser
+                ? [{ href: "/management/data", label: "Daten verwalten" }]
+                : []),
+              // The change log, not the data pages: it holds the full contents
+              // of every changed row and has no group of its own, so it stays
+              // with the role that may see every group anyway.
+              ...(dataRole
+                ? [{ href: "/management/data/audit", label: "Änderungsprotokoll" }]
+                : []),
+              ...(managementUser
+                ? [{ href: "/management/devices", label: "Geräte verwalten" }]
+                : []),
               // Administrators only: the page lists bind accounts, database
               // roles and the shape of every secret.
               ...(adminUser

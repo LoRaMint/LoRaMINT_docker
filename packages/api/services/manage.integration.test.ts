@@ -2,6 +2,7 @@ import { afterAll, describe, expect, test } from "bun:test";
 import { connect } from "node:net";
 import { SQL } from "bun";
 import { DB_ROLES, roleDsn } from "../lib/db-roles";
+import { requestContext } from "../lib/request-context";
 
 /**
  * Integration tests for the management write path against a real Postgres.
@@ -18,6 +19,15 @@ import { DB_ROLES, roleDsn } from "../lib/db-roles";
  * Skipped when nothing is listening, so `bun test` works without Docker; CI sets
  * DB_TESTS_REQUIRED=1 to turn a skip into a failure.
  */
+
+
+/**
+ * The services read who is asking out of the request context, so a test that
+ * calls them directly has to say. `"all"` stands for the data role - what is
+ * under test here is what the database permits, not who reaches the page.
+ */
+const asDataRole = <T>(run: () => Promise<T>): Promise<T> =>
+  requestContext.run({ user: null, scope: "all" }, run);
 
 const APP_DSN =
   Bun.env.DATABASE_URL ?? "postgres://loramint:loramint@localhost:5432/loramint";
@@ -64,7 +74,14 @@ const { managed } = await import("./manage");
 const app = new SQL(APP_DSN);
 const asManage = new SQL(MANAGE_DSN);
 
-const ACTOR = { username: "testuser", displayName: "Test User", reason: "Testlauf" };
+const ACTOR = {
+  // These tests stand in for someone with the data role: the point under test is
+  // what the database allows, not who may reach the page.
+  scope: "all" as const,
+  username: "testuser",
+  displayName: "Test User",
+  reason: "Testlauf",
+};
 
 /** A device id used by this run only, so the fixtures cannot collide. */
 const deviceEui = `FFFF${crypto.randomUUID().replace(/-/g, "").slice(0, 12).toUpperCase()}`;
@@ -448,8 +465,8 @@ describe.skipIf(!reachable)("counting what is left to delete", () => {
     await new Promise((resolve) => setTimeout(resolve, 10));
     await seed("93", "Blockzaehlung");
 
-    expect(await measurements.count(filter, previewAt)).toBe(2);
-    expect(await measurements.count(filter)).toBe(3);
+    expect(await asDataRole(() => measurements.count(filter, previewAt))).toBe(2);
+    expect(await asDataRole(() => measurements.count(filter))).toBe(3);
   });
 
   /**
@@ -471,8 +488,10 @@ describe.skipIf(!reachable)("counting what is left to delete", () => {
     const stored = new Date((row as { created_at: Date }).created_at);
     const previewAt = new Date(stored.getTime());
 
-    expect(await measurements.count(filter, previewAt)).toBe(1);
-    expect(await measurements.idsMatching(filter, 10, previewAt)).toContain(id);
+    expect(await asDataRole(() => measurements.count(filter, previewAt))).toBe(1);
+    expect(
+      await asDataRole(() => measurements.idsMatching(filter, 10, previewAt)),
+    ).toContain(id);
   });
 
   test("shrinks by exactly what a block removed", async () => {
@@ -485,14 +504,14 @@ describe.skipIf(!reachable)("counting what is left to delete", () => {
     const previewAt = new Date();
 
     // One block of two, exactly as the route asks for it.
-    const block = await measurements.idsMatching(filter, 2, previewAt);
+    const block = await asDataRole(() => measurements.idsMatching(filter, 2, previewAt));
     expect(block.length).toBe(2);
     await managed.deleteRows("measurements", block, ACTOR);
 
     // The next call returns the next block rather than the same one: the set can
     // only shrink, which is what makes the loop resumable.
-    expect(await measurements.count(filter, previewAt)).toBe(1);
-    const next = await measurements.idsMatching(filter, 2, previewAt);
+    expect(await asDataRole(() => measurements.count(filter, previewAt))).toBe(1);
+    const next = await asDataRole(() => measurements.idsMatching(filter, 2, previewAt));
     expect(next.length).toBe(1);
     expect(block).not.toContain(next[0]!);
   });

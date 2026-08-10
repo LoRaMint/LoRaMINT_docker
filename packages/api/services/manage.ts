@@ -1,5 +1,6 @@
 import { SQL } from "bun";
 import { manage } from "../config";
+import { setScope, type Scope } from "./connections";
 import { inverseOf } from "../lib/audit-revert";
 import type { MutationResult } from "../types";
 
@@ -47,6 +48,15 @@ export type Actor = {
   username: string;
   displayName: string | null;
   reason: string;
+  /**
+   * Which rows this person may touch, for the row-level policies.
+   *
+   * Carried on the actor rather than read from the request context here,
+   * because this module is called from tests and scripts as well as from a
+   * request - and a write path that silently falls back to "nothing" when the
+   * context is missing would fail in a way that looks like a bug in the data.
+   */
+  scope: Scope;
 };
 
 export type SaveOutcome =
@@ -197,6 +207,7 @@ const updateRows = async (
 
   try {
     const updated = await sql.begin(async (tx) => {
+      await setScope(tx, actor.scope);
       await tx.unsafe(`SET LOCAL statement_timeout = ${manage.timeoutMs}`);
 
       const conflicts: string[] = [];
@@ -320,6 +331,7 @@ const deleteRows = async (
 
   try {
     const deleted = await sql.begin(async (tx) => {
+      await setScope(tx, actor.scope);
       await tx.unsafe(`SET LOCAL statement_timeout = ${manage.timeoutMs}`);
 
       await tx.unsafe(
@@ -383,6 +395,7 @@ const revertEntries = async (
 
   try {
     const applied = await sql.begin(async (tx) => {
+      await setScope(tx, actor.scope);
       await tx.unsafe(`SET LOCAL statement_timeout = ${manage.timeoutMs}`);
 
       const entries = (await tx.unsafe(

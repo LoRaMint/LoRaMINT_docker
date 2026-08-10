@@ -32,6 +32,10 @@ export default function DevicePage(props: {
   appKey?: string | null;
   keyError?: string | null;
   message?: string | null;
+  /** Which group this device's future readings belong to. */
+  assignment: { groupName: string | null; publicRead: boolean } | null;
+  /** The declared data groups, for the picker. */
+  groups: { name: string; label: string | null }[];
 }) {
   const device = props.device;
   const path = `/management/devices/${encodeURIComponent(device.deviceId)}`;
@@ -136,6 +140,73 @@ export default function DevicePage(props: {
           )}
         </Row>
       </div>
+
+      <SectionHeading>Gruppe</SectionHeading>
+      <div class="max-w-2xl text-sm text-base-content/70 mb-3">
+        Entscheidet, wer die Messwerte dieses Geräts sehen und ändern darf.
+        Gilt <strong>ab jetzt</strong> – bereits empfangene Messwerte behalten,
+        was sie haben, damit ein Gerätewechsel die Vergangenheit nicht umschreibt.
+      </div>
+      {props.writable ? (
+        <form method="post" action={`${path}/group`} class="max-w-2xl grid gap-2">
+          <Field
+            label="Datengruppe"
+            hint="Ohne Gruppe sehen neue Messwerte nur die Datenrolle und Administratoren."
+          >
+            <select name="groupName" class="select w-full">
+              <option value="" selected={!props.assignment?.groupName}>
+                – keine –
+              </option>
+              {props.groups.map((group) => (
+                <option
+                  value={group.name}
+                  selected={group.name === props.assignment?.groupName}
+                >
+                  {group.label ? `${group.label} (${group.name})` : group.name}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Sichtbarkeit">
+            <label class="inline-flex items-center gap-3">
+              <span
+                class={
+                  props.assignment?.publicRead
+                    ? "text-base-content/50"
+                    : "font-medium"
+                }
+              >
+                Nur die Gruppe
+              </span>
+              <input
+                name="publicRead"
+                type="checkbox"
+                value="on"
+                checked={props.assignment?.publicRead === true}
+                class="toggle"
+              />
+              <span
+                class={
+                  props.assignment?.publicRead
+                    ? "font-medium"
+                    : "text-base-content/50"
+                }
+              >
+                Für alle lesbar
+              </span>
+            </label>
+          </Field>
+          <div>
+            <button type="submit" class="btn btn-primary">
+              Zuordnung speichern
+            </button>
+          </div>
+        </form>
+      ) : (
+        <p class="text-sm text-base-content/70 max-w-2xl">
+          Zum Zuordnen fehlt die schreibende Verbindung.
+        </p>
+      )}
 
       <SectionHeading>Umbenennen</SectionHeading>
       {props.writable ? (

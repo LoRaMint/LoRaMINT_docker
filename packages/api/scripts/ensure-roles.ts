@@ -11,9 +11,14 @@ import { DB_ROLES, ownerRole, rolePassword, type DbRole } from "../lib/db-roles"
  *
  * Three properties worth knowing:
  *
- *   Additive. Roles are created when missing and granted what they need. Nothing
- *   is revoked - the guarantees this setup makes rest on privileges never having
- *   been granted, not on a script taking them away again.
+ *   Additive, with one documented exception. Roles are created when missing and
+ *   granted what they need; the guarantees rest on privileges never having been
+ *   granted rather than on a script taking them away. The exception is
+ *   `revokes`, and it exists because one guarantee arrived *after* the privilege
+ *   it depends on: earlier versions gave `loramint_manage` UPDATE on the whole
+ *   measurements table, and the column-level grant that replaces it cannot
+ *   narrow what is already there. Withdrawing it is the only way an existing
+ *   deployment gets the property a fresh one has.
  *
  *   DATABASE_URL is the source of truth. Names are constants and passwords are
  *   derived from the owner's (lib/db-roles.ts), so a role cannot end up with a
@@ -39,6 +44,12 @@ type RoleSpec = {
   purpose: string
   /** `ALTER ROLE ... SET name = value`, reapplied on every run. */
   settings: { name: string; value: string }[]
+  /**
+   * Run before the grants, and only where a narrower right has to replace a
+   * broader one that an earlier version handed out. See the note above - this is
+   * the one place this script takes something away.
+   */
+  revokes?: { privileges: string; on: string }[]
   /** Targets are literals from this file, never anything a caller supplies. */
   grants: { privileges: string; on: string }[]
   /** `ALTER DEFAULT PRIVILEGES`, so a later migration is covered without a rerun. */
@@ -90,9 +101,24 @@ const SPECS: RoleSpec[] = [
     // Table by table, on purpose. audit_log gets INSERT and SELECT and nothing
     // else, so the pages that append to the change log cannot rewrite it - that
     // is the whole point of routing management writes through this role.
+    // UPDATE is granted column by column, and that is the point: `group_name`
+    // and `public_read` are missing from both lists. A member of one data group
+    // can correct a reading of their own group but cannot move it into another
+    // group or publish it - the database refuses, so no route can be written
+    // that lets them. Those two columns belong to `loramint_regroup`.
+    //
+    // A column added to either table later is NOT covered here and has to be
+    // added by hand; that is the price of the allow-list, and the right way
+    // round - a new column is unwritable until somebody says otherwise.
+    revokes: [
+      { privileges: "UPDATE", on: "measurements" },
+      { privileges: "UPDATE", on: "log_entries" },
+    ],
     grants: [
-      { privileges: "SELECT, INSERT, UPDATE, DELETE", on: "measurements" },
-      { privileges: "SELECT, INSERT, UPDATE, DELETE", on: "log_entries" },
+      { privileges: "SELECT, INSERT, DELETE", on: "measurements" },
+      { privileges: "UPDATE (device_eui, measurand, unit, datatype, sensor, location, value, time_method, recorded_at, created_at)", on: "measurements" },
+      { privileges: "SELECT, INSERT, DELETE", on: "log_entries" },
+      { privileges: "UPDATE (device_eui, message, created_at)", on: "log_entries" },
       { privileges: "SELECT, INSERT", on: "audit_log" },
       // Same shape as audit_log and for the same reason: the device pages append
       // to their log and must not be able to tidy it up afterwards.
@@ -110,10 +136,29 @@ const SPECS: RoleSpec[] = [
       // because that is the role every human-triggered write goes through; who
       // may reach the page is decided in lib/roles.ts, not here.
       { privileges: "SELECT, INSERT, UPDATE, DELETE", on: "data_groups" },
+      // The device pages maintain which group a device's readings belong to.
+      { privileges: "SELECT, INSERT, UPDATE, DELETE", on: "device_groups" },
     ],
     // Deliberately empty: a table added by a later migration grants this role
     // nothing until someone adds a line above. A default privilege here would
     // silently hand out UPDATE and DELETE on the next log-like table.
+    defaults: [],
+  },
+  {
+    role: DB_ROLES.regroup,
+    purpose: "moving measurements between groups",
+    settings: [{ name: "statement_timeout", value: "30s" }],
+    // Exactly the two columns `loramint_manage` does not have, plus the SELECT
+    // needed to show what is being moved. Nothing else on either table, and
+    // nothing at all on any other - a role that can only ever answer one
+    // question wrongly.
+    grants: [
+      { privileges: "SELECT", on: "measurements" },
+      { privileges: "UPDATE (group_name, public_read)", on: "measurements" },
+      { privileges: "SELECT", on: "log_entries" },
+      { privileges: "UPDATE (group_name, public_read)", on: "log_entries" },
+      { privileges: "SELECT", on: "data_groups" },
+    ],
     defaults: [],
   },
   {
@@ -207,6 +252,9 @@ const ensure = async (
   await execFormat("GRANT CONNECT ON DATABASE %I TO %I", [databaseName, username])
   await execFormat("GRANT USAGE ON SCHEMA public TO %I", [username])
 
+  for (const revoke of spec.revokes ?? []) {
+    await execFormat(`REVOKE ${revoke.privileges} ON ${revoke.on} FROM %I`, [username])
+  }
   for (const grant of spec.grants) {
     await execFormat(`GRANT ${grant.privileges} ON ${grant.on} TO %I`, [username])
   }

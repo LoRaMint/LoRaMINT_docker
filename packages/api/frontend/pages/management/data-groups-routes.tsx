@@ -4,6 +4,7 @@ import { auth } from "../../../config";
 import { currentUser } from "../../../lib";
 import {
   declareDataGroup,
+  describeDataGroup,
   listDataGroups,
   withdrawDataGroup,
 } from "../../../services/data-groups";
@@ -71,6 +72,37 @@ export const registerDataGroupRoutes = (
       303,
     );
   });
+
+  /**
+   * Correcting a group's label or note.
+   *
+   * The name is the key and stays put - it has to match the directory exactly,
+   * and measurements point at it. Only what the label says about it changes.
+   */
+  pages.post(
+    `${PATH}/describe`,
+    guards.requireAdmin,
+    guards.sameOrigin,
+    async (c) => {
+      const form = await c.req.parseBody();
+      const text = (key: string) =>
+        typeof form[key] === "string" ? (form[key] as string) : "";
+      const name = text("name");
+
+      const result = await describeDataGroup(name, {
+        label: text("label"),
+        note: text("note"),
+      });
+      return c.redirect(
+        back(
+          result.ok
+            ? { saved: `Beschreibung von „${name}“ gespeichert.` }
+            : { error: result.error },
+        ),
+        303,
+      );
+    },
+  );
 
   pages.post(
     `${PATH}/withdraw`,

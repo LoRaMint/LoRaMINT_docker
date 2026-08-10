@@ -1,5 +1,5 @@
 import { SQL } from "bun";
-import { ingest, manage, sqlConsole } from "../config";
+import { ingest, manage, regroup, sqlConsole } from "../config";
 
 /**
  * The connections the application queries through, named after the intent of the
@@ -82,3 +82,93 @@ export const writing = () => connect(manage.databaseUrl, POOL_SIZE.writing);
  * nothing, so it may read nothing.
  */
 export const ingesting = () => connect(ingest.databaseUrl, POOL_SIZE.ingesting);
+
+/**
+ * Moving a measurement between groups, and releasing it for everyone.
+ *
+ * A role of its own rather than two more columns on `writing`, and the split is
+ * the point: `loramint_manage` is granted UPDATE column by column and does not
+ * hold `group_name` or `public_read`, so the ordinary correction path *cannot*
+ * hand a reading to another group. Postgres refuses it, which means no route can
+ * be written that gets it wrong.
+ *
+ * This still follows the rule at the top of this file. "Move a measurement to
+ * another group" is a different operation from "correct a value", not the same
+ * operation performed by someone more senior - and it gets the narrowest role
+ * that can carry it, which happens to be a role that can do nothing else.
+ */
+export const regrouping = () => connect(regroup.databaseUrl, POOL_SIZE.writing);
+
+//====================================
+// WHO IS ASKING
+//====================================
+
+/**
+ * Which measurements a query may touch: every one of them, or those belonging
+ * to the listed data groups.
+ *
+ * An empty array is a real answer - "nothing beyond what is public" - and not a
+ * reason to fall back to showing everything.
+ */
+export type Scope = "all" | readonly string[];
+
+/**
+ * Tells the row-level policies who is asking, for the length of one transaction.
+ *
+ * The policies in migration 007 read two settings. Neither is set here by string
+ * concatenation: `set_config` takes the value as a parameter, so a group name
+ * out of the directory can never become part of a statement.
+ *
+ * `true` as the third argument is what makes it local to the transaction. A
+ * session-wide setting would outlive the request and be inherited by whoever
+ * gets that pooled connection next - which is the whole class of bug this
+ * arrangement has to avoid.
+ */
+export const setScope = async (tx: SQL, scope: Scope): Promise<void> => {
+  if (scope === "all") {
+    await tx`SELECT set_config('loramint.allgroups', 'on', true)`;
+    return;
+  }
+  // Nothing to set when the list is empty: unset means public-only, which is
+  // exactly the right answer, and setting an empty string would only be a
+  // longer way of saying it.
+  if (scope.length === 0) return;
+  await tx`SELECT set_config('loramint.groups', ${scope.join(",")}, true)`;
+};
+
+/**
+ * Reads what `scope` is allowed to see.
+ *
+ * Every read that should show more than the public rows has to go through here,
+ * because `set_config(..., true)` only lasts for a transaction and a bare query
+ * has none. That is not an inconvenience but the safety net: a path somebody
+ * forgets to wrap shows public data, never somebody else's.
+ */
+export const readingAs = <T>(
+  scope: Scope,
+  run: (tx: SQL) => Promise<T>,
+): Promise<T> =>
+  reading().begin("read only", async (tx) => {
+    await setScope(tx as SQL, scope);
+    return run(tx as SQL);
+  }) as Promise<T>;
+
+/** Changes what `scope` is allowed to change. Same reasoning as `readingAs`. */
+export const writingAs = <T>(
+  scope: Scope,
+  run: (tx: SQL) => Promise<T>,
+): Promise<T> =>
+  writing().begin(async (tx) => {
+    await setScope(tx as SQL, scope);
+    return run(tx as SQL);
+  }) as Promise<T>;
+
+/** Moves rows between groups. Only ever called with `"all"` - see roles.ts. */
+export const regroupingAs = <T>(
+  scope: Scope,
+  run: (tx: SQL) => Promise<T>,
+): Promise<T> =>
+  regrouping().begin(async (tx) => {
+    await setScope(tx as SQL, scope);
+    return run(tx as SQL);
+  }) as Promise<T>;
