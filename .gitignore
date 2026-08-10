@@ -41,3 +41,6 @@ context.md
 
 # Diagrams
 diagrams/
+
+# Persönliche Deployment-Dateien - gehören nicht ins Repo.
+matthias_*.yml
