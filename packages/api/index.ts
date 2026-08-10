@@ -27,6 +27,7 @@ import {
 } from "./lib";
 import { measurements, logEntries } from "./services";
 import type { Scope } from "./services/connections";
+import { declaredNames } from "./services/data-groups";
 import {
   TtnPayloadSchema,
   MeasurementSchema,
@@ -309,9 +310,20 @@ root.use(async (c, next) => {
   const darkMode = user?.darkMode ?? fromCookie ?? false;
 
   // Worked out once here so no service has to be handed it: the data role and
-  // administrators see every group, everybody else sees the groups they are in,
-  // and an anonymous visitor sees only what is released publicly.
-  const scope: Scope = hasRole(user, "data", auth) ? "all" : (user?.groups ?? []);
+  // administrators see every group, everybody else the declared groups they are
+  // in, and an anonymous visitor only what is released publicly.
+  //
+  // The intersection with the declared names costs nothing after the first
+  // request - services/data-groups.ts caches them - and it buys the menu an
+  // answer it cannot query for itself, because rendering is synchronous.
+  const scope: Scope = !user
+    ? []
+    : hasRole(user, "data", auth)
+      ? "all"
+      : await (async () => {
+          const declared = new Set(await declaredNames());
+          return user.groups.filter((group) => declared.has(group));
+        })();
 
   return requestContext.run(
     { user, darkMode, timezone: user?.timezone ?? null, scope },
