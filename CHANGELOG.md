@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.10.0] - 2026-08-18
+
 ### Added
 - **A public dashboard at `/board`.** Curated measurements as gauge tiles - name,
   a 270° arc gauge with the current value in the centre and a green-to-red fill
