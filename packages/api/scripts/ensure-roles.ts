@@ -138,6 +138,8 @@ const SPECS: RoleSpec[] = [
       { privileges: "SELECT, INSERT, UPDATE, DELETE", on: "data_groups" },
       // The device pages maintain which group a device's readings belong to.
       { privileges: "SELECT, INSERT, UPDATE, DELETE", on: "device_groups" },
+      // The board pages curate which measurements the public /board page shows.
+      { privileges: "SELECT, INSERT, UPDATE, DELETE", on: "dashboard_entries" },
     ],
     // Deliberately empty: a table added by a later migration grants this role
     // nothing until someone adds a line above. A default privilege here would

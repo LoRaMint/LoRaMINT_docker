@@ -104,6 +104,7 @@ export default function Layout(props: { children: JSX.Element }) {
   const dataRole = hasRole(user, "data", auth);
   const managementUser = hasRole(user, "management", auth);
   const adminUser = hasRole(user, "admin", auth);
+  const boardUser = hasRole(user, "board", auth);
   // Not a role: since the ladder went, being in one data group is enough to have
   // measurements worth showing. The scope is worked out once per request in
   // index.ts, because rendering cannot query for it.
@@ -132,6 +133,19 @@ export default function Layout(props: { children: JSX.Element }) {
         { href: "/status", label: "Status" },
         ...(sqlConsole.enabled && user ? [{ href: "/sql", label: "SQL" }] : []),
       ],
+    },
+    // Public, unlike every section below it: /board has no login requirement,
+    // so this must not be gated on `user` the way "Verwaltung" is. Board and
+    // admin members get a second entry; everyone else sees one plain link.
+    {
+      label: "Dashboard",
+      items:
+        boardUser || adminUser
+          ? [
+              { href: "/board", label: "Dashboard ansehen" },
+              { href: "/management/board", label: "Dashboard managen" },
+            ]
+          : [{ href: "/board", label: "Dashboard" }],
     },
     // The three areas no longer contain one another, so the section is built
     // from what this person actually holds rather than from one gate. Somebody

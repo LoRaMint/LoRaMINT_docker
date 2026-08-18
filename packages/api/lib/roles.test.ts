@@ -6,6 +6,7 @@ const CONFIG: RoleConfig = {
   dataGroup: "loramint-data",
   managementGroup: "loramint-management",
   adminGroup: "loramint-admin",
+  boardGroup: "loramint-board",
 };
 
 const user = (...groups: string[]): SessionUser => ({
@@ -42,7 +43,7 @@ describe("die Leiter ist weg", () => {
   /** The one exception, and it is deliberate: a locked-out server must be recoverable. */
   test("admin enthält weiterhin alles", () => {
     const person = user("loramint-admin");
-    for (const role of ["data", "management", "admin"] as const) {
+    for (const role of ["data", "management", "admin", "board"] as const) {
       expect(hasRole(person, role, CONFIG)).toBe(true);
     }
   });
@@ -54,7 +55,7 @@ describe("die Leiter ist weg", () => {
       groups: [],
       setup: true,
     };
-    expect(rolesOf(setup, CONFIG)).toEqual(["data", "management", "admin"]);
+    expect(rolesOf(setup, CONFIG)).toEqual(["data", "management", "admin", "board"]);
   });
 
   test("ohne Anmeldung nichts", () => {
@@ -64,14 +65,31 @@ describe("die Leiter ist weg", () => {
 
   /**
    * A deployment that never configured the data group expects every signed-in
-   * user to be able to read. The other two must not behave that way, or an
-   * unconfigured server would hand out editing rights.
+   * user to be able to read. The other three must not behave that way, or an
+   * unconfigured server would hand out editing rights or the board curation
+   * page.
    */
   test("nicht eingerichtete Datengruppe lässt jeden lesen", () => {
     const open = { ...CONFIG, dataGroup: null };
     expect(hasRole(user(), "data", open)).toBe(true);
     expect(hasRole(user(), "management", { ...CONFIG, managementGroup: null })).toBe(false);
     expect(hasRole(user(), "admin", { ...CONFIG, adminGroup: null })).toBe(false);
+    expect(hasRole(user(), "board", { ...CONFIG, boardGroup: null })).toBe(false);
+  });
+
+  /**
+   * The fourth, independent area: board membership grants nothing on the other
+   * three, and holding one of the other three grants nothing on board.
+   */
+  test("board ist eine eigene, vierte Gruppe ohne Leiter", () => {
+    const boardMember = user("loramint-board");
+    expect(hasRole(boardMember, "board", CONFIG)).toBe(true);
+    expect(hasRole(boardMember, "data", CONFIG)).toBe(false);
+    expect(hasRole(boardMember, "management", CONFIG)).toBe(false);
+    expect(hasRole(boardMember, "admin", CONFIG)).toBe(false);
+
+    const managementOnly = user("loramint-management");
+    expect(hasRole(managementOnly, "board", CONFIG)).toBe(false);
   });
 });
 

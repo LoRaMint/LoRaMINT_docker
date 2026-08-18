@@ -85,12 +85,14 @@ services:
       - LDAP_DISPLAY_NAME_ATTRIBUTE=${LDAP_DISPLAY_NAME_ATTRIBUTE:-}
       - LDAP_PASSWORD_RESET_URL=${LDAP_PASSWORD_RESET_URL:-}
       - LDAP_TIMEOUT_MS=${LDAP_TIMEOUT_MS:-}
-      # The three groups that grant privileges. An unset data group means every
-      # signed-in user may read; unset management and admin groups mean nobody
-      # reaches those levels, so editing rights are never granted by accident.
+      # The four groups that grant privileges. An unset data group means every
+      # signed-in user may read; unset management, admin and board groups mean
+      # nobody reaches those areas, so editing rights and the board curation
+      # page are never granted by accident.
       - LDAP_DATA_GROUP=${LDAP_DATA_GROUP:-}
       - LDAP_MANAGEMENT_GROUP=${LDAP_MANAGEMENT_GROUP:-}
       - LDAP_ADMIN_GROUP=${LDAP_ADMIN_GROUP:-}
+      - LDAP_BOARD_GROUP=${LDAP_BOARD_GROUP:-}
 
       # --- Tuning (optional) -----------------------------------------------
       # The restricted database roles are no longer configured here: they are

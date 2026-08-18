@@ -41,6 +41,8 @@ import HomePage from "./home/page";
 import PlotsPage from "./plots/page";
 import ExportPage from "./export/page";
 import StatusPage from "./status/page";
+import BoardPage from "./board/page";
+import * as dashboard from "../../services/dashboard";
 import Esp32GuidePage from "./guides/esp32/page";
 import LoginPage from "./login/page";
 import SqlPage from "./sql/page";
@@ -55,6 +57,7 @@ import {
 import { registerDeviceRoutes } from "./management/devices-routes";
 import { registerConfigRoutes } from "./management/config-routes";
 import { registerDataGroupRoutes } from "./management/data-groups-routes";
+import { registerBoardRoutes } from "./management/board-routes";
 import { dataGroupsOf, listDataGroups } from "../../services/data-groups";
 import ImpressumPage from "./impressum/page";
 import DatenschutzPage from "./datenschutz/page";
@@ -119,6 +122,15 @@ pages.get(
       logEntries.status(),
     ]);
     return <StatusPage sensors={sensors} logs={logs} />;
+  }),
+);
+
+pages.get(
+  "/board",
+  ...ssr(async (c) => {
+    c.get("page").title = "Dashboard";
+    const tiles = await dashboard.boardTiles();
+    return <BoardPage tiles={tiles} />;
   }),
 );
 
@@ -517,6 +529,11 @@ if (auth.enabled || setupAccount.enabled) {
 
   registerDataGroupRoutes(pages, {
     requireAdmin: requireRole("admin"),
+    sameOrigin,
+  });
+
+  registerBoardRoutes(pages, {
+    requireRole: requireRole("board"),
     sameOrigin,
   });
 }

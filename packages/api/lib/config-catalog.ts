@@ -339,6 +339,16 @@ export const CATALOG: Setting[] = [
     tier: "movable",
   },
   {
+    key: "LDAP_BOARD_GROUP",
+    group: "auth",
+    kind: "text",
+    meaning:
+      "Gruppe, die die öffentliche /board-Seite kuratiert. Nicht gesetzt " +
+      "heisst: niemand erreicht sie.",
+    fallback: null,
+    tier: "movable",
+  },
+  {
     key: "LDAP_PASSWORD_RESET_URL",
     group: "auth",
     kind: "url",

@@ -413,9 +413,10 @@ export const auth = {
    *
    * The defaults are not symmetric, on purpose. An unset LDAP_DATA_GROUP means
    * "no restriction configured", so every signed-in user keeps the read-only
-   * query page. Unset LDAP_MANAGEMENT_GROUP and LDAP_ADMIN_GROUP mean nobody
-   * holds those roles: a deployment that has not configured them must never hand
-   * out editing rights or write access to the database by accident.
+   * query page. Unset LDAP_MANAGEMENT_GROUP, LDAP_ADMIN_GROUP and
+   * LDAP_BOARD_GROUP mean nobody holds those roles: a deployment that has not
+   * configured them must never hand out editing rights, write access to the
+   * database, or the board's curation page by accident.
    */
   get dataGroup() {
     return optional("LDAP_DATA_GROUP");
@@ -425,6 +426,9 @@ export const auth = {
   },
   get adminGroup() {
     return optional("LDAP_ADMIN_GROUP");
+  },
+  get boardGroup() {
+    return optional("LDAP_BOARD_GROUP");
   },
   session: {
     // Signing key for the session cookie. Required once the login is enabled;

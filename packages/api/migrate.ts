@@ -5,6 +5,7 @@ import { up as deviceLog } from "./migrations/004-device-log"
 import { up as settings } from "./migrations/005-settings"
 import { up as users } from "./migrations/006-users"
 import { up as measurementGroups } from "./migrations/007-measurement-groups"
+import { up as dashboardEntries } from "./migrations/008-dashboard-entries"
 
 // There is no migrations table: every migration runs on every start, so each
 // one has to be idempotent (CREATE ... IF NOT EXISTS). A new file is added here
@@ -17,5 +18,6 @@ await deviceLog()
 await settings()
 await users()
 await measurementGroups()
+await dashboardEntries()
 console.log("Migrations complete.")
 process.exit(0)

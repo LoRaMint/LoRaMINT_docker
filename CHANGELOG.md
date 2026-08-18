@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **A public dashboard at `/board`.** Curated measurements as gauge tiles - name,
+  a 270° arc gauge with the current value in the centre and a green-to-red fill
+  from the low end up to where the value sits between the gauge's minimum and
+  maximum, device, measurand, unit, and when the value was recorded. Meant for a
+  screen in a hallway or classroom. Server-rendered, no client bundle, refreshes
+  by reloading every 30s like `/status`; a triple whose measurements are not
+  `public_read` simply renders without a value, since the page reads through the
+  same connection every anonymous visitor gets.
+
+  A fourth, independent role curates it: `LDAP_BOARD_GROUP` (see `lib/roles.ts`)
+  grants `/management/board`, a compact table of entries editable in place plus
+  a form to add another. An entry names a (device_eui, sensor, measurand)
+  triple - not editable once created, the same way a data group's name is not -
+  and how to scale its gauge: a fixed minimum/maximum, or dynamic, computed from
+  that triple's measurement history. The three selects in the form are coupled -
+  sensor narrows to what the chosen device actually has, measurand to what that
+  sensor actually sends - so only combinations that occurred together can ever
+  be proposed; `createEntry` checks the same rule again server-side, for a
+  direct POST or a visitor without JavaScript. Administrators reach the page
+  too, for free, via the existing "admin contains the others" rule - no
+  special-casing needed. Nobody who isn't in either group sees more than a
+  single "Dashboard" link; the page itself is the same for everyone.
+
 ## [1.9.0] - 2026-08-18
 
 ### Added

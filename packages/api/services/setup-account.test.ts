@@ -129,7 +129,12 @@ describe("mit Hash", () => {
 
 describe("was das Konto darf", () => {
   /** No directory configured at all - the situation the account exists for. */
-  const noDirectory = { dataGroup: null, managementGroup: null, adminGroup: null };
+  const noDirectory = {
+    dataGroup: null,
+    managementGroup: null,
+    adminGroup: null,
+    boardGroup: null,
+  };
 
   test("es ist Administrator, obwohl es keine Gruppen hat", async () => {
     configure({ enabled: true, username: "setup", password: "geheim-genug-123" });
@@ -141,6 +146,7 @@ describe("was das Konto darf", () => {
       "data",
       "management",
       "admin",
+      "board",
     ]);
   });
 

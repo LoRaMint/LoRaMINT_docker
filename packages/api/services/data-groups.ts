@@ -103,7 +103,7 @@ export const dataGroupsOf = (
  * in a way nobody intended.
  */
 export const isRoleGroup = (name: string, config: RoleConfig): boolean =>
-  [config.dataGroup, config.managementGroup, config.adminGroup]
+  [config.dataGroup, config.managementGroup, config.adminGroup, config.boardGroup]
     .filter((group): group is string => group !== null)
     .includes(name);
 

@@ -20,7 +20,8 @@ import type {
 
 const VALID_DATATYPES = new Set<string>(["float", "integer", "string"]);
 const VALID_TIME_METHODS = new Set<string>(["server", "custom", "none"]);
-const HEX_PATTERN = /^[0-9A-Fa-f]{16}$/;
+/** A DevEUI: exactly 16 hex characters. Also used by services/dashboard.ts. */
+export const HEX_PATTERN = /^[0-9A-Fa-f]{16}$/;
 
 //====================================
 // VALIDATION

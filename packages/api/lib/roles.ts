@@ -5,7 +5,7 @@ import type { SessionUser } from "./session";
  *
  * **This used to be a ladder** - `data` ⊂ `management` ⊂ `admin`, so being in the
  * admin group was enough to get everything below it. It is not one any more. The
- * three groups now name three separate areas of responsibility that do not
+ * four groups now name four separate areas of responsibility that do not
  * contain one another:
  *
  *   data        LDAP_DATA_GROUP        measurements of *every* group: read,
@@ -16,6 +16,9 @@ import type { SessionUser } from "./session";
  *   admin       LDAP_ADMIN_GROUP       everything, including configuration, the
  *                                      declaration of data groups and the
  *                                      writable SQL console.
+ *   board       LDAP_BOARD_GROUP       curates the public /board page: which
+ *                                      measurements appear there and with what
+ *                                      display range. Nothing else.
  *
  * Someone who only manages devices no longer edits measurements, and someone who
  * only edits measurements does not touch devices. Whoever needs both is put in
@@ -31,9 +34,9 @@ import type { SessionUser } from "./session";
  * `admin` remains the one containing role, because "admin may do everything" is
  * the property that keeps a locked-out deployment recoverable.
  */
-export type Role = "data" | "management" | "admin";
+export type Role = "data" | "management" | "admin" | "board";
 
-const ROLES: readonly Role[] = ["data", "management", "admin"] as const;
+const ROLES: readonly Role[] = ["data", "management", "admin", "board"] as const;
 
 export type RoleConfig = {
   /** Group granting the data role, or null when no restriction is configured. */
@@ -42,14 +45,22 @@ export type RoleConfig = {
   managementGroup: string | null;
   /** Group granting the admin role. Null means nobody reaches it. */
   adminGroup: string | null;
+  /** Group granting the board role. Null means nobody reaches it. */
+  boardGroup: string | null;
 };
 
-const groupFor = (role: Role, config: RoleConfig): string | null =>
-  role === "data"
-    ? config.dataGroup
-    : role === "management"
-      ? config.managementGroup
-      : config.adminGroup;
+const groupFor = (role: Role, config: RoleConfig): string | null => {
+  switch (role) {
+    case "data":
+      return config.dataGroup;
+    case "management":
+      return config.managementGroup;
+    case "admin":
+      return config.adminGroup;
+    case "board":
+      return config.boardGroup;
+  }
+};
 
 const inGroup = (user: SessionUser, group: string | null) =>
   group !== null && user.groups.includes(group);
