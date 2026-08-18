@@ -17,8 +17,9 @@ export default function PlotsPage() {
         title="Plots"
         intro={
           <>
-            Messreihen interaktiv darstellen: Gerät, Messgrößen, Sensoren und
-            Zeitraum wählen, dann die Datenpunkte als verbundene Linien plotten.
+            Messreihen interaktiv darstellen: Gerät, Messgrößen, Sensoren,
+            Gruppe und Zeitraum wählen, dann die Datenpunkte als verbundene
+            Linien plotten.
           </>
         }
       />
@@ -32,6 +33,21 @@ export default function PlotsPage() {
         <Field label={<>Location</>}>
 <select id="location" class={controlClass}>
             <option value="">– alle –</option>
+          </select>
+</Field>
+
+        {/* Filled by the island: the group names present, plus "ohne Gruppe". */}
+        <Field label={<>Gruppe</>}>
+<select id="group" class={controlClass}>
+            <option value="">– alle –</option>
+          </select>
+</Field>
+
+        <Field label={<>Öffentlich</>}>
+<select id="public" class={controlClass}>
+            <option value="">– alle –</option>
+            <option value="true">ja</option>
+            <option value="false">nein</option>
           </select>
 </Field>
 

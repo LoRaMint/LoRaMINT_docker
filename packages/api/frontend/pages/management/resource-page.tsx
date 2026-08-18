@@ -4,7 +4,7 @@ import Notice from "../../components/Notice";
 import ModeSwitch from "../../components/manage/ModeSwitch";
 import FilterBar from "../../components/manage/FilterBar";
 import DataTable from "../../components/manage/DataTable";
-import { columnsByKey, type ResourceSpec } from "../../components/manage/spec";
+import { columnsByKey, type FilterOption, type ResourceSpec } from "../../components/manage/spec";
 import {
   buildQuery,
   columnSummary,
@@ -92,7 +92,7 @@ export default function ResourcePage(props: {
   /** False when this server has no management connection configured. */
   writable: boolean;
   /** Options for the select filters, taken from the data. */
-  options: Record<string, string[]>;
+  options: Record<string, FilterOption[]>;
   /** A code from MESSAGES; never text the caller supplied. */
   message?: string | null;
 }) {

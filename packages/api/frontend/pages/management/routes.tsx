@@ -9,6 +9,7 @@ import type { ManagedTable } from "../../../services/manage";
 import {
   buildQuery,
   changedFields,
+  columnsParam,
   currentScope,
   currentUser,
   hasRole,
@@ -25,8 +26,9 @@ import {
   type Params,
 } from "../../../lib";
 import type { PaginationParams } from "../../../lib/pagination";
+import { NO_GROUP } from "../../../types";
 import type { Datatype, MeasurementFilter } from "../../../types";
-import type { ResourceSpec } from "../../components/manage/spec";
+import type { FilterOption, ResourceSpec } from "../../components/manage/spec";
 import ResourcePage from "./resource-page";
 import ConfirmSavePage from "./confirm-save-page";
 import ConfirmDeletePage from "./confirm-delete-page";
@@ -67,7 +69,7 @@ export type ResourceBackend<F> = {
   countMatching: (filter: F, before: Date | null) => Promise<number>;
   byIds: (ids: string[]) => Promise<Record<string, unknown>[]>;
   /** Options for the select filters, keyed by filter key. */
-  options: (filter: F) => Promise<Record<string, string[]>>;
+  options: (filter: F) => Promise<Record<string, FilterOption[]>>;
   /**
    * Takes the *stored* row, not just the value: a measurement is checked against
    * its own datatype, a log message against its length. Returns a sentence
@@ -112,9 +114,7 @@ const viewFrom = (raw: unknown, spec: ResourceSpec) => {
     spec.columns.map((column) => column.key),
     spec.defaultColumns,
   );
-  if (columns.join(",") !== spec.defaultColumns.join(",")) {
-    params.cols = columns.join(",");
-  }
+  params.cols = columnsParam(columns, spec.defaultColumns);
   if (query.sort) params.sort = parseSort(query.sort, spec.sortable, spec.defaultSort);
   if (query.dir) params.dir = parseDirection(query.dir);
   const page = parsePage(query.page);
@@ -188,7 +188,10 @@ export const registerResourceRoutes = <F,>(
           total={total}
           page={page}
           perPage={PER_PAGE}
-          params={query}
+          // Not the raw query: it keeps only the last of the repeated `cols`
+          // values the picker submits, so every link built from it would drop
+          // the rest of the selection.
+          params={{ ...query, cols: columnsParam(visibleColumns, spec.defaultColumns) }}
           visibleColumns={visibleColumns}
           sort={sort}
           direction={direction}
@@ -478,6 +481,10 @@ const auditViewFrom = (raw: unknown) => {
   for (const key of AUDIT_VIEW.filterKeys) {
     if (query[key]) params[key] = query[key]!;
   }
+  params.cols = columnsParam(
+    parseColumns(search.getAll("cols"), AUDIT_VIEW.columns, AUDIT_VIEW.defaultColumns),
+    AUDIT_VIEW.defaultColumns,
+  );
   if (query.sort) {
     params.sort = parseSort(query.sort, AUDIT_VIEW.sortable, AUDIT_VIEW.defaultSort);
   }
@@ -546,7 +553,9 @@ export const registerAuditRoutes = (
           total={total}
           page={page}
           perPage={PER_PAGE}
-          params={query}
+          // See the note on the resource table: the raw query loses all but the
+          // last of the repeated `cols` values.
+          params={{ ...query, cols: columnsParam(visibleColumns, AUDIT_VIEW.defaultColumns) }}
           visibleColumns={visibleColumns}
           sort={sort}
           direction={direction}
@@ -658,6 +667,29 @@ const asDate = (raw: string | undefined) =>
   raw && !Number.isNaN(Date.parse(raw)) ? raw : undefined;
 
 /**
+ * The two words a boolean column can be filtered by. Anything else narrows
+ * nothing - "any string is true" would turn a typo into a filter.
+ */
+const asBoolean = (raw: string | undefined): "true" | "false" | undefined =>
+  raw === "true" || raw === "false" ? raw : undefined;
+
+/** The choices for a boolean column, since `true` reads badly in a dropdown. */
+const PUBLIC_OPTIONS = [
+  { value: "true", label: "ja" },
+  { value: "false", label: "nein" },
+];
+
+/**
+ * The group choices: the names actually present, plus the sentinel for the rows
+ * that belong to no group. Those are the ones still waiting to be assigned
+ * after the 1.8 migration, and a list of names alone could not name them.
+ */
+const groupOptions = (names: string[]) => [
+  ...names,
+  { value: NO_GROUP, label: "ohne Gruppe" },
+];
+
+/**
  * Read field by field rather than through a schema, so one malformed value does
  * not silently discard the rest of the filter - which would show far more rows
  * than were asked for, right next to a delete button. Every value stays a
@@ -671,6 +703,8 @@ const measurementFilterFrom = (query: Record<string, string>): MeasurementFilter
   measurand: query.measurand || undefined,
   sensor: query.sensor || undefined,
   location: query.location || undefined,
+  group_name: query.group_name || undefined,
+  public_read: asBoolean(query.public_read),
   from: asDate(query.from),
   to: asDate(query.to),
 });
@@ -680,6 +714,8 @@ const logEntryFilterFrom = (query: Record<string, string>): LogEntryFilter => ({
     ? query.device_eui
     : undefined,
   q: query.q || undefined,
+  group_name: query.group_name || undefined,
+  public_read: asBoolean(query.public_read),
   from: asDate(query.from),
   to: asDate(query.to),
 });
@@ -702,6 +738,8 @@ export const measurementBackend: ResourceBackend<MeasurementFilter> = {
       sensor: meta.sensors,
       measurand: meta.measurands,
       location: meta.locations,
+      group_name: groupOptions(meta.groups),
+      public_read: PUBLIC_OPTIONS,
     };
   },
   validateField: (row, column, value) =>
@@ -717,6 +755,13 @@ export const logEntryBackend: ResourceBackend<LogEntryFilter> = {
   idsMatching: logEntries.idsMatching,
   countMatching: logEntries.count,
   byIds: logEntries.byIds,
-  options: async () => ({ device_eui: (await logEntries.metadata()).devices }),
+  options: async () => {
+    const meta = await logEntries.metadata();
+    return {
+      device_eui: meta.devices,
+      group_name: groupOptions(meta.groups),
+      public_read: PUBLIC_OPTIONS,
+    };
+  },
   validateField: (_row, column, value) => logEntries.validateField(column, value),
 };

@@ -57,6 +57,8 @@ const measurements: ResourceSpec = {
     { key: "sensor", label: "Sensor", kind: "select" },
     { key: "measurand", label: "Messgröße", kind: "select" },
     { key: "location", label: "Ort", kind: "select" },
+    { key: "group_name", label: "Gruppe", kind: "select" },
+    { key: "public_read", label: "Öffentlich", kind: "select" },
     { key: "from", label: "von", kind: "date" },
     { key: "to", label: "bis", kind: "date" },
   ],
@@ -98,6 +100,8 @@ const logEntries: ResourceSpec = {
   filters: [
     { key: "device_eui", label: "Gerät", kind: "select" },
     { key: "q", label: "Suche", kind: "text", placeholder: "Text in der Meldung" },
+    { key: "group_name", label: "Gruppe", kind: "select" },
+    { key: "public_read", label: "Öffentlich", kind: "select" },
     { key: "from", label: "von", kind: "date" },
     { key: "to", label: "bis", kind: "date" },
   ],

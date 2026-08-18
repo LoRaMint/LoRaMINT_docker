@@ -18,7 +18,8 @@ export default function ExportPage() {
         intro={
           <>
             Messdaten gefiltert als CSV herunterladen: Gerät, Messgröße, Sensor,
-            Location, Datentyp und Zeitraum wählen. Leere Felder bedeuten „alle".
+            Location, Datentyp, Gruppe, Freigabe und Zeitraum wählen. Leere
+            Felder bedeuten „alle".
           </>
         }
       />
@@ -55,6 +56,21 @@ export default function ExportPage() {
             <option value="float">float</option>
             <option value="integer">integer</option>
             <option value="string">string</option>
+          </select>
+</Field>
+
+        {/* Filled by the island: the group names present, plus "ohne Gruppe". */}
+        <Field label={<>Gruppe</>}>
+<select id="group" class={controlClass}>
+            <option value="">– alle –</option>
+          </select>
+</Field>
+
+        <Field label={<>Öffentlich</>}>
+<select id="public" class={controlClass}>
+            <option value="">– alle –</option>
+            <option value="true">ja</option>
+            <option value="false">nein</option>
           </select>
 </Field>
 

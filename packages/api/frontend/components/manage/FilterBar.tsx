@@ -1,5 +1,6 @@
 import type { FilterChip } from "../../../lib/manage-view";
-import type { ColumnSpec, FilterSpec } from "./spec";
+import type { ColumnSpec, FilterOption, FilterSpec } from "./spec";
+import { optionLabel, optionValue } from "./spec";
 
 /**
  * Choosing which rows and which columns to see.
@@ -19,8 +20,8 @@ import type { ColumnSpec, FilterSpec } from "./spec";
 export default function FilterBar(props: {
   action: string;
   filters: FilterSpec[];
-  /** Options per select filter, taken from the data itself. */
-  options: Record<string, string[]>;
+  /** Options per select filter, mostly taken from the data itself. */
+  options: Record<string, FilterOption[]>;
   /** Current filter values, by key. */
   values: Record<string, string | undefined>;
   columns: ColumnSpec[];
@@ -44,8 +45,11 @@ export default function FilterBar(props: {
                 <select name={filter.key} class={controlClass}>
                   <option value="">alle</option>
                   {(props.options[filter.key] ?? []).map((option) => (
-                    <option value={option} selected={props.values[filter.key] === option}>
-                      {option}
+                    <option
+                      value={optionValue(option)}
+                      selected={props.values[filter.key] === optionValue(option)}
+                    >
+                      {optionLabel(option)}
                     </option>
                   ))}
                 </select>

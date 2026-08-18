@@ -44,6 +44,7 @@ export type { ManageAction, SubmittedRow } from "./manage-form";
 export {
   buildQuery,
   columnSummary,
+  columnsParam,
   filterChips,
   modeLink,
   pageLink,

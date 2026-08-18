@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { TtnDecodedPayload } from "../types";
-import { MeasurementFilterSchema } from "../types";
+import { MeasurementFilterSchema, NO_GROUP } from "../types";
 import { escapeCsvField, measurements } from "./measurement";
 
 const EUI = "A1B2C3D4E5F60001";
@@ -119,5 +119,29 @@ describe("MeasurementFilterSchema", () => {
   test("accepts a valid device_eui", () => {
     const result = MeasurementFilterSchema.parse({ device_eui: "A1B2C3D4E5F60001" });
     expect(result.device_eui).toBe("A1B2C3D4E5F60001");
+  });
+
+  test("accepts a group name and the sentinel for having none", () => {
+    expect(MeasurementFilterSchema.parse({ group_name: "Klasse 8b" }).group_name).toBe("Klasse 8b");
+    expect(MeasurementFilterSchema.parse({ group_name: NO_GROUP }).group_name).toBe(NO_GROUP);
+  });
+
+  test("rejects a group name longer than the column", () => {
+    expect(() => MeasurementFilterSchema.parse({ group_name: "x".repeat(101) })).toThrow();
+  });
+
+  test("takes only the two words for public_read", () => {
+    expect(MeasurementFilterSchema.parse({ public_read: "true" }).public_read).toBe("true");
+    expect(MeasurementFilterSchema.parse({ public_read: "false" }).public_read).toBe("false");
+    // Not "any string is true": a typo must not silently become a filter.
+    expect(() => MeasurementFilterSchema.parse({ public_read: "ja" })).toThrow();
+    expect(() => MeasurementFilterSchema.parse({ public_read: "1" })).toThrow();
+  });
+
+  test("the sentinel cannot collide with a group that exists", () => {
+    // data_groups names come from the directory; the underscores keep this one
+    // out of that space. If that ever stops being true, the filter would show
+    // the ungrouped rows instead of that group's.
+    expect(NO_GROUP).toBe("__none__");
   });
 });

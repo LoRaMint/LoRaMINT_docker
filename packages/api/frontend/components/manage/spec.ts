@@ -22,6 +22,20 @@ export type ColumnSpec = {
   secondary?: boolean;
 };
 
+/**
+ * One entry of a select filter. A bare string is its own label, which is what
+ * values taken from the data want; the pair is for the choices that are not
+ * data - "ohne Gruppe", or a boolean column that should not read `true` in a
+ * dropdown.
+ */
+export type FilterOption = string | { value: string; label: string };
+
+export const optionValue = (option: FilterOption) =>
+  typeof option === "string" ? option : option.value;
+
+export const optionLabel = (option: FilterOption) =>
+  typeof option === "string" ? option : option.label;
+
 export type FilterSpec = {
   key: string;
   label: string;

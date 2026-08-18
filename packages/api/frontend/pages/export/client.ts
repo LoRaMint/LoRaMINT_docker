@@ -8,11 +8,21 @@
 
 const API = "/api/v1";
 
+/**
+ * The `group_name` value asking for the rows that belong to no group. Kept in
+ * step with NO_GROUP in ../../types.ts by hand: importing it would pull the
+ * whole schema module, and zod with it, into this browser bundle.
+ */
+const NO_GROUP = "__none__";
+
+type FilterOption = string | { value: string; label: string };
+
 type Metadata = {
   devices: string[];
   measurands: string[];
   sensors: string[];
   locations: string[];
+  groups: string[];
 };
 
 // ---- DOM helpers ----------------------------------------------------------
@@ -23,6 +33,8 @@ const measurandSel = () => $<HTMLSelectElement>("measurand");
 const sensorSel = () => $<HTMLSelectElement>("sensor");
 const locationSel = () => $<HTMLSelectElement>("location");
 const datatypeSel = () => $<HTMLSelectElement>("datatype");
+const groupSel = () => $<HTMLSelectElement>("group");
+const publicSel = () => $<HTMLSelectElement>("public");
 const fromInput = () => $<HTMLInputElement>("from");
 const toInput = () => $<HTMLInputElement>("to");
 const statusEl = () => $<HTMLSpanElement>("status");
@@ -32,15 +44,18 @@ const setStatus = (msg: string) => {
   statusEl().textContent = msg;
 };
 
-/** Fills a select, keeping its first "– alle –" option. */
-const fillOptions = (sel: HTMLSelectElement, values: string[]) => {
+/**
+ * Fills a select, keeping its first "– alle –" option. A bare string is its own
+ * label; the pair is for choices that are not data, such as "ohne Gruppe".
+ */
+const fillOptions = (sel: HTMLSelectElement, values: FilterOption[]) => {
   const first = sel.options[0] ?? null;
   sel.innerHTML = "";
   if (first) sel.appendChild(first);
   for (const v of values) {
     const opt = document.createElement("option");
-    opt.value = v;
-    opt.textContent = v;
+    opt.value = typeof v === "string" ? v : v.value;
+    opt.textContent = typeof v === "string" ? v : v.label;
     sel.appendChild(opt);
   }
 };
@@ -54,6 +69,8 @@ function currentParams(): URLSearchParams {
   const sensor = sensorSel().value;
   const location = locationSel().value;
   const datatype = datatypeSel().value;
+  const group = groupSel().value;
+  const isPublic = publicSel().value;
   const from = fromInput().value;
   const to = toInput().value;
 
@@ -62,6 +79,8 @@ function currentParams(): URLSearchParams {
   if (sensor) params.set("sensor", sensor);
   if (location) params.set("location", location);
   if (datatype) params.set("datatype", datatype);
+  if (group) params.set("group_name", group);
+  if (isPublic) params.set("public_read", isPublic);
   if (from) params.set("from", new Date(from).toISOString());
   if (to) params.set("to", new Date(to).toISOString());
   return params;
@@ -117,6 +136,9 @@ async function populateForDevice(deviceEui?: string, isInitial = false) {
   fillOptions(measurandSel(), meta.measurands);
   fillOptions(sensorSel(), meta.sensors);
   fillOptions(locationSel(), meta.locations);
+  // The sentinel is appended rather than taken from the data: NULLs do not
+  // appear in a DISTINCT list, so nothing else could name those rows.
+  fillOptions(groupSel(), [...meta.groups, { value: NO_GROUP, label: "ohne Gruppe" }]);
 }
 
 async function init() {
@@ -138,7 +160,16 @@ async function init() {
   });
 
   // Any filter change refreshes the hit counter.
-  for (const el of [measurandSel(), sensorSel(), locationSel(), datatypeSel(), fromInput(), toInput()]) {
+  for (const el of [
+    measurandSel(),
+    sensorSel(),
+    locationSel(),
+    datatypeSel(),
+    groupSel(),
+    publicSel(),
+    fromInput(),
+    toInput(),
+  ]) {
     el.addEventListener("change", updateCount);
   }
 

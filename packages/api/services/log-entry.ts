@@ -2,6 +2,7 @@ import type { SQL } from "bun";
 import { ingesting, reading, readingAs } from "./connections";
 import { currentScope } from "../lib/request-context";
 import type { PaginationParams } from "../lib/pagination";
+import { NO_GROUP } from "../types";
 import type { LogEntry, LogStatus, MutationResult, TtnDecodedPayload, ValidatedLogEntry } from "../types";
 
 //====================================
@@ -109,6 +110,9 @@ export type LogEntryFilter = {
   device_eui?: string;
   /** Free text, matched anywhere in the message. */
   q?: string;
+  /** A group name, or NO_GROUP for the entries that belong to none. */
+  group_name?: string;
+  public_read?: "true" | "false";
   from?: string;
   to?: string;
 };
@@ -141,9 +145,18 @@ const filterClause = (filter: LogEntryFilter) => {
   const from = filter.from ? new Date(filter.from) : null;
   const to = filter.to ? new Date(filter.to) : null;
   const pattern = filter.q ? `%${filter.q}%` : null;
+  // Same shape as measurements.filterClause: NO_GROUP is a question about
+  // absence, so it gets its own clause instead of a name to compare against.
+  const ungrouped = filter.group_name === NO_GROUP ? true : null;
+  const group = ungrouped ? null : (filter.group_name ?? null);
+  const isPublic =
+    filter.public_read === undefined ? null : filter.public_read === "true";
   return reading()`
     WHERE (${filter.device_eui ?? null}::text IS NULL OR device_eui = ${filter.device_eui ?? null})
       AND (${pattern}::text IS NULL OR message ILIKE ${pattern})
+      AND (${group}::text        IS NULL OR group_name  = ${group})
+      AND (${ungrouped}::boolean IS NULL OR group_name IS NULL)
+      AND (${isPublic}::boolean  IS NULL OR public_read = ${isPublic})
       AND (${from}::timestamptz IS NULL OR created_at >= ${from})
       AND (${to}::timestamptz   IS NULL OR created_at <= ${to})
   `;
@@ -226,12 +239,17 @@ const byIds = async (ids: string[]) => {
 
 /** Distinct devices that have sent something, for the filter dropdown. */
 const metadata = async () => {
-  const rows = await q((tx) => tx`SELECT DISTINCT device_eui AS v FROM log_entries ORDER BY v`);
-  return {
-    devices: (rows as unknown as { v: string }[])
-      .map((row) => row.v)
-      .filter((value) => value != null),
-  };
+  const [devices, groups] = await q((tx) =>
+    Promise.all([
+      tx`SELECT DISTINCT device_eui AS v FROM log_entries ORDER BY v`,
+      tx`SELECT DISTINCT group_name AS v FROM log_entries ORDER BY v`,
+    ]),
+  );
+  // NULLs drop out here, which is why the "no group" choice is offered as a
+  // sentinel rather than taken from this list.
+  const values = (rows: unknown) =>
+    (rows as { v: string }[]).map((row) => row.v).filter((value) => value != null);
+  return { devices: values(devices), groups: values(groups) };
 };
 
 /**

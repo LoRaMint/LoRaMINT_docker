@@ -2,7 +2,7 @@ import Layout from "../../components/layout/Layout";
 import PageHeading from "../../components/PageHeading";
 import FilterBar from "../../components/manage/FilterBar";
 import DataTable from "../../components/manage/DataTable";
-import type { ColumnSpec, FilterSpec } from "../../components/manage/spec";
+import type { ColumnSpec, FilterOption, FilterSpec } from "../../components/manage/spec";
 import {
   buildQuery,
   filterChips,
@@ -99,7 +99,7 @@ export default function AuditPage(props: {
   visibleColumns: string[];
   sort: string;
   direction: SortDirection;
-  options: Record<string, string[]>;
+  options: Record<string, FilterOption[]>;
   /** True for the admin role: the only one who may take something back. */
   canRevert: boolean;
   message?: string | null;

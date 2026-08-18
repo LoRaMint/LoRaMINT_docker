@@ -59,6 +59,22 @@ export const parseColumns = (
   return columns.length > 0 ? columns : [...fallback];
 };
 
+/**
+ * How a column selection travels in a link: one comma-separated value, or none
+ * at all when it is the resource's default.
+ *
+ * The picker is a checkbox group, so it submits `cols` once per checked box.
+ * Read back as a flat record - which is what a query object is - only the last
+ * of those survives, and a link built from it would carry a single column and
+ * drop the rest on the next page. Going through the comma form says the same
+ * thing to parseColumns and survives being read back.
+ */
+export const columnsParam = (
+  visible: readonly string[],
+  fallback: readonly string[],
+): string | null =>
+  visible.join(",") === fallback.join(",") ? null : visible.join(",");
+
 /** The column to sort by; anything unknown sorts by the resource's default. */
 export const parseSort = (
   raw: string | null | undefined,

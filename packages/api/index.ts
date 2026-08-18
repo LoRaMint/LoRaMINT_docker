@@ -158,7 +158,9 @@ app.get(
     summary: "List measurements",
     description:
       "Returns a paginated list of stored measurements, ordered by most recent first. " +
-      "Optionally filtered by device_eui, measurand, sensor, location, datatype, and/or a from/to time range.",
+      "Optionally filtered by device_eui, measurand, sensor, location, datatype, group_name, " +
+      "public_read, and/or a from/to time range. Pass group_name=__none__ for the rows "  +
+      "that belong to no group.",
     responses: {
       200: jsonResponse(
         MeasurementListResponseSchema,
@@ -186,7 +188,8 @@ app.get(
     summary: "Export measurements as CSV",
     description:
       "Returns stored measurements as a CSV file download, optionally filtered by " +
-      "device_eui, measurand, sensor, location, datatype, and/or a from/to time range.",
+      "device_eui, measurand, sensor, location, datatype, group_name, public_read, and/or a " +
+      "from/to time range. Pass group_name=__none__ for the rows that belong to no group.",
     responses: {
       200: {
         description: "CSV file",
@@ -211,7 +214,7 @@ app.get(
     tags: ["Measurements"],
     summary: "List available filter values",
     description:
-      "Returns the distinct device_euis, measurands, sensors, and locations present in the " +
+      "Returns the distinct device_euis, measurands, sensors, locations and groups present in the " +
       "stored measurements, for populating the filter dropdowns on the /plots page. " +
       "Optionally narrowed to a single device_eui for cascading dropdowns.",
     responses: {

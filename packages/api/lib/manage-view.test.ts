@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
   buildQuery,
   columnSummary,
+  columnsParam,
   filterChips,
   modeLink,
   pageLink,
@@ -57,6 +58,33 @@ describe("which columns to show", () => {
 
   test("is summarised as a count, not as a list", () => {
     expect(columnSummary(["a", "b"], ALL_COLUMNS)).toBe("2 von 6");
+  });
+
+  test("travels in a link as one comma-separated value", () => {
+    expect(columnsParam(["recorded_at", "value"], DEFAULT_COLUMNS)).toBe("recorded_at,value");
+  });
+
+  test("is left out of the link when it is the default", () => {
+    // Otherwise every address would carry a selection nobody made.
+    expect(columnsParam(DEFAULT_COLUMNS, DEFAULT_COLUMNS)).toBeNull();
+  });
+
+  test("survives a page change - the bug that made the picker look broken", () => {
+    // The picker submits `cols` once per checked box. A flat query record keeps
+    // only the last of them, so building the next page's link from the raw
+    // query dropped everything but one column.
+    const chosen = parseColumns(
+      ["recorded_at", "value", "location"],
+      ALL_COLUMNS,
+      DEFAULT_COLUMNS,
+    );
+    const raw = { cols: "location" }; // what a flat record makes of the three
+    const params = { ...raw, cols: columnsParam(chosen, DEFAULT_COLUMNS) };
+
+    expect(pageLink(params, 2)).toBe("?cols=recorded_at%2Cvalue%2Clocation&page=2");
+    expect(parseColumns("recorded_at,value,location", ALL_COLUMNS, DEFAULT_COLUMNS)).toEqual(
+      chosen,
+    );
   });
 });
 

@@ -92,11 +92,21 @@ const MEASURAND_COLORS = [
 const SENSOR_DASHES = ["solid", "dot", "dash", "dashdot", "longdash"];
 const Y_PADDING_FRACTION = 1 / 20;
 
+/**
+ * The `group_name` value asking for the rows that belong to no group. Kept in
+ * step with NO_GROUP in ../../types.ts by hand: importing it would pull the
+ * whole schema module, and zod with it, into this browser bundle.
+ */
+const NO_GROUP = "__none__";
+
+type FilterOption = string | { value: string; label: string };
+
 type Metadata = {
   devices: string[];
   measurands: string[];
   sensors: string[];
   locations: string[];
+  groups: string[];
 };
 
 type Point = { t: string; value: number };
@@ -107,6 +117,8 @@ const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as 
 
 const deviceSel = () => $<HTMLSelectElement>("device");
 const locationSel = () => $<HTMLSelectElement>("location");
+const groupSel = () => $<HTMLSelectElement>("group");
+const publicSel = () => $<HTMLSelectElement>("public");
 const measurandsBox = () => $<HTMLDivElement>("measurands");
 const sensorsBox = () => $<HTMLDivElement>("sensors");
 const layoutSel = () => $<HTMLSelectElement>("layout");
@@ -121,14 +133,18 @@ const setStatus = (msg: string) => {
   statusEl().textContent = msg;
 };
 
-const fillOptions = (sel: HTMLSelectElement, values: string[], keepFirst = false) => {
+/**
+ * A bare string is its own label; the pair is for choices that are not data,
+ * such as "ohne Gruppe".
+ */
+const fillOptions = (sel: HTMLSelectElement, values: FilterOption[], keepFirst = false) => {
   const first = keepFirst ? sel.options[0] : null;
   sel.innerHTML = "";
   if (first) sel.appendChild(first);
   for (const v of values) {
     const opt = document.createElement("option");
-    opt.value = v;
-    opt.textContent = v;
+    opt.value = typeof v === "string" ? v : v.value;
+    opt.textContent = typeof v === "string" ? v : v.label;
     sel.appendChild(opt);
   }
 };
@@ -204,19 +220,25 @@ async function fetchMetadata(deviceEui?: string): Promise<Metadata> {
 
 /** Fetches the CSV export for one measurand and groups rows into series by sensor. */
 async function fetchSeries(
-  deviceEui: string,
   measurand: string,
-  location: string,
   sensors: string[],
-  from: string,
-  to: string,
+  filter: {
+    deviceEui: string;
+    location: string;
+    group: string;
+    isPublic: string;
+    from: string;
+    to: string;
+  },
 ): Promise<Series[]> {
   const params = new URLSearchParams();
-  params.set("device_eui", deviceEui);
+  params.set("device_eui", filter.deviceEui);
   params.set("measurand", measurand);
-  if (location) params.set("location", location);
-  if (from) params.set("from", new Date(from).toISOString());
-  if (to) params.set("to", new Date(to).toISOString());
+  if (filter.location) params.set("location", filter.location);
+  if (filter.group) params.set("group_name", filter.group);
+  if (filter.isPublic) params.set("public_read", filter.isPublic);
+  if (filter.from) params.set("from", new Date(filter.from).toISOString());
+  if (filter.to) params.set("to", new Date(filter.to).toISOString());
 
   const res = await fetch(`${API}/measurements/export?${params.toString()}`);
   if (!res.ok) throw new Error(`Export laden fehlgeschlagen (${res.status})`);
@@ -372,6 +394,8 @@ async function plot() {
   const measurands = checkedValues(measurandsBox());
   const sensors = checkedValues(sensorsBox());
   const location = locationSel().value;
+  const group = groupSel().value;
+  const isPublic = publicSel().value;
   const mode = layoutSel().value as "overlay" | "stacked";
   const from = fromInput().value;
   const to = toInput().value;
@@ -383,7 +407,14 @@ async function plot() {
   try {
     const groups = new Map<string, Series[]>();
     for (const measurand of measurands) {
-      const series = await fetchSeries(deviceEui, measurand, location, sensors, from, to);
+      const series = await fetchSeries(measurand, sensors, {
+        deviceEui,
+        location,
+        group,
+        isPublic,
+        from,
+        to,
+      });
       if (series.length > 0) groups.set(measurand, series);
     }
 
@@ -429,6 +460,13 @@ async function populateForDevice(deviceEui?: string, isInitial = false) {
   fillCheckboxes(measurandsBox(), meta.measurands);
   fillCheckboxes(sensorsBox(), meta.sensors);
   fillOptions(locationSel(), meta.locations, /* keepFirst */ true);
+  // The sentinel is appended rather than taken from the data: NULLs do not
+  // appear in a DISTINCT list, so nothing else could name those rows.
+  fillOptions(
+    groupSel(),
+    [...meta.groups, { value: NO_GROUP, label: "ohne Gruppe" }],
+    /* keepFirst */ true,
+  );
 }
 
 async function init() {

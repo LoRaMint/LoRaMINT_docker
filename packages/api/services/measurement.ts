@@ -2,6 +2,7 @@ import type { SQL } from "bun";
 import { ingesting, reading, readingAs } from "./connections";
 import { currentScope } from "../lib/request-context";
 import type { PaginationParams } from "../lib/pagination";
+import { NO_GROUP } from "../types";
 import type {
   Datatype,
   Measurement,
@@ -205,12 +206,22 @@ const q = <T>(run: (tx: SQL) => Promise<T>): Promise<T> =>
 const filterClause = (filter: MeasurementFilter) => {
   const from = filter.from ? new Date(filter.from) : null;
   const to = filter.to ? new Date(filter.to) : null;
+  // NO_GROUP asks for the rows that have none, which is a different question
+  // from "which group" - so it becomes its own clause rather than a name to
+  // compare against, and the two can never both be active.
+  const ungrouped = filter.group_name === NO_GROUP ? true : null;
+  const group = ungrouped ? null : (filter.group_name ?? null);
+  const isPublic =
+    filter.public_read === undefined ? null : filter.public_read === "true";
   return reading()`
     WHERE (${filter.device_eui ?? null}::text IS NULL OR device_eui = ${filter.device_eui ?? null})
       AND (${filter.measurand ?? null}::text  IS NULL OR measurand  = ${filter.measurand  ?? null})
       AND (${filter.sensor ?? null}::text     IS NULL OR sensor     = ${filter.sensor     ?? null})
       AND (${filter.location ?? null}::text   IS NULL OR location   = ${filter.location   ?? null})
       AND (${filter.datatype ?? null}::text   IS NULL OR datatype   = ${filter.datatype   ?? null})
+      AND (${group}::text        IS NULL OR group_name  = ${group})
+      AND (${ungrouped}::boolean IS NULL OR group_name IS NULL)
+      AND (${isPublic}::boolean  IS NULL OR public_read = ${isPublic})
       AND (${from}::timestamptz IS NULL OR COALESCE(recorded_at, created_at) >= ${from})
       AND (${to}::timestamptz   IS NULL OR COALESCE(recorded_at, created_at) <= ${to})
   `;
@@ -228,14 +239,17 @@ const metadata = async (filter: MeasurementFilter = {}) => {
   // One transaction for all four, so the dropdowns cannot disagree with each
   // other - and because the scope has to be set once for any of them to see
   // more than the public rows.
-  const [devices, measurands, sensors, locations] = await q((tx) =>
+  const [devices, measurands, sensors, locations, groups] = await q((tx) =>
     Promise.all([
       tx`SELECT DISTINCT device_eui AS v FROM measurements ${where} ORDER BY v`,
       tx`SELECT DISTINCT measurand  AS v FROM measurements ${where} ORDER BY v`,
       tx`SELECT DISTINCT sensor     AS v FROM measurements ${where} ORDER BY v`,
       tx`SELECT DISTINCT location   AS v FROM measurements ${where} ORDER BY v`,
+      tx`SELECT DISTINCT group_name AS v FROM measurements ${where} ORDER BY v`,
     ]),
   );
+  // NULLs drop out here, which is why the "no group" choice is offered as a
+  // sentinel rather than taken from this list.
   const values = (rows: Record<string, unknown>[]) =>
     rows.map((r) => r.v as string).filter((v) => v != null);
   return {
@@ -243,6 +257,7 @@ const metadata = async (filter: MeasurementFilter = {}) => {
     measurands: values(measurands),
     sensors: values(sensors),
     locations: values(locations),
+    groups: values(groups),
   };
 };
 

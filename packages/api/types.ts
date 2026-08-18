@@ -137,9 +137,23 @@ export const MeasurementFilterSchema = z.object({
   sensor: z.string().optional(),
   location: z.string().optional(),
   datatype: z.enum(["float", "integer", "string"]).optional(),
+  group_name: z.string().max(100).optional(),
+  public_read: z.enum(["true", "false"]).optional(),
   from: z.union([z.iso.date(), z.iso.datetime({ offset: true })]).optional(),
   to: z.union([z.iso.date(), z.iso.datetime({ offset: true })]).optional(),
 });
+
+/**
+ * The `group_name` value that means "no group at all" rather than a group of
+ * that name.
+ *
+ * The column is nullable, and after the 1.8 migration the rows still waiting to
+ * be assigned are exactly the ones with NULL - so being able to ask for them is
+ * what makes the assignment work reviewable. A sentinel is needed because an
+ * absent filter already means "do not narrow"; the double underscores keep it
+ * out of the way of anything `data_groups` would accept as a name.
+ */
+export const NO_GROUP = "__none__";
 
 export type MeasurementFilter = z.infer<typeof MeasurementFilterSchema>;
 
@@ -163,6 +177,8 @@ export const MeasurementMetadataSchema = z.object({
   measurands: z.array(z.string()),
   sensors: z.array(z.string()),
   locations: z.array(z.string()),
+  /** Only the groups the caller may see - the row-level rules decide that. */
+  groups: z.array(z.string()),
 });
 
 //====================================

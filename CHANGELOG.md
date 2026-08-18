@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Filter measurements and log entries by group and by public/private.** The
+  `/plots`, `/export` and management pages gain a *Gruppe* dropdown, with an
+  entry for the rows that still belong to none, and an *Öffentlich* dropdown
+  for `public_read`. `GET /measurements`, `/measurements/export` and
+  `/measurements/filters` accept `group_name` (pass `__none__` for the
+  ungrouped rows) and `public_read` accordingly; `log_entries` gets the same
+  two filters and its metadata endpoint now also lists the groups present.
+
+- **Fixed:** the column picker's link to itself dropped every column but the
+  last. `cols` is submitted once per checked box, and a plain query object
+  keeps only the last of a repeated key, so any link rebuilt from that query
+  carried a single column. Filter links now go through a `columnsParam` helper
+  that folds the selection back into the one comma-separated value
+  `parseColumns` expects.
+
 ### Changed
 - **ESP32 examples sleep between uplinks instead of idling.** `time.sleep(60)`
   kept the ESP32 at full clock for the whole interval, tens of milliamps for
@@ -23,6 +39,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     loop. Deep sleep takes the serial port down with it on a chip with native
     USB, so Thonny loses the connection; light sleep leaves the shell attached.
     The guide walks through these.
+
+  The `deepsleep/` programs check a **stop bridge** as their very first
+  statement: a jumper between `STOP_PIN` (GPIO5) and GND ends the program before
+  it starts the cycle and hands back the REPL. Without it a sleeping board is
+  reachable for only two or three seconds a minute, which makes it a matter of
+  luck to interrupt. The check runs before the UART and the sensor, so it works
+  even when the wiring is at fault, and the pin is deliberately not a strapping
+  pin — waking from deep sleep is a reset, and a bridge on GPIO0 would boot the
+  board into the ROM download mode instead.
 
   Pauses *within* a cycle use light sleep in both folders, which keeps the
   readings in RAM. This only became affordable with the join change below: the
