@@ -28,11 +28,22 @@ class LoRaMINT:
     CONFIRM = 0            # 0 = unconfirmed uplink
     MAX_LOG_CHARS = 140    # maximum log message length (matches the Arduino lib)
 
-    def __init__(self, uart_id=2, tx=17, rx=16, baudrate=9600):
-        """Open the UART to the LA66 and reset the module."""
+    def __init__(self, uart_id=2, tx=17, rx=16, baudrate=9600, reset=False):
+        """
+        Open the UART to the LA66.
+
+        `reset` sends ATZ to bring the module up in a known state. It defaults
+        to False because the reset throws away the LoRaWAN session stored on the
+        LA66, which forces a full OTAA join on every start - the most expensive
+        thing a battery-powered node can do. Stale bytes on the line are cleared
+        by _drain() before every command, so the reset is not needed for that.
+        Pass reset=True when the module is wedged and a clean state is worth the
+        join.
+        """
         self._uart = UART(uart_id, baudrate=baudrate, bits=8, parity=None,
                           stop=1, tx=tx, rx=rx, timeout=1000)
-        self._reset()
+        if reset:
+            self._reset()
 
     # ------------------------------------------------------------------ #
     # Public API
@@ -68,14 +79,44 @@ class LoRaMINT:
             return line
         return None
 
-    def join(self, timeout_ms=60000):
+    def is_joined(self, timeout_ms=3000):
+        """
+        Report whether the LA66 still holds a valid LoRaWAN session (AT+NJS=?).
+
+        The module keeps the session across an ESP32 reboot, so this is what
+        lets join() skip the OTAA handshake.
+
+        Raises OSError when the module does not answer the query. Answering it
+        is not optional: a module that stays silent here would otherwise be
+        rejoined on every wake-up without anyone noticing.
+        """
+        self._drain()
+        self._send_at("AT+NJS=?")
+        for line in self._read_response(timeout_ms):
+            upper = line.upper()
+            if upper == "OK" or upper.startswith("AT+NJS"):
+                continue  # skip the command echo and the trailing OK
+            if line in ("0", "1"):
+                return line == "1"
+            break
+        raise OSError("LA66 did not answer AT+NJS=? (join status)")
+
+    def join(self, timeout_ms=60000, force=False):
         """
         Join the LoRaWAN network via OTAA (AT+JOIN).
 
-        Blocks until the module reports a join result or the timeout elapses.
-        Returns True on success, False otherwise. Assumes DevEUI/AppEUI/AppKey
-        are already configured on the LA66.
+        Returns immediately when the LA66 reports an existing session, unless
+        `force` is set. An OTAA handshake costs an uplink plus two receive
+        windows, so skipping it is the single largest saving on a node that
+        wakes up often.
+
+        Otherwise blocks until the module reports a join result or the timeout
+        elapses. Returns True on success, False otherwise. Assumes
+        DevEUI/AppEUI/AppKey are already configured on the LA66.
         """
+        if not force and self.is_joined():
+            return True
+
         self._drain()
         self._send_at("AT+JOIN")
         matched = self._wait_for(("joined", "join failed", "join_fail"), timeout_ms)

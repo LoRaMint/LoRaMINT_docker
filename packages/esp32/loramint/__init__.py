@@ -8,6 +8,6 @@ Dragino LA66 LoRaWAN module.
 from .loramint import LoRaMINT
 from .mintvalue import MintValue
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 __all__ = ["LoRaMINT", "MintValue"]

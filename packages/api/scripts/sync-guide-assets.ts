@@ -28,11 +28,15 @@ const IMAGES = [
   "thonny_upload.png",
 ];
 
+// Paths relative to packages/esp32/examples, mirrored one to one under
+// downloads/ - the two folders hold files of the same name.
 const EXAMPLES = [
-  "main.py",
-  "send_temperature.py",
-  "send_humidity.py",
-  "send_pressure.py",
+  "deepsleep/main.py",
+  "deepsleep/send_bme280.py",
+  "deepsleep/send_ds18b20.py",
+  "lightsleep/main.py",
+  "lightsleep/send_bme280.py",
+  "lightsleep/send_ds18b20.py",
 ];
 
 //====================================

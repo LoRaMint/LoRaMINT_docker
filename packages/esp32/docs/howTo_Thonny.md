@@ -152,10 +152,11 @@ Antwort:
 
 ---
 
-## 5. Temperatur mit dem BME280 senden
+## 5. Messwerte mit dem BME280 senden
 
-Jetzt sendest du echte Messwerte. Das fertige Programm `send_temperature.py`
-liest den BME280‑Sensor aus und funkt die Temperatur einmal pro Minute.
+Jetzt sendest du echte Messwerte. Das fertige Programm
+`lightsleep/send_bme280.py` liest den BME280‑Sensor aus und funkt **Temperatur,
+Luftfeuchte und Luftdruck** einmal pro Minute.
 
 1. **BME280 anschließen.** Der Sensor ist in der Verkabelungs‑Skizze
    (Abschnitt 2) bereits enthalten – schließe ihn wie dort gezeigt über **I2C**
@@ -171,18 +172,29 @@ liest den BME280‑Sensor aus und funkt die Temperatur einmal pro Minute.
    > dort die passende Treiberdatei (z. B. `bme280_float.py`) herunter und
    > **speichere sie auf dem Board als `bme280.py`** (so heißt sie im Beispiel).
 
-3. **Programm öffnen und starten:** `send_temperature.py` in Thonny öffnen, die
-   Pins ggf. anpassen und starten (grüner Play‑Knopf oder **F5**). In der Shell
-   siehst du:
+3. **Programm öffnen und starten:** `lightsleep/send_bme280.py` in Thonny
+   öffnen, die Pins ggf. anpassen und starten (grüner Play‑Knopf oder **F5**).
+   In der Shell siehst du:
    - `Joining LoRaWAN network...` – das Board meldet sich im Funknetz an
    - `Joined.` (kann bis zu einer Minute dauern)
-   - danach im Minutentakt `Measurement sent: 21.5`
+   - danach die drei Messwerte im Abstand von etwa 15 Sekunden, und das im
+     Minutentakt: `Measurement sent: Temperatur 21.5 *C`
+
+   > 💡 **Warum aus dem Ordner `lightsleep`?** Jedes Beispiel gibt es zweimal.
+   > Die Fassungen in `deepsleep/` sind sparsamer, dafür **startet der ESP32
+   > zwischen den Messungen neu** – die Verbindung zu Thonny bricht dann ab und
+   > du siehst nichts mehr. Die Fassungen in `lightsleep/` laufen einfach
+   > weiter, die Shell bleibt verbunden. Zum Ausprobieren also `lightsleep/`,
+   > und wenn das Gerät später allein irgendwo hängt, `deepsleep/`.
 
    > ⬇️ **Download (eigener Code):**
-   > [`send_temperature.py`](../examples/send_temperature.py) · weitere Beispiele:
-   > [`send_humidity.py`](../examples/send_humidity.py) (Feuchte),
-   > [`send_pressure.py`](../examples/send_pressure.py) (Luftdruck),
-   > [`main.py`](../examples/main.py) (sendet feste Testwerte, ganz **ohne** Sensor).
+   > [`lightsleep/send_bme280.py`](../examples/lightsleep/send_bme280.py) ·
+   > weitere Beispiele:
+   > [`lightsleep/send_ds18b20.py`](../examples/lightsleep/send_ds18b20.py)
+   > (DS18B20 statt BME280),
+   > [`lightsleep/main.py`](../examples/lightsleep/main.py) (sendet feste
+   > Testwerte, ganz **ohne** Sensor). Für den Dauerbetrieb dieselben Dateien in
+   > [`deepsleep/`](../examples/deepsleep/).
 
 Klappt die Anmeldung nicht (`txTimeout`), wurde zwar gefunkt, aber kein Gateway
 hat geantwortet – Schlüssel in TTN und die Antenne prüfen.
@@ -196,6 +208,20 @@ Strom bekommt. So speicherst du dein Beispiel als `main.py` auf das Board:
 2. Als Ort **„MicroPython‑Gerät"** wählen.
 3. Als Dateiname **`main.py`** eingeben.
 4. Board neu starten (Reset‑Taste) → das Programm läuft von allein.
+
+> 🔋 **Jetzt lohnt sich `deepsleep/`.** Wenn das Board dauerhaft laufen soll –
+> besonders an einer Batterie – nimm dafür die gleichnamige Datei aus dem Ordner
+> `deepsleep/` statt der aus `lightsleep/`. Sie macht dasselbe, verbraucht
+> zwischen den Messungen aber nur einen Bruchteil. Dass der ESP32 dabei jedes
+> Mal neu startet, stört ohne Thonny nicht mehr.
+>
+> 🔌 **Und wie kommst du da wieder raus?** Ein Board im Deep‑Sleep‑Takt ist pro
+> Minute nur zwei, drei Sekunden ansprechbar – Stoppen wird zur Glückssache.
+> Deshalb haben die `deepsleep/`‑Programme eine **Stopp‑Brücke**: Lege einen
+> Draht zwischen **GPIO5 und GND** und starte das Board neu, dann läuft der
+> Zyklus gar nicht erst an und du bekommst die Konsole zurück. Draht abziehen,
+> neu starten – und es misst wieder. Welcher Pin das ist, steht oben im
+> Programm als `STOP_PIN`.
 
 > Zum **Stoppen** eines automatisch laufenden Programms den Stopp‑Knopf drücken
 > oder in der Shell **Strg + C**.

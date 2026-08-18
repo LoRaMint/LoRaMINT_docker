@@ -5,6 +5,58 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+- **ESP32 examples sleep between uplinks instead of idling.** `time.sleep(60)`
+  kept the ESP32 at full clock for the whole interval, tens of milliamps for
+  doing nothing. The examples now come in two folders:
+
+  - `examples/deepsleep/` — for continuous operation. `machine.deepsleep()`,
+    roughly 10–20 µA. It does not return: the board restarts and runs the file
+    from the top, so the restart is the next cycle and there is no loop. Every
+    failure path ends in deep sleep as well, rather than leaving the node awake
+    forever with no retry, and the start-up log entry is guarded by
+    `machine.reset_cause()` so it is sent on a cold start only.
+  - `examples/lightsleep/` — the same three programs for trying things out.
+    `machine.lightsleep()`, roughly 1 mA, returns into a plain `while True`
+    loop. Deep sleep takes the serial port down with it on a chip with native
+    USB, so Thonny loses the connection; light sleep leaves the shell attached.
+    The guide walks through these.
+
+  Pauses *within* a cycle use light sleep in both folders, which keeps the
+  readings in RAM. This only became affordable with the join change below: the
+  LA66 keeps its session across a restart, so a cycle costs no OTAA handshake.
+  It also means the LA66 must stay powered — switching it off with the ESP32
+  brings the full join back.
+
+- **One ESP32 example per sensor.** `send_temperature.py`, `send_humidity.py`
+  and `send_pressure.py` are replaced by a single `send_bme280.py` that reads
+  the BME280 once and sends all three values, spaced so each uplink clears the
+  LA66's receive windows. `send_temperature_ds18b20.py` becomes
+  `send_ds18b20.py`. The Thonny guide and `/guides/esp32` follow and now explain
+  which of the two folders to pick. `send_value.py` and `send_log.py` stay
+  one-shot demos at the top level, with no sleeping at all.
+
+- **ESP32 library (`packages/esp32`, 0.1.0 → 0.2.0): the OTAA join is no longer
+  repeated on every start.** An OTAA handshake costs an uplink plus two receive
+  windows and can block for up to a minute — the most expensive thing a
+  battery-powered node does. The LA66 stores its LoRaWAN session itself and
+  keeps it across an ESP32 reboot, so `join()` now asks `AT+NJS=?` first and
+  returns straight away when the session is still valid. `join(force=True)`
+  does the handshake unconditionally, and `is_joined()` exposes the query.
+
+  What made the repeated join unavoidable was the `ATZ` in the constructor: the
+  reset wipes exactly that session. **`LoRaMINT()` therefore no longer resets
+  the module** — pass `LoRaMINT(reset=True)` to get the old behaviour. The reset
+  was never needed to clear stale bytes; `_drain()` does that before every
+  command.
+
+  Calling code does not change: `join()` is still the one call before sending.
+  A module that does not answer `AT+NJS=?` raises `OSError` instead of quietly
+  joining again — an unnoticed rejoin on every wake-up is the very thing this
+  change removes.
+
 ## [1.8.0] - 2026-08-10
 
 ### ⚠ Breaking — read before upgrading

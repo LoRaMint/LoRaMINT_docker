@@ -279,11 +279,12 @@ lora.check_connection()    # gibt eine Statusmeldung aus`}</Code>
         </ul>
 
         {/* 5 */}
-        <h2 class={h2}>5. Temperatur mit dem BME280 senden</h2>
+        <h2 class={h2}>5. Messwerte mit dem BME280 senden</h2>
         <p class={p}>
           Jetzt sendest du echte Messwerte. Das fertige Programm{" "}
-          <code>send_temperature.py</code> liest den BME280-Sensor aus und funkt
-          die Temperatur einmal pro Minute.
+          <code>lightsleep/send_bme280.py</code> liest den BME280-Sensor aus und
+          funkt <strong>Temperatur, Luftfeuchte und Luftdruck</strong> einmal pro
+          Minute.
         </p>
         <ol class="list-decimal pl-6 space-y-3 text-base-content/90">
           <li>
@@ -313,22 +314,44 @@ lora.check_connection()    # gibt eine Statusmeldung aus`}</Code>
           </li>
           <li>
             <strong>Programm öffnen und starten:</strong>{" "}
-            <code>send_temperature.py</code> in Thonny öffnen, die Pins ggf.
-            anpassen und starten (grüner Play-Knopf oder <strong>F5</strong>). In
-            der Shell siehst du:
+            <code>lightsleep/send_bme280.py</code> in Thonny öffnen, die Pins
+            ggf. anpassen und starten (grüner Play-Knopf oder <strong>F5</strong>).
+            In der Shell siehst du:
             <ul class="list-disc pl-6 mt-1">
               <li><code>Joining LoRaWAN network...</code> – das Board meldet sich im Funknetz an</li>
               <li><code>Joined.</code> (kann bis zu einer Minute dauern)</li>
-              <li>danach im Minutentakt <code>Measurement sent: 21.5</code></li>
+              <li>
+                danach die drei Messwerte im Abstand von etwa 15 Sekunden, und
+                das im Minutentakt:{" "}
+                <code>Measurement sent: Temperatur 21.5 *C</code>
+              </li>
             </ul>
+            <Note>
+              💡 <strong>Warum aus dem Ordner <code>lightsleep</code>?</strong>{" "}
+              Jedes Beispiel gibt es zweimal. Die Fassungen in{" "}
+              <code>deepsleep/</code> sind sparsamer, dafür{" "}
+              <strong>startet der ESP32 zwischen den Messungen neu</strong> – die
+              Verbindung zu Thonny bricht dann ab und du siehst nichts mehr. Die
+              Fassungen in <code>lightsleep/</code> laufen einfach weiter, die
+              Shell bleibt verbunden. Zum Ausprobieren also{" "}
+              <code>lightsleep/</code>, und wenn das Gerät später allein irgendwo
+              hängt, <code>deepsleep/</code>.
+            </Note>
           </li>
         </ol>
         <div class="flex flex-wrap gap-2 my-4">
-          <Download href={`${DL}/send_temperature.py`}>send_temperature.py</Download>
-          <Download href={`${DL}/send_humidity.py`}>send_humidity.py</Download>
-          <Download href={`${DL}/send_pressure.py`}>send_pressure.py</Download>
-          <Download href={`${DL}/main.py`}>main.py (ohne Sensor)</Download>
+          <Download href={`${DL}/lightsleep/send_bme280.py`}>send_bme280.py</Download>
+          <Download href={`${DL}/lightsleep/send_ds18b20.py`}>send_ds18b20.py</Download>
+          <Download href={`${DL}/lightsleep/main.py`}>main.py (ohne Sensor)</Download>
         </div>
+        <p class={`${p} text-sm`}>
+          Für den Dauerbetrieb dieselben drei Programme in der sparsamen
+          Fassung:{" "}
+          <a href={`${DL}/deepsleep/send_bme280.py`} class="link link-primary">send_bme280.py</a>,{" "}
+          <a href={`${DL}/deepsleep/send_ds18b20.py`} class="link link-primary">send_ds18b20.py</a>,{" "}
+          <a href={`${DL}/deepsleep/main.py`} class="link link-primary">main.py</a>{" "}
+          (Deep Sleep).
+        </p>
         <p class={p}>
           Klappt die Anmeldung nicht (<code>txTimeout</code>), wurde zwar
           gefunkt, aber kein Gateway hat geantwortet – Schlüssel in TTN und die
@@ -347,6 +370,24 @@ lora.check_connection()    # gibt eine Statusmeldung aus`}</Code>
           <li>Als Dateiname <code>main.py</code> eingeben.</li>
           <li>Board neu starten (Reset-Taste) → das Programm läuft von allein.</li>
         </ol>
+        <Note>
+          🔋 <strong>Jetzt lohnt sich <code>deepsleep/</code>.</strong> Wenn das
+          Board dauerhaft laufen soll – besonders an einer Batterie – nimm die
+          gleichnamige Datei aus dem Ordner <code>deepsleep/</code> statt der aus{" "}
+          <code>lightsleep/</code>. Sie macht dasselbe, verbraucht zwischen den
+          Messungen aber nur einen Bruchteil. Dass der ESP32 dabei jedes Mal neu
+          startet, stört ohne Thonny nicht mehr.
+        </Note>
+        <Note>
+          🔌 <strong>Und wie kommst du da wieder raus?</strong> Ein Board im
+          Deep-Sleep-Takt ist pro Minute nur zwei, drei Sekunden ansprechbar –
+          Stoppen wird zur Glückssache. Deshalb haben die{" "}
+          <code>deepsleep/</code>-Programme eine <strong>Stopp-Brücke</strong>:
+          Lege einen Draht zwischen <strong>GPIO5 und GND</strong> und starte das
+          Board neu, dann läuft der Zyklus gar nicht erst an und du bekommst die
+          Konsole zurück. Draht abziehen, neu starten – und es misst wieder.
+          Welcher Pin das ist, steht oben im Programm als <code>STOP_PIN</code>.
+        </Note>
         <Note>
           Zum <strong>Stoppen</strong> eines automatisch laufenden Programms den
           Stopp-Knopf drücken oder in der Shell <strong>Strg + C</strong>.

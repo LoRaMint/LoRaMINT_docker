@@ -17,13 +17,13 @@ loramint/                The library package
   loramint.py              LoRaMINT class - join(), sendLog(), sendValue()
   mintvalue.py             MintValue class - encodes one measurement value
 examples/                Example programs
-  main.py                  join, send a log entry, then a value every minute
-  send_value.py            send a single measurement value
-  send_log.py              send a log entry
-  send_temperature.py      read a BME280 and send the temperature
-  send_humidity.py         read a BME280 and send the humidity
-  send_pressure.py         read a BME280 and send the air pressure
-  send_temperature_ds18b20.py  read a DS18B20 (1-Wire) and send the temperature
+  deepsleep/               for continuous operation - see below
+    main.py                  send a fixed value, no sensor needed
+    send_bme280.py           read a BME280, send temperature, humidity, pressure
+    send_ds18b20.py          read a DS18B20 (1-Wire) and send the temperature
+  lightsleep/              the same three, for trying things out in Thonny
+  send_value.py            send a single measurement value (one shot)
+  send_log.py              send a log entry (one shot)
 package.json             mip manifest (used for installation, see below)
 ```
 
@@ -70,7 +70,7 @@ Then pick an example from `examples/` and copy it to the board root as `main.py`
 so it runs automatically on boot:
 
 ```bash
-mpremote cp examples/main.py :main.py
+mpremote cp examples/deepsleep/main.py :main.py
 ```
 
 ## Provisioning the LA66 (OTAA keys)
@@ -100,7 +100,7 @@ from loramint import LoRaMINT
 
 lora = LoRaMINT()                 # UART2, TX=GPIO17, RX=GPIO16, 9600 baud
 
-if lora.join():                   # OTAA join (AT+JOIN)
+if lora.join():                   # OTAA join (AT+JOIN), skipped if still joined
     lora.sendLog("Sensor gestartet")   # max 140 characters
 ```
 
@@ -143,10 +143,11 @@ lora = LoRaMINT(uart_id=1, tx=4, rx=5, baudrate=9600)
 
 | Method | Description |
 |--------|-------------|
-| `LoRaMINT(uart_id=2, tx=17, rx=16, baudrate=9600)` | Open the UART and reset the LA66 (`ATZ`). |
+| `LoRaMINT(uart_id=2, tx=17, rx=16, baudrate=9600, reset=False)` | Open the UART. With `reset=True` the LA66 is also reset (`ATZ`) — see below. |
 | `check_connection(timeout_ms=3000)` | Verify the UART link via `AT+VER=?`. Prints a status message; returns `True` if the LA66 responded. |
 | `get_version(timeout_ms=3000)` | Query the LA66 firmware version (`AT+VER=?`). Returns the version string or `None`. |
-| `join(timeout_ms=60000)` | Join the network via OTAA. Returns `True` on success. |
+| `is_joined(timeout_ms=3000)` | Whether the LA66 still holds a LoRaWAN session (`AT+NJS=?`). |
+| `join(timeout_ms=60000, force=False)` | Join the network via OTAA. Returns immediately when already joined, unless `force=True`. Returns `True` on success. |
 | `sendLog(message)` | Send a log entry (`LogEintrag`, max 140 chars). Returns `True` on `OK`. |
 | `sendValue(value)` | Send a `MintValue` (`Messwert`). Returns `True` on `OK`. |
 
@@ -174,8 +175,103 @@ Fields exceeding their length limit are replaced with `"too long"`; a string
 Leave a delay (≈10 s or more) between consecutive uplinks. As a Class A device
 the LA66 opens its receive windows right after each transmission and will not
 accept a new uplink while it is still busy — sending `sendLog` and `sendValue`
-back to back makes the second one fail. `main.py` uses `UPLINK_INTERVAL = 60`
-seconds. This also keeps you within the TTN fair-use policy.
+back to back makes the second one fail. The examples use
+`UPLINK_INTERVAL = 60` seconds. This also keeps you within the TTN fair-use
+policy.
+
+### `deepsleep/` or `lightsleep/` — which folder to use
+
+The same three programs exist twice. They differ in how the ESP32 spends the
+wait between uplinks; nothing idles in `time.sleep()`, which would hold the chip
+at tens of milliamps for the whole interval.
+
+| Folder | Call | Current | Effect |
+|---|---|---|---|
+| `deepsleep/` | `machine.deepsleep()` | ~10–20 µA | Does **not** return. The board restarts and runs the file from the top — the restart *is* the next cycle. No loop in the file. |
+| `lightsleep/` | `machine.lightsleep()` | ~1 mA | Returns. A plain `while True` loop carries on, RAM intact. |
+
+**Use `lightsleep/` while working in Thonny.** Deep sleep restarts the board; on
+a chip with native USB (ESP32-S3/C3) the serial port disappears with it and
+Thonny loses the connection. Light sleep leaves the shell attached, so you see
+every uplink. **Use `deepsleep/` for a node that runs on its own.**
+
+At a one-minute interval the two are closer than the currents suggest: the
+active phase dominates either way, and deep sleep pays for a full boot every
+cycle. Deep sleep only pulls clearly ahead once the interval grows to several
+minutes. On a development board neither shows much — the USB-serial chip and the
+voltage regulator draw more than the ESP32 asleep.
+
+#### Getting back in: the stop bridge
+
+A board in the deep-sleep cycle is reachable for only the two or three seconds
+it is awake each minute, which makes it awkward to interrupt. Each `deepsleep/`
+program therefore checks a **stop pin** as its very first statement — before the
+UART, before the sensor, so it works even when the wiring is at fault:
+
+```python
+STOP_PIN = 5
+
+if not Pin(STOP_PIN, Pin.IN, Pin.PULL_UP).value():
+    raise SystemExit("Stop bridge on GPIO{} - cycle not started.".format(STOP_PIN))
+```
+
+Put a jumper wire between GPIO5 and GND, restart the board, and you get a free
+REPL instead of the cycle. Pull the wire and restart to run again.
+
+**Never use a strapping pin for this** — on the ESP32-S3 those are GPIO0, 3, 45
+and 46. They are sampled at reset, and waking from deep sleep *is* a reset, so a
+bridge on one of them puts the board into the ROM download mode rather than into
+the REPL. `boot:0x23 (DOWNLOAD)` in the reset banner is what that looks like.
+
+Without the bridge, the fallback is to let the computer race the wake-up window:
+
+```bash
+while ! mpremote connect /dev/cu.usbmodem14101 fs rm :main.py; do sleep 0.2; done
+```
+
+Two things are specific to `deepsleep/`, because the restart forces them:
+
+- **Every failure path ends in deep sleep as well.** A node that stops on an
+  error stays awake at full clock until the battery is empty and never retries.
+  The `lightsleep/` programs stop with a message instead — someone is watching.
+- **The start-up log entry is guarded** by
+  `machine.reset_cause() != machine.DEEPSLEEP_RESET`, so it goes out on a cold
+  start only rather than on every wake-up. A press on RST counts as a cold
+  start, which is intended: it makes an unplanned restart visible in the
+  backend.
+
+In both folders the **LA66 must stay powered.** It holds the LoRaWAN session and
+the frame counter across an ESP32 restart, which is what lets `join()` return
+immediately. Switching it off with the ESP32 costs a full OTAA join per cycle
+and defeats the whole arrangement.
+
+A short pause *within* a cycle always uses `machine.lightsleep()`, in both
+folders — `send_bme280.py` spaces its three uplinks that way, and
+`send_ds18b20.py` waits out the sensor's conversion time. It keeps the RAM
+alive, so the readings survive.
+
+### The join is not repeated
+
+An OTAA handshake costs an uplink plus two receive windows and can block for up
+to `timeout_ms` — by far the most expensive thing a battery-powered node does.
+The LA66 stores its LoRaWAN session itself and keeps it across an ESP32 reboot,
+so `join()` first asks `AT+NJS=?` and returns straight away when the session is
+still there. Nothing changes for calling code: `join()` is still the one call
+you make before sending.
+
+Two consequences worth knowing:
+
+- **`ATZ` is no longer sent on construction.** The reset wipes that stored
+  session and is what forced a fresh join on every start. Stale bytes on the
+  line are cleared before every command anyway, so the reset was not needed for
+  that. Pass `LoRaMINT(reset=True)` when a module is wedged and a clean state is
+  worth the join.
+- **`join(force=True)`** does the handshake unconditionally, for the rare case
+  where you want a new session (e.g. after changing the keys).
+
+A module that does not answer `AT+NJS=?` raises `OSError` rather than quietly
+joining again — an unnoticed rejoin on every wake-up is exactly what this
+change exists to prevent.
 
 ## Protocol
 
