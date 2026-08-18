@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.9.0] - 2026-08-18
+
 ### Added
 - **Filter measurements and log entries by group and by public/private.** The
   `/plots`, `/export` and management pages gain a *Gruppe* dropdown, with an
