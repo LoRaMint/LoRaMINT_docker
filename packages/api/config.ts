@@ -147,6 +147,24 @@ export const sqlConsole = {
 };
 
 //====================================
+// BOARD
+//====================================
+
+/** The public /board page and its curation at /management/board. */
+export const board = {
+  /**
+   * Whether the page exists at all. Independent of the board role
+   * (LDAP_BOARD_GROUP, lib/roles.ts): the role decides who may curate it, this
+   * decides whether it is switched on for anyone, curator or not - a deployment
+   * that has nothing worth displaying yet can turn the whole feature off rather
+   * than publish an empty page.
+   */
+  get enabled() {
+    return optional("BOARD_ENABLED") !== "false";
+  },
+};
+
+//====================================
 // DATA MANAGEMENT
 //====================================
 

@@ -30,7 +30,7 @@ export default function Gauge(props: {
   const gradientId = `gauge-grad-${props.id}`;
 
   return (
-    <svg viewBox="0 0 200 190" class="w-full h-auto">
+    <svg viewBox="0 0 200 190" class="w-full h-full" preserveAspectRatio="xMidYMid meet">
       <defs>
         <linearGradient id={gradientId} gradientUnits="userSpaceOnUse" x1={CX - R} y1={CY} x2={CX + R} y2={CY}>
           <stop offset="0%" stop-color="#22c55e" />

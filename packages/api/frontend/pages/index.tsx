@@ -9,6 +9,7 @@ import {
   legal,
   auth,
   sqlConsole,
+  board,
   manage,
   setupAccount,
 } from "../../config";
@@ -125,14 +126,19 @@ pages.get(
   }),
 );
 
-pages.get(
-  "/board",
-  ...ssr(async (c) => {
-    c.get("page").title = "Dashboard";
-    const tiles = await dashboard.boardTiles();
-    return <BoardPage tiles={tiles} />;
-  }),
-);
+// Switchable, like the SQL console: a deployment with nothing worth showing yet
+// can turn the page off rather than publish an empty one. /management/board
+// stays reachable either way, so entries can be prepared while it is off.
+if (board.enabled) {
+  pages.get(
+    "/board",
+    ...ssr(async (c) => {
+      c.get("page").title = "Dashboard";
+      const tiles = await dashboard.boardTiles();
+      return <BoardPage tiles={tiles} />;
+    }),
+  );
+}
 
 pages.get(
   "/guides/esp32",

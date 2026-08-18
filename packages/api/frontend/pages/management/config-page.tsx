@@ -22,6 +22,7 @@ const ICONS: Record<Group | "overview", string> = {
   core: "M4 7h16M4 12h16M4 17h16",
   manage: "M12 5c4.4 0 8 1.3 8 3s-3.6 3-8 3-8-1.3-8-3 3.6-3 8-3M4 8v8c0 1.7 3.6 3 8 3s8-1.3 8-3V8",
   sql: "M8 9l-4 3 4 3m8-6l4 3-4 3M14 5l-4 14",
+  board: "M4 15a8 8 0 0 1 16 0M12 15l4-4",
   devices: "M6 4h12v16H6zM10 20h4",
   legal: "M6 3h9l3 3v15H6zM14 3v4h4",
 };

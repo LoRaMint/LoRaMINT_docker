@@ -53,6 +53,7 @@ export type Group =
   | "auth"
   | "manage"
   | "sql"
+  | "board"
   | "devices"
   | "legal";
 
@@ -75,6 +76,7 @@ export const GROUP_LABELS: Record<Group, string> = {
   auth: "Anmeldung (LDAP)",
   manage: "Datenverwaltung",
   sql: "SQL-Seite",
+  board: "Dashboard",
   devices: "Geräteverwaltung (TTN)",
   legal: "Rechtsseiten",
 };
@@ -86,6 +88,7 @@ export const GROUP_ORDER: Group[] = [
   "auth",
   "manage",
   "sql",
+  "board",
   "devices",
   "legal",
 ];
@@ -99,7 +102,7 @@ export const GROUP_ORDER: Group[] = [
  */
 export const GROUP_SECTIONS: { label: string; groups: Group[] }[] = [
   { label: "Zugang", groups: ["setup", "auth"] },
-  { label: "Betrieb", groups: ["core", "manage", "sql"] },
+  { label: "Betrieb", groups: ["core", "manage", "sql", "board"] },
   { label: "Angebundenes", groups: ["devices", "legal"] },
 ];
 
@@ -431,6 +434,19 @@ export const CATALOG: Setting[] = [
     kind: "number",
     meaning: "Nach wie vielen Millisekunden eine Abfrage abgebrochen wird.",
     fallback: "5000",
+    tier: "movable",
+  },
+
+  //---- Dashboard ----
+  {
+    key: "BOARD_ENABLED",
+    group: "board",
+    kind: "flag",
+    meaning:
+      "Ob es die öffentliche /board-Seite gibt. Auf „false\" verschwindet sie " +
+      "aus dem Menü und antwortet mit 404 - /management/board bleibt für die " +
+      "Board-Rolle weiter erreichbar, um Einträge vorzubereiten.",
+    fallback: "true",
     tier: "movable",
   },
 

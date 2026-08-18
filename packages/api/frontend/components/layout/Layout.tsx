@@ -1,5 +1,5 @@
 import type { JSX } from "solid-js";
-import { legal, auth, sqlConsole, setupAccount } from "../../../config";
+import { legal, auth, sqlConsole, board, setupAccount } from "../../../config";
 import { currentScope, currentUser, hasRole } from "../../../lib";
 
 const tabClass =
@@ -137,16 +137,26 @@ export default function Layout(props: { children: JSX.Element }) {
     // Public, unlike every section below it: /board has no login requirement,
     // so this must not be gated on `user` the way "Verwaltung" is. Board and
     // admin members get a second entry; everyone else sees one plain link.
-    {
-      label: "Dashboard",
-      items:
-        boardUser || adminUser
-          ? [
-              { href: "/board", label: "Dashboard ansehen" },
-              { href: "/management/board", label: "Dashboard managen" },
-            ]
-          : [{ href: "/board", label: "Dashboard" }],
-    },
+    //
+    // BOARD_ENABLED only switches the public page off - /management/board stays
+    // reachable for curators either way, so the section survives with just that
+    // one entry for them, and disappears entirely for anyone who is neither a
+    // curator nor has a page to look at.
+    ...(board.enabled || boardUser || adminUser
+      ? [
+          {
+            label: "Dashboard",
+            items: board.enabled
+              ? boardUser || adminUser
+                ? [
+                    { href: "/board", label: "Dashboard ansehen" },
+                    { href: "/management/board", label: "Dashboard managen" },
+                  ]
+                : [{ href: "/board", label: "Dashboard" }]
+              : [{ href: "/management/board", label: "Dashboard managen" }],
+          },
+        ]
+      : []),
     // The three areas no longer contain one another, so the section is built
     // from what this person actually holds rather than from one gate. Somebody
     // who only manages devices sees one entry here, and that is correct.

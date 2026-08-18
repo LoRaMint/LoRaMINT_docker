@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.10.1] - 2026-08-18
+
+### Added
+- **`BOARD_ENABLED`.** A switch for the public `/board` page, next to the
+  configuration page's other movable settings - the same shape as
+  `SQL_CONSOLE_ENABLED`. Off, the page 404s and its menu entry disappears;
+  `/management/board` stays reachable for the board role either way, so
+  entries can be prepared before the page goes live.
+
+### Fixed
+- **A board tile's name could overlap its gauge.** The gauge was sized from its
+  own width alone (`h-auto`), so on a wide tile it could render taller than the
+  space actually left for it and run into the name above. It now scales to fit
+  within that space on both axes, and the tile's text rows no longer shrink to
+  make room for it.
+
 ## [1.10.0] - 2026-08-18
 
 ### Added
