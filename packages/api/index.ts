@@ -215,7 +215,9 @@ app.get(
     summary: "List available filter values",
     description:
       "Returns the distinct device_euis, measurands, sensors, locations and groups present in the " +
-      "stored measurements, for populating the filter dropdowns on the /plots page. " +
+      "stored measurements, for populating the filter dropdowns on the /plots page, plus the " +
+      "combinations that actually occurred together - the flat lists alone are a cross product " +
+      "and would offer pairings no row ever carried. " +
       "Optionally narrowed to a single device_eui for cascading dropdowns.",
     responses: {
       200: jsonResponse(MeasurementMetadataSchema, "Distinct filter values"),

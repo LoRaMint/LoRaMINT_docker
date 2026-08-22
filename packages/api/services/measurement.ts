@@ -237,16 +237,26 @@ const filterClause = (filter: MeasurementFilter) => {
  */
 const metadata = async (filter: MeasurementFilter = {}) => {
   const where = filterClause({ device_eui: filter.device_eui });
-  // One transaction for all four, so the dropdowns cannot disagree with each
+  // One transaction for all six, so the dropdowns cannot disagree with each
   // other - and because the scope has to be set once for any of them to see
   // more than the public rows.
-  const [devices, measurands, sensors, locations, groups] = await q((tx) =>
+  const [devices, measurands, sensors, locations, groups, combinations] = await q((tx) =>
     Promise.all([
       tx`SELECT DISTINCT device_eui AS v FROM measurements ${where} ORDER BY v`,
       tx`SELECT DISTINCT measurand  AS v FROM measurements ${where} ORDER BY v`,
       tx`SELECT DISTINCT sensor     AS v FROM measurements ${where} ORDER BY v`,
       tx`SELECT DISTINCT location   AS v FROM measurements ${where} ORDER BY v`,
       tx`SELECT DISTINCT group_name AS v FROM measurements ${where} ORDER BY v`,
+      // The five lists above are independent and therefore a cross product -
+      // they would offer a sensor and a measurand that never occurred on one
+      // row. This is the same question the board's knownTriples asks, and it is
+      // what lets a page narrow one list by another. The row count is the
+      // device's real variety, not its data volume.
+      tx`
+        SELECT DISTINCT measurand, sensor, location, group_name, public_read
+        FROM measurements ${where}
+        ORDER BY measurand, sensor, location
+      `,
     ]),
   );
   // NULLs drop out here, which is why the "no group" choice is offered as a
@@ -259,6 +269,15 @@ const metadata = async (filter: MeasurementFilter = {}) => {
     sensors: values(sensors),
     locations: values(locations),
     groups: values(groups),
+    combinations: (combinations as unknown as Record<string, unknown>[]).map((r) => ({
+      measurand: r.measurand as string,
+      sensor: r.sensor as string,
+      location: r.location as string,
+      // A row without a group carries the sentinel rather than null, so it can
+      // be matched against the "ohne Gruppe" choice the pages offer.
+      group: (r.group_name as string | null) ?? NO_GROUP,
+      isPublic: r.public_read as boolean,
+    })),
   };
 };
 

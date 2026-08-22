@@ -6,6 +6,7 @@
  */
 
 import { COMMON_ZONES, otherZones, wallClockIn } from "../../../lib/time-zone";
+import { facetOptions, NO_GROUP, type Combination } from "../../../lib/facets";
 
 // Plotly is provided globally by /public/vendor/plotly.min.js (classic script).
 declare const Plotly: any;
@@ -92,13 +93,6 @@ const MEASURAND_COLORS = [
 const SENSOR_DASHES = ["solid", "dot", "dash", "dashdot", "longdash"];
 const Y_PADDING_FRACTION = 1 / 20;
 
-/**
- * The `group_name` value asking for the rows that belong to no group. Kept in
- * step with NO_GROUP in ../../types.ts by hand: importing it would pull the
- * whole schema module, and zod with it, into this browser bundle.
- */
-const NO_GROUP = "__none__";
-
 type FilterOption = string | { value: string; label: string };
 
 type Metadata = {
@@ -107,7 +101,17 @@ type Metadata = {
   sensors: string[];
   locations: string[];
   groups: string[];
+  combinations: Combination[];
 };
+
+/**
+ * The metadata of the device currently chosen.
+ *
+ * Held here so narrowing one list by another costs nothing: every filter but
+ * the device is applied to `combinations` in the browser, and only a change of
+ * device goes back to the server.
+ */
+let current: Metadata | null = null;
 
 type Point = { t: string; value: number };
 type Series = { measurand: string; sensor: string; unit: string; points: Point[] };
@@ -136,28 +140,50 @@ const setStatus = (msg: string) => {
 /**
  * A bare string is its own label; the pair is for choices that are not data,
  * such as "ohne Gruppe".
+ *
+ * Keeps the current choice when it is still on offer. Rebuilding the options
+ * used to drop it back to "– alle –" without a word, so a narrowing elsewhere
+ * silently widened this filter - the opposite of what it looked like. Returns
+ * the value that was dropped, so the caller can say so.
  */
-const fillOptions = (sel: HTMLSelectElement, values: FilterOption[], keepFirst = false) => {
+const fillOptions = (
+  sel: HTMLSelectElement,
+  values: FilterOption[],
+  keepFirst = false,
+): string | null => {
+  const previous = sel.value;
   const first = keepFirst ? sel.options[0] : null;
   sel.innerHTML = "";
   if (first) sel.appendChild(first);
+  let kept = false;
   for (const v of values) {
     const opt = document.createElement("option");
     opt.value = typeof v === "string" ? v : v.value;
     opt.textContent = typeof v === "string" ? v : v.label;
+    if (opt.value === previous) {
+      opt.selected = true;
+      kept = true;
+    }
     sel.appendChild(opt);
   }
+  return previous !== "" && !kept ? previous : null;
 };
 
-/** Renders a checkbox per value into a container; used for measurands/sensors. */
-const fillCheckboxes = (container: HTMLDivElement, values: string[]) => {
+/**
+ * Renders a checkbox per value into a container; used for measurands/sensors.
+ *
+ * Ticks stay ticked as long as the value is still offered - see fillOptions for
+ * why. Returns the values that were checked and are now gone.
+ */
+const fillCheckboxes = (container: HTMLDivElement, values: string[]): string[] => {
+  const previous = checkedValues(container);
   container.innerHTML = "";
   if (values.length === 0) {
     const hint = document.createElement("span");
     hint.className = "text-sm text-base-content/50";
     hint.textContent = "– keine –";
     container.appendChild(hint);
-    return;
+    return previous;
   }
   for (const v of values) {
     const label = document.createElement("label");
@@ -166,12 +192,14 @@ const fillCheckboxes = (container: HTMLDivElement, values: string[]) => {
     cb.type = "checkbox";
     cb.className = "checkbox checkbox-sm";
     cb.value = v;
+    cb.checked = previous.includes(v);
     const span = document.createElement("span");
     span.className = "label-text";
     span.textContent = v;
     label.append(cb, span);
     container.appendChild(label);
   }
+  return previous.filter((v) => !values.includes(v));
 };
 
 /** Values of all checked checkboxes inside a container. */
@@ -426,7 +454,15 @@ async function plot() {
     const { traces, layout } = buildFigure(groups, mode);
     await Plotly.react("chart", traces, layout, { responsive: true, displaylogo: false });
     const total = traces.reduce((sum: number, t: any) => sum + t.x.length, 0);
-    setStatus(`${traces.length} Serie(n), ${total} Punkte.`);
+    // Naming what stayed empty rather than quietly drawing fewer curves than
+    // were ticked. The lists rule out combinations that never occurred, but the
+    // time range is not part of them - a valid pairing can still have nothing
+    // in the chosen window, and that is worth saying.
+    const empty = measurands.filter((m) => !groups.has(m));
+    setStatus(
+      `${traces.length} Serie(n), ${total} Punkte.` +
+        (empty.length > 0 ? ` Keine Daten im Zeitraum für: ${empty.join(", ")}.` : ""),
+    );
   } catch (err) {
     setStatus(err instanceof Error ? err.message : "Unbekannter Fehler.");
   }
@@ -454,19 +490,67 @@ function syncScaleEnabled() {
 }
 
 // ---- Wiring ---------------------------------------------------------------
+/** What is chosen right now, in the shape lib/facets.ts expects. */
+const currentSelection = () => ({
+  measurands: checkedValues(measurandsBox()),
+  sensors: checkedValues(sensorsBox()),
+  location: locationSel().value,
+  group: groupSel().value,
+  isPublic: publicSel().value,
+});
+
+/**
+ * Rebuilds every list but the device's from the combinations of the current
+ * device, narrowed by everything already chosen.
+ *
+ * Runs entirely in the browser - the combinations came with the metadata, so
+ * ticking a box costs no request. What falls out of a list because of the
+ * narrowing is named rather than silently dropped.
+ */
+function narrowLists() {
+  if (!current) return;
+  const dropped = new Set<string>();
+
+  // Repeated until it settles, because dropping a value changes what the other
+  // lists may offer: the options were computed while it still counted, so a
+  // pass that drops something has narrowed the rest too far. It terminates -
+  // a pass only ever removes, and there is a finite amount to remove.
+  for (let pass = 0; pass < 10; pass++) {
+    const options = facetOptions(current.combinations, currentSelection());
+    const gone = [
+      ...fillCheckboxes(measurandsBox(), options.measurands),
+      ...fillCheckboxes(sensorsBox(), options.sensors),
+      fillOptions(locationSel(), options.locations, /* keepFirst */ true),
+      // The sentinel is appended rather than taken from the data: NULLs do not
+      // appear in a DISTINCT list, so nothing else could name those rows.
+      fillOptions(
+        groupSel(),
+        [...options.groups, { value: NO_GROUP, label: "ohne Gruppe" }],
+        /* keepFirst */ true,
+      ),
+    ].filter((v): v is string => v !== null);
+
+    if (gone.length === 0) break;
+    for (const value of gone) dropped.add(value);
+  }
+
+  if (dropped.size > 0) {
+    setStatus(`Passt nicht mehr zur Auswahl und wurde abgewählt: ${[...dropped].join(", ")}.`);
+  }
+}
+
 async function populateForDevice(deviceEui?: string, isInitial = false) {
-  const meta = await fetchMetadata(deviceEui);
-  if (isInitial) fillOptions(deviceSel(), meta.devices);
-  fillCheckboxes(measurandsBox(), meta.measurands);
-  fillCheckboxes(sensorsBox(), meta.sensors);
-  fillOptions(locationSel(), meta.locations, /* keepFirst */ true);
-  // The sentinel is appended rather than taken from the data: NULLs do not
-  // appear in a DISTINCT list, so nothing else could name those rows.
-  fillOptions(
-    groupSel(),
-    [...meta.groups, { value: NO_GROUP, label: "ohne Gruppe" }],
-    /* keepFirst */ true,
-  );
+  current = await fetchMetadata(deviceEui);
+  if (isInitial) {
+    fillOptions(deviceSel(), current.devices);
+    // The select has no "– alle –" entry, so the browser has just selected the
+    // first device on its own - without firing `change`. Fetching again for it
+    // is what keeps the lists from showing every device's values underneath a
+    // box that names one.
+    const chosen = deviceSel().value;
+    if (chosen) current = await fetchMetadata(chosen);
+  }
+  narrowLists();
 }
 
 async function init() {
@@ -480,11 +564,24 @@ async function init() {
     setStatus("Aktualisiere Auswahl …");
     try {
       await populateForDevice(deviceSel().value || undefined);
-      setStatus("");
+      // narrowLists may have left a message about what it dropped; only clear
+      // the "Aktualisiere …" placeholder if it did not.
+      if (statusEl().textContent === "Aktualisiere Auswahl …") setStatus("");
     } catch (err) {
       setStatus(err instanceof Error ? err.message : "Fehler beim Aktualisieren.");
     }
   });
+
+  // Every other filter narrows the remaining lists, so each one has to be
+  // listened to - group and public were not, which is why choosing a group left
+  // the measurand and sensor lists showing values it had just filtered away.
+  for (const el of [locationSel(), groupSel(), publicSel()]) {
+    el.addEventListener("change", narrowLists);
+  }
+  for (const box of [measurandsBox(), sensorsBox()]) {
+    box.addEventListener("change", narrowLists);
+  }
+
   $<HTMLButtonElement>("plot").addEventListener("click", plot);
   $<HTMLButtonElement>("download").addEventListener("click", downloadImage);
   formatSel().addEventListener("change", syncScaleEnabled);

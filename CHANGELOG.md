@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.10.2] - 2026-08-18
+
+### Fixed
+- **Die Auswahllisten auf `/plots` widersprachen einander.** Vier Fehler, die
+  alle dieselbe Wirkung hatten: angekreuzt, geplottet, leere Fläche, kein Hinweis
+  worauf es lag.
+
+  - **Beim Laden passten die Listen nicht zum angezeigten Gerät.** Das
+    Geräte-Feld hat — anders als auf `/export` — keine „alle"-Option, also wählte
+    der Browser sofort das erste Gerät aus, ohne dabei ein `change`-Ereignis
+    auszulösen. Messgrößen, Sensoren, Location und Gruppe blieben die
+    Vereinigung über *alle* Geräte. Dasselbe Gerät erneut zu wählen half nicht;
+    erst ein Wechsel weg und zurück brachte die Listen in Ordnung. Sie werden
+    jetzt für das vorausgewählte Gerät nachgeladen.
+  - **Gruppe und Öffentlich filterten die Daten, aber nie die Listen.** Auf
+    beiden lag überhaupt kein Listener, und `/measurements/metadata` nahm sie
+    auch nicht entgegen.
+  - **Messgröße und Sensor waren unabhängige `DISTINCT`-Listen** und damit ein
+    Kreuzprodukt: ein Sensor und eine Messgröße liessen sich kombinieren,
+    obwohl keine Zeile je beide zusammen trug — dieselbe Fehlerklasse, die
+    `knownTriples` für das Board beendet hat.
+  - **Messgrößen ohne Daten verschwanden lautlos.** Drei angekreuzt, zwei
+    Kurven, keine Erklärung.
+
+  `/measurements/metadata` liefert deshalb zusätzlich die Kombinationen, die
+  tatsächlich gemeinsam aufgetreten sind, und die Filter schränken einander aus
+  ihnen ein — im Browser, ohne Anfrage pro Klick. Die Regel, die dabei niemanden
+  aussperrt: eine Facette wird nie nach ihrer *eigenen* Auswahl eingeschränkt,
+  nur nach den übrigen; abwählen führt immer zur vollen Liste zurück. Was durch
+  eine Einschränkung wegfällt, wird benannt statt stillschweigend auf „alle"
+  zurückgesetzt, und leere Messgrößen nennt die Statuszeile jetzt beim Namen —
+  der Zeitraum gehört nicht zu den Kombinationen, eine gültige Paarung kann im
+  gewählten Fenster also trotzdem nichts enthalten.
+
+  Die Einschränkung selbst liegt als reine Funktion in `lib/facets.ts`. Dorthin
+  zieht auch `NO_GROUP`, das bisher dreimal von Hand kopiert dastand: die
+  Browser-Bündel können `types.ts` nicht einbinden, ohne zod mitzuziehen.
+
 ## [1.10.1] - 2026-08-18
 
 ### Added

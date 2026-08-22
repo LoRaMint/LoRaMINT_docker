@@ -6,14 +6,9 @@
  * endpoint. Single-value filters, mirroring what that endpoint accepts.
  */
 
-const API = "/api/v1";
+import { NO_GROUP } from "../../../lib/facets";
 
-/**
- * The `group_name` value asking for the rows that belong to no group. Kept in
- * step with NO_GROUP in ../../types.ts by hand: importing it would pull the
- * whole schema module, and zod with it, into this browser bundle.
- */
-const NO_GROUP = "__none__";
+const API = "/api/v1";
 
 type FilterOption = string | { value: string; label: string };
 

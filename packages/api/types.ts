@@ -152,8 +152,12 @@ export const MeasurementFilterSchema = z.object({
  * what makes the assignment work reviewable. A sentinel is needed because an
  * absent filter already means "do not narrow"; the double underscores keep it
  * out of the way of anything `data_groups` would accept as a name.
+ *
+ * Defined in lib/facets.ts and only re-exported here: the browser islands need
+ * it too and cannot import this module, which would pull zod into their bundle.
+ * It used to be copied by hand into each of them.
  */
-export const NO_GROUP = "__none__";
+export { NO_GROUP } from "./lib/facets";
 
 export type MeasurementFilter = z.infer<typeof MeasurementFilterSchema>;
 
@@ -179,6 +183,24 @@ export const MeasurementMetadataSchema = z.object({
   locations: z.array(z.string()),
   /** Only the groups the caller may see - the row-level rules decide that. */
   groups: z.array(z.string()),
+  /**
+   * The combinations that actually occurred together.
+   *
+   * The five lists above are independent `DISTINCT`s and therefore a cross
+   * product: they offer a sensor and a measurand that no row ever carried at
+   * once. This carries the real pairings, so a page can narrow each list by
+   * what is already chosen - see lib/facets.ts.
+   */
+  combinations: z.array(
+    z.object({
+      measurand: z.string(),
+      sensor: z.string(),
+      location: z.string(),
+      /** NO_GROUP for the rows that belong to none: NULL cannot be named. */
+      group: z.string(),
+      isPublic: z.boolean(),
+    }),
+  ),
 });
 
 //====================================
