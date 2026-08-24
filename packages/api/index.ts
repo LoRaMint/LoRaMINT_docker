@@ -26,6 +26,7 @@ import {
   THEME_COOKIE,
 } from "./lib";
 import { measurements, logEntries } from "./services";
+import * as apiTokens from "./services/api-tokens";
 import type { Scope } from "./services/connections";
 import { declaredNames } from "./services/data-groups";
 import {
@@ -58,6 +59,45 @@ const requireAppKey = createMiddleware(async (c, next) => {
   }
   await next();
 });
+
+/**
+ * `Authorization: Bearer …` - an API token, for a program rather than a person.
+ *
+ * On `app` and therefore on /api/v1 alone. That placement is the whole safety
+ * argument: **a token never becomes a signed-in user.** `user` stays null in
+ * the store below, so `requireLogin` and `requireRole` in the pages can never
+ * be satisfied by one, and /sql in particular stays out of reach. Because a
+ * token can only ever reach these read endpoints, the grant filter is allowed
+ * to live in application code - the objection from migration 007, that no
+ * filter in application code survives the SQL console, does not apply.
+ *
+ * The store is opened *inside* the one the root middleware already opened, and
+ * the innermost store wins - so an API token beats a session cookie that
+ * happens to travel with the same request. Deliberate beats incidental.
+ *
+ * Without the header nothing changes and the cookie path stays as it was.
+ */
+const bearerToken = createMiddleware(async (c, next) => {
+  const header = c.req.header("Authorization");
+  const value = header?.startsWith("Bearer ") ? header.slice(7).trim() : null;
+  if (!value) return next();
+
+  const authenticated = await apiTokens.authenticate(value);
+  if (!authenticated) {
+    return c.json({ ok: false, error: "Invalid or expired API token" }, 401);
+  }
+
+  return requestContext.run(
+    {
+      user: null,
+      scope: authenticated.grants.map((grant) => grant.group),
+      tokenGrants: authenticated.grants,
+    },
+    next,
+  );
+});
+
+app.use(bearerToken);
 
 // Catch any unhandled error in the API routes and return a consistent JSON 500
 // instead of leaking internals (e.g. a database outage in a service call).
@@ -282,8 +322,13 @@ app.get(
 const root = new Hono();
 
 // Resolve the session once per request and expose it for the whole request tree,
-// so the shared Layout can render the signed-in user. Kept outside the /api/v1
-// routes: the API authenticates with the TTN key, not with a browser cookie.
+// so the shared Layout can render the signed-in user.
+//
+// It applies to /api/v1 as well, because it is registered on `root` without a
+// path and the API is mounted underneath afterwards. That is deliberate - a
+// signed-in browser reaches the API with the rights it already has. The TTN key
+// belongs to the webhook alone, and a program without a cookie uses an API
+// token (see `bearerToken` above), which is resolved further in and wins.
 /**
  * Keeps the settings in memory close to the table.
  *

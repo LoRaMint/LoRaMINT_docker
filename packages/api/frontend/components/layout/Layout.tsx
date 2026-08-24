@@ -177,6 +177,13 @@ export default function Layout(props: { children: JSX.Element }) {
               ...(managementUser
                 ? [{ href: "/management/devices", label: "Geräte verwalten" }]
                 : []),
+              // A token belongs to a *data group*, so membership is what counts -
+              // not the data role, which sees every group but is in none. The
+              // scope says which: an array with entries is real membership,
+              // "all" only says the role. Same rule as requireGroupMember.
+              ...(adminUser || (Array.isArray(scope) && scope.length > 0)
+                ? [{ href: "/management/tokens", label: "API-Token" }]
+                : []),
               // Administrators only: the page lists bind accounts, database
               // roles and the shape of every secret.
               ...(adminUser

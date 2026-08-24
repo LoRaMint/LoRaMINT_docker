@@ -3,6 +3,7 @@ import { ingesting, reading, readingAs } from "./connections";
 import { currentScope } from "../lib/request-context";
 import type { PaginationParams } from "../lib/pagination";
 import { NO_GROUP } from "../types";
+import { logEntryGrantClause } from "./api-tokens";
 import type { LogEntry, LogStatus, MutationResult, TtnDecodedPayload, ValidatedLogEntry } from "../types";
 
 //====================================
@@ -159,6 +160,10 @@ const filterClause = (filter: LogEntryFilter) => {
       AND (${isPublic}::boolean  IS NULL OR public_read = ${isPublic})
       AND (${from}::timestamptz IS NULL OR created_at >= ${from})
       AND (${to}::timestamptz   IS NULL OR created_at <= ${to})
+      -- See the note on measurements.filterClause. This table carries only
+      -- device_eui of the filter's columns, so a grant naming any other covers
+      -- nothing here.
+      AND ${logEntryGrantClause()}
   `;
 };
 

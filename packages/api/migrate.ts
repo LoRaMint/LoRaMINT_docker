@@ -6,6 +6,7 @@ import { up as settings } from "./migrations/005-settings"
 import { up as users } from "./migrations/006-users"
 import { up as measurementGroups } from "./migrations/007-measurement-groups"
 import { up as dashboardEntries } from "./migrations/008-dashboard-entries"
+import { up as apiTokens } from "./migrations/009-api-tokens"
 
 // There is no migrations table: every migration runs on every start, so each
 // one has to be idempotent (CREATE ... IF NOT EXISTS). A new file is added here
@@ -19,5 +20,6 @@ await settings()
 await users()
 await measurementGroups()
 await dashboardEntries()
+await apiTokens()
 console.log("Migrations complete.")
 process.exit(0)

@@ -140,6 +140,14 @@ const SPECS: RoleSpec[] = [
       { privileges: "SELECT, INSERT, UPDATE, DELETE", on: "device_groups" },
       // The board pages curate which measurements the public /board page shows.
       { privileges: "SELECT, INSERT, UPDATE, DELETE", on: "dashboard_entries" },
+      // API tokens and the permissions data groups grant them.
+      { privileges: "SELECT, INSERT, UPDATE, DELETE", on: "api_tokens" },
+      { privileges: "SELECT, INSERT, UPDATE, DELETE", on: "api_token_grants" },
+      // Same shape as audit_log and device_log, and for the same reason: the
+      // pages that append to the token history must not be able to tidy it up
+      // afterwards. This grant is what makes "read-only history" true - not the
+      // absence of a button.
+      { privileges: "SELECT, INSERT", on: "api_token_log" },
     ],
     // Deliberately empty: a table added by a later migration grants this role
     // nothing until someone adds a line above. A default privilege here would

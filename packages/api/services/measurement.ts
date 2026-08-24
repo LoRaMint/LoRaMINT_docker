@@ -3,6 +3,7 @@ import { ingesting, reading, readingAs } from "./connections";
 import { currentScope } from "../lib/request-context";
 import type { PaginationParams } from "../lib/pagination";
 import { NO_GROUP } from "../types";
+import { measurementGrantClause } from "./api-tokens";
 import type {
   Datatype,
   Measurement,
@@ -225,6 +226,10 @@ const filterClause = (filter: MeasurementFilter) => {
       AND (${isPublic}::boolean  IS NULL OR public_read = ${isPublic})
       AND (${from}::timestamptz IS NULL OR COALESCE(recorded_at, created_at) >= ${from})
       AND (${to}::timestamptz   IS NULL OR COALESCE(recorded_at, created_at) <= ${to})
+      -- What an API token's grants allow, on top of what row-level security
+      -- already let through. A tautology for every request that carries no
+      -- token, so nothing else changes. See services/api-tokens.ts.
+      AND ${measurementGrantClause()}
   `;
 };
 

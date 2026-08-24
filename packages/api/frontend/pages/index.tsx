@@ -59,6 +59,7 @@ import { registerDeviceRoutes } from "./management/devices-routes";
 import { registerConfigRoutes } from "./management/config-routes";
 import { registerDataGroupRoutes } from "./management/data-groups-routes";
 import { registerBoardRoutes } from "./management/board-routes";
+import { registerTokenRoutes } from "./management/token-routes";
 import { dataGroupsOf, listDataGroups } from "../../services/data-groups";
 import ImpressumPage from "./impressum/page";
 import DatenschutzPage from "./datenschutz/page";
@@ -355,6 +356,25 @@ if (auth.enabled || setupAccount.enabled) {
       await next();
     });
 
+  /**
+   * The API token pages, for whoever has a group a token could belong to.
+   *
+   * Narrower than `requireDataAccess` on purpose: that one also admits the
+   * `data` role, which sees every group but is in none. A token has to be owned
+   * by a *data group*, so somebody with the role and no membership would find a
+   * page they cannot use. Administrators are let in because they may act for
+   * any group.
+   */
+  const requireGroupMember = createMiddleware(async (c, next) => {
+    const user = currentUser();
+    if (!user) return c.redirect("/login", 303);
+    if (!hasRole(user, "admin", auth)) {
+      const declared = (await listDataGroups()).map((group) => group.name);
+      if (dataGroupsOf(user, declared).length === 0) return c.notFound();
+    }
+    await next();
+  });
+
   // Open to anyone signed in, and the only page where a user writes anything
   // about themselves. What they may write is their own presentation - never a
   // group, which decides access and comes from the directory.
@@ -542,6 +562,10 @@ if (auth.enabled || setupAccount.enabled) {
     requireRole: requireRole("board"),
     sameOrigin,
   });
+
+  // API tokens. Not behind a role: a token belongs to a data group, so what
+  // matters is being in one - see requireGroupMember.
+  registerTokenRoutes(pages, { requireGroupMember, sameOrigin });
 }
 
 /**

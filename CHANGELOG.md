@@ -7,6 +7,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **API-Token: ein Programm darf die API lesen, ohne jemandes Passwort.** Bisher
+  gab es nur zwei Wege hinein — den TTN-Webhook mit eigenem Schlüssel und das
+  Sitzungs-Cookie eines Menschen. Letzteres taugt als Dauerlösung nicht: acht
+  Stunden gültig, nicht einzeln widerrufbar, und es trägt volle Schreibrechte in
+  der WebUI. Ein nächtlicher Export hätte ein Administratorpasswort im Klartext
+  vorhalten müssen.
+
+  Ein Token wird als `Authorization: Bearer …` mitgeschickt und ist **eine
+  Kennung, sonst nichts**. Was es lesen darf, steht in einer getrennten Liste von
+  Berechtigungen, die Datengruppen erteilen und entziehen. Daraus folgt die
+  Eigenschaft, um die es geht: **wird eine Berechtigung entzogen, ändert sich das
+  Token nicht** — kein neuer Wert, kein Skript, das angefasst werden muss. Jede
+  Berechtigung trägt einen Filter (`device_eui`, `measurand`, `sensor`,
+  `location`, `datatype`), der innerhalb der Gruppe weiter einengt.
+
+  Ein Token gehört einer **Datengruppe**, nie einer Person — deshalb läuft der
+  Export weiter, wenn die Lehrkraft geht, die ihn eingerichtet hat. Jedes
+  Mitglied der Gruppe darf anlegen, löschen und freigeben; Rollen innerhalb einer
+  Gruppe gibt es bewusst nicht. Die Laufzeit beträgt höchstens 360 Tage,
+  verlängerbar um wieder höchstens 360 Tage ab dem Zeitpunkt der Verlängerung.
+  Gespeichert wird nur der Hash; der Wert erscheint genau einmal beim Anlegen.
+
+  **Ein Token erzeugt keine WebUI-Sitzung.** Es authentifiziert allein die
+  lesenden Endpunkte unter `/api/v1` und erreicht insbesondere `/sql` nicht — das
+  ist die Bedingung, unter der der Filter im Anwendungscode liegen darf statt in
+  neuen RLS-Policies. Die Sichtbarkeit entsteht zweistufig: die Row-Level-Security
+  lässt die Zeilen der gewährten Gruppen durch, der Filter engt darüber hinaus
+  ein. Ein Token ohne Berechtigung sieht genau so viel wie ein anonymer Aufruf.
+
+  Jede Änderung an der Berechtigungsstruktur steht in einer eigenen Historie
+  unter `/management/tokens/history` — **rein lesend**, und das ist eine
+  Eigenschaft der Datenbankrolle: `loramint_manage` hat auf dieser Tabelle
+  `SELECT` und `INSERT` und nichts weiter, wie schon bei `audit_log` und
+  `device_log`. Die Einträge hängen bewusst nicht per Fremdschlüssel am Token,
+  sondern überleben sein Löschen — sonst wäre das Protokoll genau dann leer, wenn
+  man es braucht. Anders als `audit_log` trägt es von Anfang an eine
+  Gruppenspalte, sodass Gruppenmitglieder ihre eigene Historie sehen.
+
+  Das Konzept dahinter steht in `packages/api/docs/api-token.md`. Das Verleihen
+  eines Tokens an andere Gruppen ist dort beschrieben, aber noch nicht umgesetzt.
+
+### Fixed
+- **Ein Kommentar behauptete, das Sitzungs-Cookie gelte nicht auf `/api/v1`.**
+  Es gilt dort sehr wohl — die Middleware hängt an der Wurzel, und die API wird
+  darunter eingehängt. Wer den Kommentar las, konnte daraus falsche Schlüsse über
+  die Zugriffssteuerung ziehen. Das Verhalten bleibt, der Kommentar sagt es jetzt
+  richtig.
+
 ## [1.10.2] - 2026-08-18
 
 ### Fixed

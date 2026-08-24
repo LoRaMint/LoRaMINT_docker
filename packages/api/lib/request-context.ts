@@ -1,6 +1,7 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import type { Session } from "./session";
 import type { Scope } from "../services/connections";
+import type { Grant } from "./api-tokens";
 
 /**
  * Request-scoped state, so the shared Layout can render the signed-in user
@@ -44,6 +45,17 @@ export const requestContext = new AsyncLocalStorage<{
    * every request to reach the same answer.
    */
   scope?: Scope;
+  /**
+   * The permissions of the API token this request carries, when it carries one.
+   *
+   * `scope` alone only says which *groups* the request may reach; a grant may
+   * narrow further, to one device or one measurand. Both are needed: the scope
+   * is what the row-level policies read, the grants are what the services apply
+   * on top - see services/measurement.ts's `filterClause`.
+   *
+   * Absent for every ordinary request, and then nothing narrows.
+   */
+  tokenGrants?: readonly Grant[];
 }>();
 
 /** The signed-in user for the request being handled, or null when anonymous. */
@@ -66,3 +78,13 @@ export const currentTimeZone = (): string | null =>
  * is the right answer outside a request and for anonymous visitors alike.
  */
 export const currentScope = (): Scope => requestContext.getStore()?.scope ?? [];
+
+/**
+ * The token grants for this request, or null when it is not a token request.
+ *
+ * Null and "an empty list" mean different things and must stay apart: null is
+ * an ordinary request, which nothing narrows; an empty list is a token with no
+ * permission at all, which may see nothing beyond the public rows.
+ */
+export const currentTokenGrants = (): readonly Grant[] | null =>
+  requestContext.getStore()?.tokenGrants ?? null;
