@@ -46,8 +46,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   man es braucht. Anders als `audit_log` trägt es von Anfang an eine
   Gruppenspalte, sodass Gruppenmitglieder ihre eigene Historie sehen.
 
-  Das Konzept dahinter steht in `packages/api/docs/api-token.md`. Das Verleihen
-  eines Tokens an andere Gruppen ist dort beschrieben, aber noch nicht umgesetzt.
+  Das Konzept dahinter steht in `packages/api/docs/api-token.md`.
+
+- **Ein Token lässt sich an andere Gruppen verleihen.** Der Fall dahinter: ein
+  Programm soll die Daten mehrerer Gruppen lesen. Die besitzende Gruppe verleiht
+  ihr Token; die leihende Gruppe sieht es daraufhin und kann ihm **eigene** Daten
+  freigeben. Es braucht kein zweites Token und niemand muss etwas übergeben.
+
+  **Der Wert wird dabei nie mitgegeben** — gespeichert ist nur sein Hash, die
+  Anwendung könnte ihn gar nicht mehr herzeigen. Das ist die richtige Wirkung und
+  keine Einschränkung: eine leihende Gruppe, die den Wert hätte, könnte das Token
+  selbst benutzen und käme damit an die Daten der besitzenden Gruppe und aller
+  anderen Leihgeber. Verliehen wird das Recht, freizugeben — nie die Fähigkeit,
+  zu handeln.
+
+  Wird die Leihe zurückgezogen, **erlöschen alle daraus entstandenen Freigaben
+  sofort**, in derselben Transaktion. Ohne das wäre Zurückziehen wirkungslos: die
+  Gruppe sähe das Token nicht mehr, ihre Daten flössen aber weiter. Weiterverleihen
+  gibt es nicht — nur die besitzende Gruppe verleiht, sonst verlöre sie den
+  Überblick, wer ihrem Token Daten öffnen darf.
+
+  Getrennt bleiben dabei zwei Rechte, die sich leicht vermischen ließen: das Token
+  **verwalten** (löschen, verlängern, verleihen) bleibt bei der besitzenden Gruppe;
+  Daten **freigeben und entziehen** gehört der Gruppe, deren Daten es sind. Sonst
+  könnte eine Gruppe, der man das Token geliehen hat, es löschen.
+
+  Auf der Übersichtsseite sieht jede Gruppe nur, was sie wissen darf: die
+  besitzende Gruppe und Administratoren sehen alle Freigaben, eine gewährende
+  Gruppe ihre eigene. Sonst verriete die Liste, wer wem seine Daten öffnet.
 
 ### Fixed
 - **Ein Kommentar behauptete, das Sitzungs-Cookie gelte nicht auf `/api/v1`.**

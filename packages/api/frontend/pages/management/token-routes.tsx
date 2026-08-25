@@ -54,6 +54,25 @@ const ownGroups = async (): Promise<string[]> => {
 const mayAdminister = async (token: TokenRow): Promise<boolean> =>
   hasRole(currentUser(), "admin", auth) || (await ownGroups()).includes(token.ownerGroup);
 
+/**
+ * Why this person may not open `group`'s data to this token, or null if they may.
+ *
+ * A group grants its own data, so membership is the first condition. For anyone
+ * outside the owning group there is a second: the token must actually have been
+ * lent to *that* group. Without it, somebody in both a borrowing group and an
+ * unrelated one could feed the token data from the unrelated one - which nobody
+ * lent it anything for.
+ */
+const mayGrantFor = async (token: TokenRow, group: string): Promise<string | null> => {
+  if (hasRole(currentUser(), "admin", auth)) return null;
+  const groups = await ownGroups();
+  if (!groups.includes(group)) {
+    return "Du kannst nur über die Daten deiner eigenen Gruppen verfügen.";
+  }
+  if (group === token.ownerGroup || token.borrowers.includes(group)) return null;
+  return `„${group}" wurde dieses Token nicht geliehen.`;
+};
+
 export const registerTokenRoutes = (
   pages: Hono,
   guards: { requireGroupMember: MiddlewareHandler; sameOrigin: MiddlewareHandler },
@@ -124,16 +143,32 @@ export const registerTokenRoutes = (
     );
   }));
 
-  /** Every action below needs the token *and* the right to administer it. */
+  /**
+   * Loads the token and checks the right the action needs.
+   *
+   * Two different rights, and they must not be conflated. Administering a token
+   * - deleting, extending, lending it - belongs to the owning group alone.
+   * Granting and withdrawing data belongs to whichever group the data is, which
+   * after a loan includes the borrowing group. Giving a borrower the owner's
+   * powers would let a group it was lent to delete it.
+   */
   const withToken = (
+    permission: "administer" | "reach",
     handler: (token: TokenRow, form: Record<string, unknown>) => Promise<{ saved?: string; error?: string }>,
   ) =>
     async (c: any) => {
       const token = await apiTokens.getToken(c.req.param("id"));
       if (!token) return c.redirect(back({ error: "Das Token wurde nicht gefunden." }), 303);
-      if (!(await mayAdminister(token))) {
+
+      const allowed =
+        permission === "administer"
+          ? await mayAdminister(token)
+          : (await mayAdminister(token)) ||
+            (await ownGroups()).some((group) => token.borrowers.includes(group));
+      if (!allowed) {
         return c.redirect(back({ error: "Dieses Token gehört einer anderen Gruppe." }), 303);
       }
+
       const form = await c.req.parseBody();
       return c.redirect(back(await handler(token, form)), 303);
     };
@@ -142,7 +177,7 @@ export const registerTokenRoutes = (
     `${PATH}/:id/delete`,
     guards.requireGroupMember,
     guards.sameOrigin,
-    withToken(async (token) => {
+    withToken("administer", async (token) => {
       const result = await apiTokens.deleteToken(token, actorFrom());
       return result.ok
         ? { saved: `„${token.name}" wurde gelöscht und wirkt ab sofort nicht mehr.` }
@@ -154,7 +189,7 @@ export const registerTokenRoutes = (
     `${PATH}/:id/extend`,
     guards.requireGroupMember,
     guards.sameOrigin,
-    withToken(async (token, form) => {
+    withToken("administer", async (token, form) => {
       const days = Number.parseInt(text(form, "days"), 10) || 360;
       const result = await apiTokens.extendToken(token, days, actorFrom());
       return result.ok
@@ -167,7 +202,7 @@ export const registerTokenRoutes = (
     `${PATH}/:id/visibility`,
     guards.requireGroupMember,
     guards.sameOrigin,
-    withToken(async (token, form) => {
+    withToken("administer", async (token, form) => {
       const visibility: Visibility =
         text(form, "visibility") === "signed_in" ? "signed_in" : "group";
       const result = await apiTokens.setVisibility(token, visibility, actorFrom());
@@ -185,12 +220,10 @@ export const registerTokenRoutes = (
     `${PATH}/:id/grant`,
     guards.requireGroupMember,
     guards.sameOrigin,
-    withToken(async (token, form) => {
+    withToken("reach", async (token, form) => {
       const group = text(form, "group_name");
-      const isAdmin = hasRole(currentUser(), "admin", auth);
-      if (!isAdmin && !(await ownGroups()).includes(group)) {
-        return { error: "Du kannst nur Daten deiner eigenen Gruppen freigeben." };
-      }
+      const refusal = await mayGrantFor(token, group);
+      if (refusal) return { error: refusal };
       const filter: Record<string, string> = {};
       for (const key of ["device_eui", "measurand", "sensor", "location", "datatype"]) {
         const value = text(form, key).trim();
@@ -207,15 +240,54 @@ export const registerTokenRoutes = (
     `${PATH}/:id/revoke`,
     guards.requireGroupMember,
     guards.sameOrigin,
-    withToken(async (token, form) => {
+    withToken("reach", async (token, form) => {
       const group = text(form, "group_name");
-      const isAdmin = hasRole(currentUser(), "admin", auth);
-      if (!isAdmin && !(await ownGroups()).includes(group)) {
-        return { error: "Du kannst nur Freigaben deiner eigenen Gruppen entziehen." };
-      }
+      const refusal = await mayGrantFor(token, group);
+      if (refusal) return { error: refusal };
       const result = await apiTokens.revoke(token, group, actorFrom());
       return result.ok
         ? { saved: `Die Freigabe von „${group}" wurde entzogen und wirkt sofort nicht mehr.` }
+        : { error: result.error };
+    }),
+  );
+
+  /**
+   * Lending, so another group may grant this token their data.
+   *
+   * Only the owning group lends - there is no onward lending, or the owner
+   * would lose track of who may open data to its token. The value is never
+   * passed along; see services/api-tokens.ts.
+   */
+  pages.post(
+    `${PATH}/:id/lend`,
+    guards.requireGroupMember,
+    guards.sameOrigin,
+    withToken("administer", async (token, form) => {
+      const group = text(form, "borrower_group");
+      const result = await apiTokens.lend(token, group, actorFrom());
+      return result.ok
+        ? {
+            saved:
+              `„${group}" kann „${token.name}" jetzt sehen und ihm eigene Daten ` +
+              "freigeben. Den Wert des Tokens kennt die Gruppe damit nicht.",
+          }
+        : { error: result.error };
+    }),
+  );
+
+  pages.post(
+    `${PATH}/:id/unlend`,
+    guards.requireGroupMember,
+    guards.sameOrigin,
+    withToken("administer", async (token, form) => {
+      const group = text(form, "borrower_group");
+      const result = await apiTokens.unlend(token, group, actorFrom());
+      return result.ok
+        ? {
+            saved:
+              `Die Leihe an „${group}" wurde zurückgezogen – alle daraus ` +
+              "entstandenen Freigaben sind sofort erloschen.",
+          }
         : { error: result.error };
     }),
   );

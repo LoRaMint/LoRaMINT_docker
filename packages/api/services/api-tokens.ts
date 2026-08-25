@@ -40,7 +40,14 @@ export type TokenRow = {
   lastUsedAt: Date | null;
   createdAt: Date;
   createdBy: string | null;
+  /**
+   * What the token may read. Narrowed to what the viewer is allowed to know:
+   * the owning group and administrators see every grant, a lending group sees
+   * its own. Otherwise the list would say who opens their data to whom.
+   */
   grants: Grant[];
+  /** The groups this token has been lent to, so they may grant it their data. */
+  borrowers: string[];
 };
 
 /** Who is acting. Deliberately smaller than services/manage.ts's `Actor`: no reason, no scope. */
@@ -98,17 +105,50 @@ const mapGrants = (raw: unknown): Grant[] => {
   return grants;
 };
 
-const mapToken = (row: Record<string, unknown>): TokenRow => ({
-  id: row.id as string,
-  name: row.name as string,
-  ownerGroup: row.owner_group as string,
-  visibility: row.visibility as Visibility,
-  expiresAt: row.expires_at as Date,
-  lastUsedAt: (row.last_used_at as Date | null) ?? null,
-  createdAt: row.created_at as Date,
-  createdBy: (row.created_by as string | null) ?? null,
-  grants: mapGrants(row.grants),
-});
+const mapBorrowers = (raw: unknown): string[] =>
+  Array.isArray(raw) ? raw.filter((v): v is string => typeof v === "string") : [];
+
+/**
+ * Who may know which groups have opened their data to this token.
+ *
+ * The owning group and administrators see every grant - the owner reads that
+ * data through the token anyway, so hiding it would only make the page lie. A
+ * lending group sees its own. Everyone else sees that the token exists and
+ * nothing about who feeds it.
+ *
+ * `null` for the viewer means "no narrowing", which is what the authentication
+ * path wants: there the grants decide access, not what somebody may read.
+ */
+const visibleGrants = (
+  grants: Grant[],
+  viewer: { groups: readonly string[]; isAdmin: boolean; ownerGroup: string } | null,
+): Grant[] => {
+  if (viewer === null) return grants;
+  if (viewer.isAdmin || viewer.groups.includes(viewer.ownerGroup)) return grants;
+  return grants.filter((grant) => viewer.groups.includes(grant.group));
+};
+
+const mapToken = (
+  row: Record<string, unknown>,
+  viewer: { groups: readonly string[]; isAdmin: boolean } | null,
+): TokenRow => {
+  const ownerGroup = row.owner_group as string;
+  return {
+    id: row.id as string,
+    name: row.name as string,
+    ownerGroup,
+    visibility: row.visibility as Visibility,
+    expiresAt: row.expires_at as Date,
+    lastUsedAt: (row.last_used_at as Date | null) ?? null,
+    createdAt: row.created_at as Date,
+    createdBy: (row.created_by as string | null) ?? null,
+    grants: visibleGrants(
+      mapGrants(row.grants),
+      viewer === null ? null : { ...viewer, ownerGroup },
+    ),
+    borrowers: mapBorrowers(row.borrowers),
+  };
+};
 
 /**
  * A group list as a parameter.
@@ -121,44 +161,66 @@ const mapToken = (row: Record<string, unknown>): TokenRow => ({
  */
 const asJsonList = (values: readonly string[]) => JSON.stringify([...values]);
 
-/** The tokens this person may see: their groups' own, plus the openly visible ones. */
+/** The columns every token query needs, grants and borrowers folded in. */
+const TOKEN_COLUMNS = () => reading()`
+  t.id, t.name, t.owner_group, t.visibility, t.expires_at,
+  t.last_used_at, t.created_at, t.created_by,
+  COALESCE(
+    (SELECT json_agg(json_build_object('group_name', g.group_name, 'filter', g.filter))
+       FROM api_token_grants g WHERE g.token_id = t.id),
+    '[]'::json
+  ) AS grants,
+  COALESCE(
+    (SELECT json_agg(l.borrower_group ORDER BY l.borrower_group)
+       FROM api_token_loans l WHERE l.token_id = t.id),
+    '[]'::json
+  ) AS borrowers
+`;
+
+/**
+ * The tokens this person may see.
+ *
+ * Four ways in: administrator, owning group, openly visible - and lent to one
+ * of their groups, which is the point of lending. A borrowing group has to be
+ * able to find the token before it can grant it anything.
+ */
 export const listForUser = async (
   groups: readonly string[],
   isAdmin: boolean,
 ): Promise<TokenRow[]> => {
+  const mine = asJsonList(groups);
   const rows = await reading()`
-    SELECT t.id, t.name, t.owner_group, t.visibility, t.expires_at,
-           t.last_used_at, t.created_at, t.created_by,
-           COALESCE(
-             (SELECT json_agg(json_build_object('group_name', g.group_name, 'filter', g.filter))
-                FROM api_token_grants g WHERE g.token_id = t.id),
-             '[]'::json
-           ) AS grants
+    SELECT ${TOKEN_COLUMNS()}
     FROM api_tokens t
     WHERE ${isAdmin}
        OR t.visibility = 'signed_in'
-       OR t.owner_group IN (
-            SELECT jsonb_array_elements_text(${asJsonList(groups)}::text::jsonb)
+       OR t.owner_group IN (SELECT jsonb_array_elements_text(${mine}::text::jsonb))
+       OR EXISTS (
+            SELECT 1 FROM api_token_loans l
+            WHERE l.token_id = t.id
+              AND l.borrower_group IN (
+                    SELECT jsonb_array_elements_text(${mine}::text::jsonb)
+                  )
           )
     ORDER BY t.name
   `;
-  return (rows as Record<string, unknown>[]).map(mapToken);
+  return (rows as Record<string, unknown>[]).map((row) => mapToken(row, { groups, isAdmin }));
 };
 
+/**
+ * One token, unnarrowed.
+ *
+ * The routes use this to decide whether somebody may act, so it must not hide
+ * anything from them - what a *page* shows is narrowed by `listForUser`.
+ */
 export const getToken = async (id: string): Promise<TokenRow | null> => {
   const rows = await reading()`
-    SELECT t.id, t.name, t.owner_group, t.visibility, t.expires_at,
-           t.last_used_at, t.created_at, t.created_by,
-           COALESCE(
-             (SELECT json_agg(json_build_object('group_name', g.group_name, 'filter', g.filter))
-                FROM api_token_grants g WHERE g.token_id = t.id),
-             '[]'::json
-           ) AS grants
+    SELECT ${TOKEN_COLUMNS()}
     FROM api_tokens t
     WHERE t.id = ${id}
   `;
   const [row] = rows as Record<string, unknown>[];
-  return row ? mapToken(row) : null;
+  return row ? mapToken(row, null) : null;
 };
 
 //====================================
@@ -405,6 +467,82 @@ export const revoke = async (
     return { ok: true, data: null };
   } catch (err) {
     return failed("Das Entziehen der Berechtigung", err);
+  }
+};
+
+//====================================
+// LENDING
+//====================================
+
+/**
+ * Lends the token to another group, so that group may grant it their data.
+ *
+ * The value is not passed along - only its hash is stored, so it could not be.
+ * That is the right outcome: a borrowing group holding the value could use the
+ * token itself and would then read the owner's data and every other lender's.
+ * Lending passes the right to grant, never the ability to act.
+ */
+export const lend = async (
+  token: TokenRow,
+  borrowerGroup: string,
+  actor: TokenActor,
+): Promise<TokenResult> => {
+  if (borrowerGroup === token.ownerGroup) {
+    return { ok: false, error: "Der eigenen Gruppe muss nichts geliehen werden." };
+  }
+  try {
+    await writing().begin(async (tx: any) => {
+      await tx`
+        INSERT INTO api_token_loans (token_id, borrower_group, lent_by)
+        VALUES (${token.id}, ${borrowerGroup}, ${actor.username})
+        ON CONFLICT (token_id, borrower_group) DO NOTHING
+      `;
+      await logInto(tx, {
+        action: "lend",
+        tokenId: token.id,
+        tokenName: token.name,
+        groupName: borrowerGroup,
+      }, actor);
+    });
+    return { ok: true, data: null };
+  } catch (err) {
+    return failed("Das Verleihen des Tokens", err);
+  }
+};
+
+/**
+ * Withdraws a loan - and with it **every permission that arose from it**.
+ *
+ * Leaving the grants in place would make withdrawing meaningless: the borrowing
+ * group could no longer see the token but its data would still flow. Both go in
+ * one transaction, so there is no moment where one has happened and the other
+ * has not.
+ */
+export const unlend = async (
+  token: TokenRow,
+  borrowerGroup: string,
+  actor: TokenActor,
+): Promise<TokenResult> => {
+  try {
+    await writing().begin(async (tx: any) => {
+      await tx`
+        DELETE FROM api_token_loans
+        WHERE token_id = ${token.id} AND borrower_group = ${borrowerGroup}
+      `;
+      await tx`
+        DELETE FROM api_token_grants
+        WHERE token_id = ${token.id} AND group_name = ${borrowerGroup}
+      `;
+      await logInto(tx, {
+        action: "unlend",
+        tokenId: token.id,
+        tokenName: token.name,
+        groupName: borrowerGroup,
+      }, actor);
+    });
+    return { ok: true, data: null };
+  } catch (err) {
+    return failed("Das Zurückziehen der Leihe", err);
   }
 };
 

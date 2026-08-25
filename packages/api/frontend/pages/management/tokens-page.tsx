@@ -35,7 +35,18 @@ export default function TokensPage(props: {
   error?: string;
 }) {
   const mayActFor = (group: string) => props.isAdmin || props.ownGroups.includes(group);
-  const grantableGroups = props.isAdmin ? props.allGroups : props.ownGroups;
+
+  /**
+   * Which of my groups may open their data to this token: my own if I own it,
+   * plus any it has been lent to. Mirrors `mayGrantFor` in token-routes.tsx -
+   * the page only decides what is worth offering, the route checks again.
+   */
+  const grantableFor = (token: TokenRow) =>
+    props.isAdmin
+      ? props.allGroups
+      : props.ownGroups.filter(
+          (group) => group === token.ownerGroup || token.borrowers.includes(group),
+        );
 
   return (
     <Layout>
@@ -126,7 +137,7 @@ export default function TokensPage(props: {
                 </tbody>
               </TableFrame>
 
-              {grantableGroups.length > 0 && (
+              {grantableFor(token).length > 0 && (
                 <details class="mb-3">
                   <summary class="cursor-pointer text-sm link">Freigabe erteilen</summary>
                   <form
@@ -137,7 +148,7 @@ export default function TokensPage(props: {
                     <label class="text-sm">
                       <span class="block text-base-content/70">Gruppe</span>
                       <select name="group_name" required class="select select-sm">
-                        {grantableGroups.map((group) => (
+                        {grantableFor(token).map((group) => (
                           <option value={group}>{group}</option>
                         ))}
                       </select>
@@ -154,6 +165,66 @@ export default function TokensPage(props: {
                   </form>
                   <p class="text-xs text-base-content/60 mt-1">
                     Leere Felder heißen „alles der Gruppe". Ausgefüllte engen ein.
+                  </p>
+                </details>
+              )}
+
+              {/* Leihen: nur die Besitzergruppe verleiht, kein Weiterverleihen. */}
+              {mayActFor(token.ownerGroup) && (
+                <details class="mb-3">
+                  <summary class="cursor-pointer text-sm link">
+                    Verleihen{" "}
+                    {token.borrowers.length > 0 && (
+                      <span class="text-base-content/60">
+                        (an {token.borrowers.join(", ")})
+                      </span>
+                    )}
+                  </summary>
+
+                  {token.borrowers.length > 0 && (
+                    <ul class="mt-2 space-y-1">
+                      {token.borrowers.map((group) => (
+                        <li class="flex items-center gap-2 text-sm">
+                          <code>{group}</code>
+                          <form method="post" action={`${PATH}/${token.id}/unlend`}>
+                            <input type="hidden" name="borrower_group" value={group} />
+                            <button type="submit" class="btn btn-ghost btn-xs">
+                              Leihe zurückziehen
+                            </button>
+                          </form>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+
+                  <form
+                    method="post"
+                    action={`${PATH}/${token.id}/lend`}
+                    class="flex flex-wrap items-end gap-2 mt-2"
+                  >
+                    <label class="text-sm">
+                      <span class="block text-base-content/70">An Gruppe</span>
+                      <select name="borrower_group" required class="select select-sm">
+                        {props.allGroups
+                          .filter(
+                            (group) =>
+                              group !== token.ownerGroup && !token.borrowers.includes(group),
+                          )
+                          .map((group) => (
+                            <option value={group}>{group}</option>
+                          ))}
+                      </select>
+                    </label>
+                    <button type="submit" class="btn btn-primary btn-sm">
+                      Verleihen
+                    </button>
+                  </form>
+                  <p class="text-xs text-base-content/60 mt-1">
+                    Die Gruppe sieht das Token danach und kann ihm <em>eigene</em>{" "}
+                    Daten freigeben. Den Wert des Tokens erfährt sie nicht – sie
+                    könnte es sonst selbst benutzen und käme damit auch an die
+                    Daten aller anderen. Wird die Leihe zurückgezogen, erlöschen
+                    alle daraus entstandenen Freigaben sofort.
                   </p>
                 </details>
               )}
@@ -237,7 +308,7 @@ export default function TokensPage(props: {
 
           <Field label="Gehört der Gruppe" required class="max-w-md">
             <select name="owner_group" required class="select w-full">
-              {grantableGroups.map((group) => (
+              {(props.isAdmin ? props.allGroups : props.ownGroups).map((group) => (
                 <option value={group}>{group}</option>
               ))}
             </select>

@@ -206,6 +206,76 @@ describe.skipIf(!reachable)("was ein Token sehen darf", () => {
     expect(after!.grants).toHaveLength(0);
   });
 
+  /**
+   * Die Kernregel des Verleihens: Zurückziehen löscht auch alle Rechte, die
+   * daraus entstanden sind. Bliebe die Freigabe stehen, wäre das Zurückziehen
+   * sinnlos - die Gruppe sähe das Token nicht mehr, ihre Daten flössen aber
+   * weiter.
+   */
+  test("Zurückziehen der Leihe löscht die daraus entstandenen Freigaben", async () => {
+    await cleanup();
+    await seed();
+    const publicOnly = await visible([]);
+
+    const made = await apiTokens.createToken(
+      { name: "Leihe", ownerGroup: GROUP_A, days: 30, visibility: "group" },
+      actor,
+    );
+    if (!made.ok) throw new Error(made.error);
+    let token = (await apiTokens.getToken(made.data.id))!;
+
+    // A gibt eigene Daten frei, verleiht dann an B, B gibt seine frei.
+    await apiTokens.grant(token, GROUP_A, {}, actor);
+    await apiTokens.lend(token, GROUP_B, actor);
+    token = (await apiTokens.getToken(made.data.id))!;
+    expect(token.borrowers).toEqual([GROUP_B]);
+    await apiTokens.grant(token, GROUP_B, {}, actor);
+
+    const both = (await apiTokens.authenticate(made.data.plaintext))!;
+    expect(both.grants).toHaveLength(2);
+    expect(await visible(both.grants)).toBe(publicOnly + 4);
+
+    // Zurückziehen: B's Freigabe muss mitgehen, A's bleiben.
+    token = (await apiTokens.getToken(made.data.id))!;
+    await apiTokens.unlend(token, GROUP_B, actor);
+
+    const after = (await apiTokens.authenticate(made.data.plaintext))!;
+    expect(after.grants.map((g) => g.group)).toEqual([GROUP_A]);
+    expect(await visible(after.grants)).toBe(publicOnly + 3);
+
+    const left = (await apiTokens.getToken(made.data.id))!;
+    expect(left.borrowers).toEqual([]);
+  });
+
+  test("die eigene Gruppe kann sich nichts leihen", async () => {
+    await cleanup();
+    await seed();
+    const made = await apiTokens.createToken(
+      { name: "Selbstleihe", ownerGroup: GROUP_A, days: 30, visibility: "group" },
+      actor,
+    );
+    if (!made.ok) throw new Error(made.error);
+    const token = (await apiTokens.getToken(made.data.id))!;
+    expect((await apiTokens.lend(token, GROUP_A, actor)).ok).toBe(false);
+  });
+
+  /** Nur wer es besitzt oder geliehen bekommt, findet es überhaupt. */
+  test("eine geliehene Gruppe sieht das Token, eine fremde nicht", async () => {
+    await cleanup();
+    await seed();
+    const made = await apiTokens.createToken(
+      { name: "Sichtbar", ownerGroup: GROUP_A, days: 30, visibility: "group" },
+      actor,
+    );
+    if (!made.ok) throw new Error(made.error);
+    const token = (await apiTokens.getToken(made.data.id))!;
+
+    expect(await apiTokens.listForUser([GROUP_B], false)).toHaveLength(0);
+    await apiTokens.lend(token, GROUP_B, actor);
+    expect(await apiTokens.listForUser([GROUP_B], false)).toHaveLength(1);
+    expect(await apiTokens.listForUser(["irgendwas-anderes"], false)).toHaveLength(0);
+  });
+
   test("die Historie überlebt das Löschen des Tokens", async () => {
     await cleanup();
     await seed();

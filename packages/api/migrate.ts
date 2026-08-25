@@ -7,6 +7,7 @@ import { up as users } from "./migrations/006-users"
 import { up as measurementGroups } from "./migrations/007-measurement-groups"
 import { up as dashboardEntries } from "./migrations/008-dashboard-entries"
 import { up as apiTokens } from "./migrations/009-api-tokens"
+import { up as apiTokenLoans } from "./migrations/010-api-token-loans"
 
 // There is no migrations table: every migration runs on every start, so each
 // one has to be idempotent (CREATE ... IF NOT EXISTS). A new file is added here
@@ -21,5 +22,6 @@ await users()
 await measurementGroups()
 await dashboardEntries()
 await apiTokens()
+await apiTokenLoans()
 console.log("Migrations complete.")
 process.exit(0)
