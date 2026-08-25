@@ -48,9 +48,9 @@ export const up = async () => {
   /**
    * One permission per (token, granting group).
    *
-   * The table carries several from the start although only the owning group can
-   * grant today: lending a token to another group is the next step, and it adds
-   * rows here rather than changing the shape.
+   * Several rows per token, because a token can be made known to other groups
+   * (see 010) and each of them grants on its own - the shape does not change
+   * when that happens.
    *
    * `filter` narrows within the group - the same columns the API already
    * filters by. An empty object means the whole group. See lib/api-tokens.ts.
@@ -92,7 +92,7 @@ export const up = async () => {
       display_name VARCHAR(200),
       action VARCHAR(20) NOT NULL CHECK (action IN (
         'create', 'delete', 'grant', 'revoke', 'extend', 'visibility',
-        'reveal', 'lend', 'unlend'
+        'reveal', 'announce', 'unannounce'
       )),
       token_id UUID NOT NULL,
       token_name TEXT NOT NULL,

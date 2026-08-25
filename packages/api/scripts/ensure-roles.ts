@@ -148,8 +148,8 @@ const SPECS: RoleSpec[] = [
       // afterwards. This grant is what makes "read-only history" true - not the
       // absence of a button.
       { privileges: "SELECT, INSERT", on: "api_token_log" },
-      // Which groups a token has been lent to.
-      { privileges: "SELECT, INSERT, UPDATE, DELETE", on: "api_token_loans" },
+      // Which groups a token has been made known to.
+      { privileges: "SELECT, INSERT, UPDATE, DELETE", on: "api_token_announcements" },
     ],
     // Deliberately empty: a table added by a later migration grants this role
     // nothing until someone adds a line above. A default privilege here would

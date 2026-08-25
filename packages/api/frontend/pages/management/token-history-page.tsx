@@ -12,8 +12,8 @@ const ACTIONS: Record<TokenAction, string> = {
   extend: "verlängert",
   visibility: "Sichtbarkeit geändert",
   reveal: "Wert offengelegt",
-  lend: "verliehen",
-  unlend: "Leihe zurückgezogen",
+  announce: "bekannt gemacht",
+  unannounce: "Bekanntmachung zurückgezogen",
 };
 
 /** The one line under an entry that says what actually changed. */

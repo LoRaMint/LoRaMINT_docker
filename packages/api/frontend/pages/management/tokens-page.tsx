@@ -38,14 +38,14 @@ export default function TokensPage(props: {
 
   /**
    * Which of my groups may open their data to this token: my own if I own it,
-   * plus any it has been lent to. Mirrors `mayGrantFor` in token-routes.tsx -
+   * plus any it was made known to. Mirrors `mayGrantFor` in token-routes.tsx -
    * the page only decides what is worth offering, the route checks again.
    */
   const grantableFor = (token: TokenRow) =>
     props.isAdmin
       ? props.allGroups
       : props.ownGroups.filter(
-          (group) => group === token.ownerGroup || token.borrowers.includes(group),
+          (group) => group === token.ownerGroup || token.announcedTo.includes(group),
         );
 
   return (
@@ -169,27 +169,27 @@ export default function TokensPage(props: {
                 </details>
               )}
 
-              {/* Leihen: nur die Besitzergruppe verleiht, kein Weiterverleihen. */}
+              {/* Bekanntmachen: nur die Besitzergruppe, und nicht weitergebbar. */}
               {mayActFor(token.ownerGroup) && (
                 <details class="mb-3">
                   <summary class="cursor-pointer text-sm link">
-                    Verleihen{" "}
-                    {token.borrowers.length > 0 && (
+                    Bekannt machen{" "}
+                    {token.announcedTo.length > 0 && (
                       <span class="text-base-content/60">
-                        (an {token.borrowers.join(", ")})
+                        (bei {token.announcedTo.join(", ")})
                       </span>
                     )}
                   </summary>
 
-                  {token.borrowers.length > 0 && (
+                  {token.announcedTo.length > 0 && (
                     <ul class="mt-2 space-y-1">
-                      {token.borrowers.map((group) => (
+                      {token.announcedTo.map((group) => (
                         <li class="flex items-center gap-2 text-sm">
                           <code>{group}</code>
-                          <form method="post" action={`${PATH}/${token.id}/unlend`}>
-                            <input type="hidden" name="borrower_group" value={group} />
+                          <form method="post" action={`${PATH}/${token.id}/unannounce`}>
+                            <input type="hidden" name="to_group" value={group} />
                             <button type="submit" class="btn btn-ghost btn-xs">
-                              Leihe zurückziehen
+                              Zurückziehen
                             </button>
                           </form>
                         </li>
@@ -199,16 +199,16 @@ export default function TokensPage(props: {
 
                   <form
                     method="post"
-                    action={`${PATH}/${token.id}/lend`}
+                    action={`${PATH}/${token.id}/announce`}
                     class="flex flex-wrap items-end gap-2 mt-2"
                   >
                     <label class="text-sm">
-                      <span class="block text-base-content/70">An Gruppe</span>
-                      <select name="borrower_group" required class="select select-sm">
+                      <span class="block text-base-content/70">Bei Gruppe</span>
+                      <select name="to_group" required class="select select-sm">
                         {props.allGroups
                           .filter(
                             (group) =>
-                              group !== token.ownerGroup && !token.borrowers.includes(group),
+                              group !== token.ownerGroup && !token.announcedTo.includes(group),
                           )
                           .map((group) => (
                             <option value={group}>{group}</option>
@@ -216,15 +216,15 @@ export default function TokensPage(props: {
                       </select>
                     </label>
                     <button type="submit" class="btn btn-primary btn-sm">
-                      Verleihen
+                      Bekannt machen
                     </button>
                   </form>
                   <p class="text-xs text-base-content/60 mt-1">
                     Die Gruppe sieht das Token danach und kann ihm <em>eigene</em>{" "}
-                    Daten freigeben. Den Wert des Tokens erfährt sie nicht – sie
-                    könnte es sonst selbst benutzen und käme damit auch an die
-                    Daten aller anderen. Wird die Leihe zurückgezogen, erlöschen
-                    alle daraus entstandenen Freigaben sofort.
+                    Daten freigeben. Den Wert erfährt sie nicht – sie könnte es
+                    sonst selbst benutzen und käme damit auch an die Daten aller
+                    anderen. Wird die Bekanntmachung zurückgezogen, erlöschen alle
+                    daraus entstandenen Freigaben sofort.
                   </p>
                 </details>
               )}

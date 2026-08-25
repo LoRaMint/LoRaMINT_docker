@@ -42,12 +42,12 @@ export type TokenRow = {
   createdBy: string | null;
   /**
    * What the token may read. Narrowed to what the viewer is allowed to know:
-   * the owning group and administrators see every grant, a lending group sees
-   * its own. Otherwise the list would say who opens their data to whom.
+   * the owning group and administrators see every grant, a contributing group
+   * sees its own. Otherwise the list would say who opens their data to whom.
    */
   grants: Grant[];
-  /** The groups this token has been lent to, so they may grant it their data. */
-  borrowers: string[];
+  /** The groups this token was made known to, so they may grant it their data. */
+  announcedTo: string[];
 };
 
 /** Who is acting. Deliberately smaller than services/manage.ts's `Actor`: no reason, no scope. */
@@ -61,8 +61,8 @@ export type TokenAction =
   | "extend"
   | "visibility"
   | "reveal"
-  | "lend"
-  | "unlend";
+  | "announce"
+  | "unannounce";
 
 export type LogEntry = {
   id: string;
@@ -105,7 +105,7 @@ const mapGrants = (raw: unknown): Grant[] => {
   return grants;
 };
 
-const mapBorrowers = (raw: unknown): string[] =>
+const mapAnnouncedTo = (raw: unknown): string[] =>
   Array.isArray(raw) ? raw.filter((v): v is string => typeof v === "string") : [];
 
 /**
@@ -113,8 +113,8 @@ const mapBorrowers = (raw: unknown): string[] =>
  *
  * The owning group and administrators see every grant - the owner reads that
  * data through the token anyway, so hiding it would only make the page lie. A
- * lending group sees its own. Everyone else sees that the token exists and
- * nothing about who feeds it.
+ * contributing group sees its own. Everyone else sees that the token exists
+ * and nothing about who feeds it.
  *
  * `null` for the viewer means "no narrowing", which is what the authentication
  * path wants: there the grants decide access, not what somebody may read.
@@ -146,7 +146,7 @@ const mapToken = (
       mapGrants(row.grants),
       viewer === null ? null : { ...viewer, ownerGroup },
     ),
-    borrowers: mapBorrowers(row.borrowers),
+    announcedTo: mapAnnouncedTo(row.announced_to),
   };
 };
 
@@ -161,7 +161,7 @@ const mapToken = (
  */
 const asJsonList = (values: readonly string[]) => JSON.stringify([...values]);
 
-/** The columns every token query needs, grants and borrowers folded in. */
+/** The columns every token query needs, grants and announcements folded in. */
 const TOKEN_COLUMNS = () => reading()`
   t.id, t.name, t.owner_group, t.visibility, t.expires_at,
   t.last_used_at, t.created_at, t.created_by,
@@ -171,18 +171,18 @@ const TOKEN_COLUMNS = () => reading()`
     '[]'::json
   ) AS grants,
   COALESCE(
-    (SELECT json_agg(l.borrower_group ORDER BY l.borrower_group)
-       FROM api_token_loans l WHERE l.token_id = t.id),
+    (SELECT json_agg(l.announced_to_group ORDER BY l.announced_to_group)
+       FROM api_token_announcements l WHERE l.token_id = t.id),
     '[]'::json
-  ) AS borrowers
+  ) AS announced_to
 `;
 
 /**
  * The tokens this person may see.
  *
- * Four ways in: administrator, owning group, openly visible - and lent to one
- * of their groups, which is the point of lending. A borrowing group has to be
- * able to find the token before it can grant it anything.
+ * Four ways in: administrator, owning group, openly visible - and announced to
+ * one of their groups, which is the point of announcing. A group has to be able
+ * to find the token before it can grant it anything.
  */
 export const listForUser = async (
   groups: readonly string[],
@@ -196,9 +196,9 @@ export const listForUser = async (
        OR t.visibility = 'signed_in'
        OR t.owner_group IN (SELECT jsonb_array_elements_text(${mine}::text::jsonb))
        OR EXISTS (
-            SELECT 1 FROM api_token_loans l
+            SELECT 1 FROM api_token_announcements l
             WHERE l.token_id = t.id
-              AND l.borrower_group IN (
+              AND l.announced_to_group IN (
                     SELECT jsonb_array_elements_text(${mine}::text::jsonb)
                   )
           )
@@ -471,78 +471,80 @@ export const revoke = async (
 };
 
 //====================================
-// LENDING
+// ANNOUNCING
 //====================================
 
 /**
- * Lends the token to another group, so that group may grant it their data.
+ * Makes the token known to another group, so that group may grant it their data.
  *
- * The value is not passed along - only its hash is stored, so it could not be.
- * That is the right outcome: a borrowing group holding the value could use the
- * token itself and would then read the owner's data and every other lender's.
- * Lending passes the right to grant, never the ability to act.
+ * Not a loan, and the word matters: the other group receives nothing it can use
+ * and the owner gives nothing up. The value is not passed along - only its hash
+ * is stored, so it could not be - and a group holding it could use the token
+ * itself, reading the owner's data and every other contributor's. Announcing
+ * passes the right to contribute, never the ability to act.
  */
-export const lend = async (
+export const announce = async (
   token: TokenRow,
-  borrowerGroup: string,
+  toGroup: string,
   actor: TokenActor,
 ): Promise<TokenResult> => {
-  if (borrowerGroup === token.ownerGroup) {
-    return { ok: false, error: "Der eigenen Gruppe muss nichts geliehen werden." };
+  if (toGroup === token.ownerGroup) {
+    return { ok: false, error: "Der eigenen Gruppe muss nichts bekannt gemacht werden." };
   }
   try {
     await writing().begin(async (tx: any) => {
       await tx`
-        INSERT INTO api_token_loans (token_id, borrower_group, lent_by)
-        VALUES (${token.id}, ${borrowerGroup}, ${actor.username})
-        ON CONFLICT (token_id, borrower_group) DO NOTHING
+        INSERT INTO api_token_announcements (token_id, announced_to_group, announced_by)
+        VALUES (${token.id}, ${toGroup}, ${actor.username})
+        ON CONFLICT (token_id, announced_to_group) DO NOTHING
       `;
       await logInto(tx, {
-        action: "lend",
+        action: "announce",
         tokenId: token.id,
         tokenName: token.name,
-        groupName: borrowerGroup,
+        groupName: toGroup,
       }, actor);
     });
     return { ok: true, data: null };
   } catch (err) {
-    return failed("Das Verleihen des Tokens", err);
+    return failed("Das Bekanntmachen des Tokens", err);
   }
 };
 
 /**
- * Withdraws a loan - and with it **every permission that arose from it**.
+ * Withdraws an announcement - and with it **every permission that arose from
+ * it**.
  *
- * Leaving the grants in place would make withdrawing meaningless: the borrowing
- * group could no longer see the token but its data would still flow. Both go in
- * one transaction, so there is no moment where one has happened and the other
- * has not.
+ * Leaving the grants in place would make withdrawing meaningless: the group
+ * could no longer see the token but its data would still flow. Both go in one
+ * transaction, so there is no moment where one has happened and the other has
+ * not.
  */
-export const unlend = async (
+export const withdrawAnnouncement = async (
   token: TokenRow,
-  borrowerGroup: string,
+  toGroup: string,
   actor: TokenActor,
 ): Promise<TokenResult> => {
   try {
     await writing().begin(async (tx: any) => {
       await tx`
-        DELETE FROM api_token_loans
-        WHERE token_id = ${token.id} AND borrower_group = ${borrowerGroup}
+        DELETE FROM api_token_announcements
+        WHERE token_id = ${token.id} AND announced_to_group = ${toGroup}
       `;
       await tx`
         DELETE FROM api_token_grants
-        WHERE token_id = ${token.id} AND group_name = ${borrowerGroup}
+        WHERE token_id = ${token.id} AND group_name = ${toGroup}
       `;
       await logInto(tx, {
-        action: "unlend",
+        action: "unannounce",
         tokenId: token.id,
         tokenName: token.name,
-        groupName: borrowerGroup,
+        groupName: toGroup,
       }, actor);
     });
     return { ok: true, data: null };
   } catch (err) {
-    return failed("Das Zurückziehen der Leihe", err);
+    return failed("Das Zurückziehen der Bekanntmachung", err);
   }
 };
 

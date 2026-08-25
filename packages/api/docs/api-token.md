@@ -2,8 +2,9 @@
 
 | | |
 |---|---|
-| **Status** | Konzept, nichts umgesetzt |
-| **Stand** | 2026-08-24 |
+| **Status** | Umgesetzt |
+| **Stand** | 2026-08-25 |
+| **Meilenstein** | 1.11 |
 | **Geltung** | Programmatischer Lesezugriff auf `/api/v1`, Vergabe und Entzug von Rechten durch Datengruppen |
 
 Dieses Dokument beschreibt, **wie ein Programm dauerhaft und widerrufbar auf die
@@ -46,7 +47,7 @@ Ein Token gehört immer genau einer **Datengruppe** — nie einer Rollengruppe.
 `services/data-groups.ts`); die Trennung zwischen „was jemand darf" und „welche
 Daten gemeint sind" bleibt auch hier bestehen.
 
-Jedes Mitglied der besitzenden Gruppe darf anlegen, löschen, verleihen und
+Jedes Mitglied der besitzenden Gruppe darf anlegen, löschen, bekannt machen und
 Rechte vergeben. Es gibt keine Rollen innerhalb einer Gruppe, und das ist eine
 Entscheidung, keine Lücke: die Anwendung erfasst so wenig über Personen wie
 möglich. Die Folge ist zu benennen — jedes Mitglied kann auch das Token
@@ -93,16 +94,15 @@ kann das jederzeit wieder entziehen, ohne jemanden zu fragen.
 Jede Berechtigung trägt einen **Filter**, der weiter einengt als die Gruppe
 selbst — etwa „nur Gerät `A840…DB77`" oder „nur Temperaturwerte".
 
-> **Offener Punkt, hier vorentschieden:** Der Filter kennt dieselben
-> Dimensionen, nach denen die API ohnehin filtert: `device_eui`, `measurand`,
-> `sensor`, `location`, `datatype`. Damit entsteht kein neuer Begriff — es ist
-> dieselbe Form wie `MeasurementFilter`, und `filterClause` in
-> `services/measurement.ts` wendet sie schon an.
->
-> Bewusst **nicht** dabei: `group_name` und `public_read` (bestimmt die
-> Berechtigung selbst) sowie der Zeitraum `from`/`to`. Ein Zeitraum als
-> *Recht* („nur Daten aus 2026") wäre denkbar, aber leicht mit dem Zeitraum der
-> *Abfrage* zu verwechseln. Bitte prüfen, ob das so passt.
+Der Filter kennt dieselben Dimensionen, nach denen die API ohnehin filtert:
+`device_eui`, `measurand`, `sensor`, `location`, `datatype`. Damit entsteht kein
+neuer Begriff — es ist dieselbe Form wie `MeasurementFilter`, und `filterClause`
+in `services/measurement.ts` wendet sie schon an.
+
+Bewusst **nicht** dabei: `group_name` und `public_read` (das bestimmt die
+Berechtigung selbst) sowie der Zeitraum `from`/`to`. Ein Zeitraum als *Recht*
+(„nur Daten aus 2026") wäre denkbar, wäre aber leicht mit dem Zeitraum der
+*Abfrage* zu verwechseln.
 
 Der Filter liegt im Anwendungscode, nicht in den RLS-Policies. Die RLS gewährt
 dem Token weiterhin die ganze Gruppe, der gespeicherte Filter engt darüber
@@ -116,31 +116,38 @@ anonymer Aufruf. Durch bloßes Anlegen entsteht nichts.
 Ein Token sieht immer mindestens die öffentlich freigegebenen Zeilen,
 zusätzlich zu dem, was ihm gewährt wurde.
 
-## Verleihen
+## Bekannt machen
 
 Der Anwendungsfall: ein Token soll Daten **mehrerer** Gruppen lesen.
 
-Die besitzende Gruppe kann ihr Token an eine andere Gruppe **verleihen**. Die
-leihende Gruppe sieht es daraufhin und kann ihm Rechte an ihren eigenen Daten
+Die besitzende Gruppe kann ihr Token bei einer anderen Gruppe **bekannt
+machen**. Die sieht es daraufhin und kann ihm Rechte an ihren eigenen Daten
 erteilen — annehmen muss sie nichts, sie entscheidet einfach, ob sie etwas
 gewährt. Erteilte Rechte kann sie jederzeit einzeln wieder entziehen.
 
-Weiterverleihen ist nicht möglich. Nur die besitzende Gruppe verleiht, sonst
-verliert sie den Überblick, wer Rechte vergeben darf.
+**Es ist ausdrücklich keine Leihe, und das Wort ist der Punkt.** Bei einer Leihe
+bekäme die andere Gruppe etwas Benutzbares und die besitzende gäbe es solange
+her. Hier ist beides nicht so: die andere Gruppe erhält nichts als das Wissen,
+dass es das Token gibt, die besitzende gibt nichts ab — und was danach fließt,
+fließt zum Programm der besitzenden Gruppe. Bekannt gemacht wird also das Recht,
+**beizusteuern**, nie die Fähigkeit zu handeln.
 
-Wird die Leihe zurückgezogen, **verfallen sofort alle Rechte, die durch sie
-entstanden sind.**
+Weitergeben lässt sich eine Bekanntmachung nicht. Nur die besitzende Gruppe
+macht bekannt, sonst verliert sie den Überblick, wer Rechte vergeben darf.
 
-### Der Wert bleibt verborgen
+Wird die Bekanntmachung zurückgezogen, **verfallen sofort alle Rechte, die durch
+sie entstanden sind.**
 
-Beim Verleihen wird der geheime Wert des Tokens **nicht** mitgegeben. Das ist
-der Kern des Verleihens, keine Kosmetik: Sähe die leihende Gruppe den Wert,
-könnte sie das Token selbst benutzen — mit *allen* seinen Rechten, also auch
-denen der besitzenden Gruppe und aller anderen Leihgeber.
+### Der Wert bleibt beim Besitzer
 
-Den Wert offenzulegen ist möglich, aber die Ausnahme, und die Oberfläche sagt
-dabei genau das: **„Damit darf diese Gruppe überall dort lesen, wo dieses Token
-Zugriff hat."**
+Der geheime Wert wird dabei **nicht** mitgegeben — und könnte es auch gar nicht:
+gespeichert ist nur sein Hash. Das ist die richtige Wirkung und kein Mangel.
+Hätte die andere Gruppe den Wert, könnte sie das Token selbst benutzen, mit
+*allen* seinen Rechten — also auch denen der besitzenden Gruppe und aller
+anderen, die etwas beigesteuert haben.
+
+Wer den Wert wirklich weitergeben will, tut das außerhalb der Anwendung und
+weiß dann, was er tut.
 
 ## Sichtbarkeit
 
@@ -149,7 +156,8 @@ Zwei Stufen, von der besitzenden Gruppe gewählt:
 - **nur die Gruppe** — außerhalb existiert es nicht sichtbar.
 - **für alle Angemeldeten sichtbar** — jedes angemeldete Mitglied sieht, *dass*
   es das Token gibt, samt Name und besitzender Gruppe. Das ist der Weg, auf dem
-  eine Gruppe ein Token überhaupt findet, um um Verleihung zu bitten.
+  eine Gruppe ein Token überhaupt findet, um darum zu bitten, dass es ihr
+  bekannt gemacht wird.
 
 Sichtbar ist in beiden Fällen nie der geheime Wert. **Welche Gruppen dem Token
 etwas gewährt haben**, sehen nur die jeweils gewährende Gruppe und
@@ -189,8 +197,9 @@ an dem ein vergessenes Token auffällt, und es nennt keine Person.
 Jede Änderung an der Berechtigungsstruktur wird festgehalten — in einer eigenen
 Tabelle nach dem Vorbild von `device_log`, nicht in `audit_log`.
 
-Festgehalten wird: Anlegen und Löschen eines Tokens, Verleihen und Zurückziehen
-einer Leihe, Erteilen und Entziehen einer Berechtigung samt ihrem Filter,
+Festgehalten wird: Anlegen und Löschen eines Tokens, Bekanntmachen und
+Zurückziehen einer Bekanntmachung, Erteilen und Entziehen einer Berechtigung
+samt ihrem Filter,
 Verlängern der Laufzeit, Ändern der Sichtbarkeit — und **das Offenlegen des
 geheimen Wertes**. Letzteres ist die folgenreichste Handlung überhaupt und
 gehört deshalb ins Protokoll, auch wenn sie nichts an den Rechten ändert.
