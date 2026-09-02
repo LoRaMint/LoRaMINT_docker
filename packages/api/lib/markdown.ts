@@ -16,7 +16,17 @@
  *
  * Links carry a second check: only http, https and mailto survive, because
  * `[hier](javascript:…)` is otherwise a working script in a Markdown link.
+ *
+ * `mailto:` links do not become links here at all - see lib/mail-obfuscation.ts
+ * for why and for what stands in their place.
  */
+
+import {
+  fallbackText,
+  rot13,
+  looksLikeAddress,
+  splitAddress,
+} from "./mail-obfuscation";
 
 const escapeHtml = (text: string): string =>
   text
@@ -41,6 +51,29 @@ const inline = (escaped: string): string =>
       // The href went through escapeHtml, so a quote cannot break out of the
       // attribute; this only decides whether the link is worth making at all.
       if (!SAFE_SCHEME.test(href)) return whole;
+
+      /*
+       * A mail address never reaches the page. It leaves as two halves for the
+       * browser to put back together, and as a readable line for whoever has no
+       * browser doing that. Note the label goes the same way when it is the
+       * address itself, which is how every address in these documents is
+       * written - hiding only the href while the text spells it out would be a
+       * gesture rather than a measure.
+       */
+      if (/^mailto:/i.test(href)) {
+        const address = href.slice("mailto:".length);
+        const parts = splitAddress(address);
+        if (!parts) return whole;
+        const labelAttribute = looksLikeAddress(label)
+          ? ""
+          : ` data-l="${rot13(label)}"`;
+        return (
+          `<span class="lm-mail" data-u="${rot13(parts.local)}"` +
+          ` data-h="${rot13(parts.host)}"${labelAttribute}>` +
+          `<noscript>${fallbackText(label, address)}</noscript></span>`
+        );
+      }
+
       const external = /^https?:/i.test(href);
       const rel = external ? ' target="_blank" rel="noopener noreferrer"' : "";
       return `<a href="${href}" class="link"${rel}>${label}</a>`;

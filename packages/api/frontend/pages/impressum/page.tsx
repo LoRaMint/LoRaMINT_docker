@@ -1,5 +1,6 @@
 import Layout from "../../components/layout/Layout";
 import PageHeading from "../../components/PageHeading";
+import MailAddresses from "../../components/MailAddresses";
 import { legal } from "../../../config";
 import { renderMarkdown } from "../../../lib/markdown";
 
@@ -18,6 +19,7 @@ const ImpressumPage = () => {
         class="max-w-[65ch] text-base"
         innerHTML={renderMarkdown(legal.impressum ?? "")}
       />
+      <MailAddresses />
     </Layout>
   );
 };

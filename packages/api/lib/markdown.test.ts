@@ -115,11 +115,53 @@ describe("was gerendert wird", () => {
     expect(html).toContain('rel="noopener noreferrer"');
   });
 
-  test("Mailto und interne Ziele gelten auch, aber ohne neues Tab", () => {
-    expect(renderMarkdown("[Mail](mailto:a@b.de)")).toContain("<a ");
+  test("interne Ziele gelten auch, aber ohne neues Tab", () => {
     const intern = renderMarkdown("[Datenschutz](/datenschutz)");
     expect(intern).toContain('href="/datenschutz"');
     expect(intern).not.toContain("target=");
+  });
+
+  describe("Mailto-Adressen verlassen den Server nicht", () => {
+    test("weder als Link noch als Text steht die Adresse in der Ausgabe", () => {
+      const html = renderMarkdown("[Mail](mailto:a.b@c.de)");
+      expect(html).not.toContain("a.b@c.de");
+      expect(html).not.toContain("mailto:");
+      // Das eine Zeichen, auf das jedes Adressmuster anspringt.
+      expect(html).not.toContain("@");
+    });
+
+    test("die Hälften stehen getrennt und rotiert da", () => {
+      const html = renderMarkdown("[Mail](mailto:info@example.org)");
+      expect(html).toContain('data-u="vasb"');
+      expect(html).toContain('data-h="rknzcyr.bet"');
+    });
+
+    test("ist die Beschriftung selbst die Adresse, wird auch sie verschleiert", () => {
+      const html = renderMarkdown("[info@example.org](mailto:info@example.org)");
+      expect(html).not.toContain("info@example.org");
+      // Keine eigene Beschriftung: der Browser setzt sie aus den Hälften.
+      expect(html).not.toContain("data-l=");
+    });
+
+    test("eine Beschriftung, die keine Adresse ist, bleibt erhalten", () => {
+      const html = renderMarkdown("[Kontakt](mailto:info@example.org)");
+      expect(html).toContain('data-l="Xbagnxg"');
+      expect(html).not.toContain(">Kontakt<");
+    });
+
+    test("ohne JavaScript bleibt die Adresse lesbar erreichbar", () => {
+      const html = renderMarkdown("[info@example.org](mailto:info@example.org)");
+      expect(html).toContain("<noscript>info (at) example.org</noscript>");
+    });
+
+    test("eine Wort-Beschriftung nennt die Adresse zusätzlich", () => {
+      const html = renderMarkdown("[Kontakt](mailto:info@example.org)");
+      expect(html).toContain("<noscript>Kontakt (info (at) example.org)</noscript>");
+    });
+
+    test("etwas, das keine Adresse ist, bleibt unangetastet", () => {
+      expect(renderMarkdown("[x](mailto:kaputt)")).toContain("[x](mailto:kaputt)");
+    });
   });
 
   test("eine Trennlinie", () => {
