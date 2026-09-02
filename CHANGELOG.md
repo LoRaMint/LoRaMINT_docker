@@ -7,6 +7,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.13.2] - 2026-09-02
+
+### Fixed
+
+- **Im Impressum stand ein Testrest.** Mitten im Haftungssatz fand sich
+  `<script>alert(1)</script>` — übriggeblieben aus einer Prüfung, ob der
+  Markdown-Renderer maskiert, was man ihm gibt. Er tut es, weshalb das Fragment
+  ungefährlich war und stattdessen als sichtbarer Text auf der öffentlichen
+  Seite stand.
+
+- **Die Rechtsgrundlage im Impressum war überholt.** Das Telemediengesetz wurde
+  am 14. Mai 2024 abgelöst; die Impressumspflicht steht seither in **§ 5 DDG**.
+  Dieselbe Angabe stand auch in `.env.prod.example`.
+
+- **Die Datenschutzerklärung war beim 9. August stehengeblieben**, während die
+  Anwendung weitergewachsen ist. Gegen die Migrationen gelesen, fehlten drei
+  Datenbestände mit Personenbezug vollständig:
+
+  - `api_tokens`, `api_token_grants`, `api_token_announcements` — jeweils der
+    Anmeldename der Person, die angelegt, freigegeben oder bekannt gemacht hat,
+    dazu Ablauf und Zeitpunkt der letzten Verwendung.
+  - `api_token_log` — ein Anfüge-Protokoll mit Klarnamen über neun
+    Vorgangsarten. Der bestehende Protokollabschnitt deckte nur Messdaten und
+    Geräte ab.
+  - `dashboard_entries` — die kuratierten öffentlichen Kacheln, mit dem
+    Anmeldenamen der anlegenden Person.
+
+  Zwei Abschnitte sind neu, der Protokollabschnitt nennt jetzt auch das
+  Token-Protokoll, und die Liste der Speicherdauern hat drei Zeilen mehr.
+
+- **Der Login-Knopf saß auf der Kante zum Inhalt.** Die Kopfleiste war 56 px
+  hoch und der Knopf bündig an ihrem unteren Rand — was aussieht, als sei er
+  dorthin gefallen. Die Leiste misst nun 64 px und der Knopf steht mittig.
+
+- **Die Reiterbeschriftungen standen auf demselben Boden.** Ein Reiter muss an
+  der Unterkante enden, weil dort das Menü ansetzt; die Beschriftung lässt sich
+  daher nicht durch Zentrieren des Reiters mittig bekommen. Sie ist stattdessen
+  in einem Reiter zentriert, der weit genug hinaufreicht.
+
+### Changed
+
+- **Das Impressum nennt Hetzner nicht mehr.** Der Hoster steht sachlich richtig
+  in der Datenschutzerklärung unter *Empfänger*, mit Anschrift und Einordnung
+  nach Art. 28 DSGVO. Ergänzt wurden dafür die Haftung für Links und der Hinweis
+  nach § 36 VSBG.
+
+  Die Dateien unter `rechtstexte/` sind die versionierte Quelle; die Anwendung
+  liest aus der Einstellungstabelle. Der Eintrag dort ist ein eigener Schritt.
+
 ## [1.13.1] - 2026-09-02
 
 ### Changed
@@ -1318,7 +1367,8 @@ reach its own configuration, and the ones the security model rests on.
 
 Releases up to and including [0.1.8] (2026-05-12) predate this changelog.
 
-[Unreleased]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.13.1...HEAD
+[Unreleased]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.13.2...HEAD
+[1.13.2]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.13.1...v1.13.2
 [1.13.1]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.13.0...v1.13.1
 [1.13.0]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.12.0...v1.13.0
 [1.12.0]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.11.0...v1.12.0
