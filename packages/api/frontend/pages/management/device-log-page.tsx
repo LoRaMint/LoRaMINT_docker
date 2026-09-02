@@ -109,7 +109,7 @@ export default function DeviceLogPage(props: {
                       {entry.device_id}
                     </a>
                     {detail && (
-                      <div class="text-xs text-base-content/60">{detail}</div>
+                      <div class="text-xs text-base-content/70">{detail}</div>
                     )}
                   </td>
                   <td class="max-w-xs truncate" title={entry.reason ?? ""}>

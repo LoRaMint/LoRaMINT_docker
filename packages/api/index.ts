@@ -376,7 +376,7 @@ root.use(async (c, next) => {
         })();
 
   return requestContext.run(
-    { user, darkMode, timezone: user?.timezone ?? null, scope },
+    { user, darkMode, timezone: user?.timezone ?? null, scope, path: c.req.path },
     next,
   );
 });

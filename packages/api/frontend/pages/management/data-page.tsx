@@ -38,7 +38,7 @@ export default function ManageDataPage(props: {
             <a href={resource.path} class="font-semibold link no-underline">
               {resource.title}
             </a>
-            <p class="text-sm text-base-content/60 mt-1">
+            <p class="text-sm text-base-content/70 mt-1">
               {props.counts[resource.key] ?? 0} Zeilen
             </p>
             <p class="text-sm text-base-content/70 mt-2">{resource.intro}</p>

@@ -1,15 +1,46 @@
 import type { JSX } from "solid-js";
 import { legal, auth, sqlConsole, board, setupAccount } from "../../../config";
-import { currentScope, currentUser, hasRole, PAGES } from "../../../lib";
+import { currentDarkMode, currentPath, currentScope, currentUser, hasRole, PAGES } from "../../../lib";
 
-const tabClass =
-  "tab tab-lifted [--tab-border-color:theme(colors.base-300)] text-base-content/80 hover:text-base-content hover:[--tab-border-color:theme(colors.primary)]";
+/**
+ * A tab in the header.
+ *
+ * The lifted-tab look stays, but it now means something. A raised tab promises
+ * a surface attached underneath it; before, the menu floated free below in
+ * primary, so the promise was never kept - which is also why nothing ever
+ * marked the page one was on. Open, the tab carries the menu's own surface and
+ * loses its bottom border, so the two read as one shape.
+ */
+const tabBase =
+  "px-3 py-2 text-sm rounded-t-box border border-transparent -mb-px " +
+  "text-base-content/80 hover:text-base-content cursor-pointer select-none " +
+  "list-none marker:content-none [&::-webkit-details-marker]:hidden";
+
+/** Open: the tab wears the panel's surface and opens downwards into it. */
+const tabOpen = "group-open:bg-base-100 group-open:text-base-content " +
+  "group-open:border-base-300 group-open:border-b-base-100 group-open:font-medium";
+
+/** The page one is on, marked under the tab rather than by lifting it. */
+const tabCurrent = "text-primary font-medium border-b-2 border-b-primary";
+
+/** The panel, flush under its tab: no top-left round, no gap, one shadow. */
+const panelClass =
+  "menu dropdown-content z-10 mt-0 w-56 gap-1 p-1.5 " +
+  "bg-base-100 text-base-content border border-base-300 " +
+  "rounded-b-box rounded-tr-box shadow-[0_4px_12px_rgba(20,60,85,.16)]";
 
 /** A no-JS nav dropdown (daisyUI `<details>` menu) with a chevron indicator. */
-function NavDropdown(props: { label: string; children: JSX.Element }) {
+function NavDropdown(props: {
+  label: string;
+  /** True when the page being rendered sits in this section. */
+  current?: boolean;
+  children: JSX.Element;
+}) {
   return (
-    <details class="dropdown dropdown-end group">
-      <summary class={`${tabClass} list-none cursor-pointer gap-1 marker:content-none [&::-webkit-details-marker]:hidden`}>
+    <details class="dropdown group relative self-end">
+      <summary
+        class={`${tabBase} ${tabOpen} ${props.current ? tabCurrent : ""} inline-flex items-center gap-1`}
+      >
         {props.label}
         <svg
           xmlns="http://www.w3.org/2000/svg"
@@ -24,18 +55,20 @@ function NavDropdown(props: { label: string; children: JSX.Element }) {
           <path d="m6 9 6 6 6-6" />
         </svg>
       </summary>
-      <ul class="menu dropdown-content z-10 mt-2 w-44 gap-1 rounded-box bg-primary text-primary-content p-2 shadow-lg">
-        {props.children}
-      </ul>
+      <ul class={panelClass}>{props.children}</ul>
     </details>
   );
 }
 
 /** A single entry inside a NavDropdown. */
-function NavItem(props: { href: string; children: JSX.Element }) {
+function NavItem(props: { href: string; current?: boolean; children: JSX.Element }) {
   return (
     <li>
-      <a href={props.href} class="hover:bg-primary-content/15">
+      <a
+        href={props.href}
+        class={props.current ? "bg-primary text-primary-content" : "hover:bg-base-200"}
+        aria-current={props.current ? "page" : undefined}
+      >
         {props.children}
       </a>
     </li>
@@ -70,8 +103,10 @@ function AuthControl() {
   const user = currentUser();
 
   if (!user) {
+    // Outline, not filled: a primary button up here competes on every page with
+    // that page's own primary action.
     return (
-      <a href="/login" class="btn btn-primary btn-sm ml-4 gap-1.5">
+      <a href="/login" class="btn btn-outline btn-primary btn-sm ml-4 gap-1.5">
         <UserIcon />
         Login
       </a>
@@ -101,6 +136,8 @@ function AuthControl() {
 
 export default function Layout(props: { children: JSX.Element }) {
   const user = currentUser();
+  const dark = currentDarkMode();
+  const path = currentPath();
   const managementUser = hasRole(user, "management", auth);
   const adminUser = hasRole(user, "admin", auth);
   const boardUser = hasRole(user, "board", auth);
@@ -123,6 +160,16 @@ export default function Layout(props: { children: JSX.Element }) {
    * The menu only decides what is worth showing; every route checks the role
    * again for itself.
    */
+  /**
+   * Whether a menu entry is the page being shown.
+   *
+   * Prefix rather than equality, so a sub-page still marks the section it
+   * belongs to - /management/devices/3 is still "Geräte verwalten". "/" is
+   * matched exactly, because otherwise it would be the prefix of everything.
+   */
+  const isCurrent = (href: string): boolean =>
+    href === "/" ? path === "/" : path === href || path.startsWith(`${href}/`);
+
   const sections: { label: string; items: { href: string; label: string }[] }[] = [
     // Looking at data. Public but for the console, and the dashboard belongs
     // here rather than in a section of its own: for most visitors that section
@@ -183,24 +230,34 @@ export default function Layout(props: { children: JSX.Element }) {
   return (
     <div class="min-h-screen flex flex-col">
       {/* Header */}
-      <header class="navbar bg-base-300 px-3 sm:px-4 gap-2">
-        <div class="flex-1 min-w-0">
+      <header class="navbar min-h-14 h-14 items-end bg-base-300 px-3 sm:px-4 gap-2 pb-0">
+        <div class="flex-1 min-w-0 self-center">
           <a href="/">
-            {/* Smaller on a phone, where the header competes with the content. */}
+            {/*
+              * Two files, not one recoloured by CSS: on the dark surface the
+              * light logo's "MINT" reaches 1.07:1 and is simply not there. The
+              * choice is made here, where the theme is already known, because
+              * swapping it afterwards with a script shows the wrong one first.
+              */}
             <img
-              src="/public/logo_loramint.svg"
+              src={dark ? "/public/logo_loramint_dunkel.svg" : "/public/logo_loramint.svg"}
               alt="LoRaMINT"
-              class="h-9 sm:h-14"
+              class="h-7 sm:h-10"
             />
           </a>
         </div>
 
         {/* Wide screens: one dropdown per section, side by side. */}
-        <nav class="tabs tabs-bordered hidden md:flex">
+        <nav class="hidden md:flex items-end gap-0.5 self-end">
           {sections.map((section) => (
-            <NavDropdown label={section.label}>
+            <NavDropdown
+              label={section.label}
+              current={section.items.some((item) => isCurrent(item.href))}
+            >
               {section.items.map((item) => (
-                <NavItem href={item.href}>{item.label}</NavItem>
+                <NavItem href={item.href} current={isCurrent(item.href)}>
+                  {item.label}
+                </NavItem>
               ))}
             </NavDropdown>
           ))}
@@ -209,11 +266,8 @@ export default function Layout(props: { children: JSX.Element }) {
         {/* Narrow screens: everything behind one button. Still a <details>, so
             it needs no JavaScript, and the existing script that closes the other
             menus picks it up along with them. */}
-        <details class="dropdown dropdown-end group md:hidden">
-          <summary
-            class={`${tabClass} list-none cursor-pointer marker:content-none [&::-webkit-details-marker]:hidden px-2`}
-            aria-label="Menü"
-          >
+        <details class="dropdown dropdown-end group md:hidden self-center">
+          <summary class={`${tabBase} ${tabOpen} px-2`} aria-label="Menü">
             <svg
               xmlns="http://www.w3.org/2000/svg"
               viewBox="0 0 24 24"
@@ -228,18 +282,18 @@ export default function Layout(props: { children: JSX.Element }) {
               <path d="M6 6l12 12M18 6L6 18" class="hidden group-open:block" />
             </svg>
           </summary>
-          <ul class="menu dropdown-content z-10 mt-2 w-[min(18rem,calc(100vw-1.5rem))] gap-1 rounded-box bg-primary text-primary-content p-2 shadow-lg max-h-[calc(100vh-5rem)] overflow-y-auto">
+          <ul class={`${panelClass} w-[min(18rem,calc(100vw-1.5rem))] max-h-[calc(100vh-5rem)] overflow-y-auto`}>
             {sections.map((section) => (
               <>
-                <li class="menu-title text-primary-content/60">{section.label}</li>
+                <li class="menu-title text-base-content/70">{section.label}</li>
                 {section.items.map((item) => (
-                  <NavItem href={item.href}>{item.label}</NavItem>
+                  <NavItem href={item.href} current={isCurrent(item.href)}>{item.label}</NavItem>
                 ))}
               </>
             ))}
             {loginPossible && (
               <>
-                <li class="menu-title text-primary-content/60">Konto</li>
+                <li class="menu-title text-base-content/70">Konto</li>
                 {user ? (
                   <>
                     <NavItem href="/profile">{user.displayName}</NavItem>
@@ -248,7 +302,7 @@ export default function Layout(props: { children: JSX.Element }) {
                       <form method="post" action="/logout" class="p-0">
                         <button
                           type="submit"
-                          class="w-full text-left px-4 py-2 rounded-lg hover:bg-primary-content/15"
+                          class="w-full text-left px-4 py-2 rounded-lg hover:bg-base-200"
                         >
                           Abmelden
                         </button>
@@ -276,7 +330,11 @@ export default function Layout(props: { children: JSX.Element }) {
       <main class="flex-1 container mx-auto p-4">{props.children}</main>
 
       {/* Footer */}
-      <footer class="bg-base-200 p-4 text-base-content flex flex-col items-center gap-2">
+      {/*
+        * The line is what separates it: base-200 against base-100 is 1.09:1,
+        * which is not an edge anyone sees.
+        */}
+      <footer class="bg-base-200 border-t border-base-300 p-4 text-base-content flex flex-col items-center gap-2">
         {(legal.impressum || legal.datenschutz) && (
           <div class="flex gap-4">
             {legal.impressum && (
@@ -285,7 +343,7 @@ export default function Layout(props: { children: JSX.Element }) {
               </a>
             )}
             {legal.impressum && legal.datenschutz && (
-              <span> </span>
+              <span aria-hidden="true">·</span>
             )}
             {legal.datenschutz && (
               <a href="/datenschutz" class="link link-hover">
@@ -294,7 +352,13 @@ export default function Layout(props: { children: JSX.Element }) {
             )}
           </div>
         )}
-        <img src="/public/logo_loramint.svg" alt="LoRaMINT" class="h-10" />
+        {/* Decoration: the same logo already stands in the header, and the
+            page is not more about LoRaMINT for being told twice. */}
+        <img
+          src={dark ? "/public/logo_loramint_dunkel.svg" : "/public/logo_loramint.svg"}
+          alt=""
+          class="h-10"
+        />
       </footer>
 
       {/* Keep the nav dropdowns mutually exclusive so their panels never

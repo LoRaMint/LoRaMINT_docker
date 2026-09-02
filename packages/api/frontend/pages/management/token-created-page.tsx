@@ -41,7 +41,7 @@ export default function TokenCreatedPage(props: { name: string; value: string })
         </code>
       </div>
 
-      <p class="max-w-3xl text-sm text-base-content/70">
+      <p class="max-w-[65ch] text-sm text-base-content/70">
         Das Token darf noch nichts lesen außer dem, was ohnehin öffentlich ist.
         Damit es an die Daten einer Gruppe kommt, muss diese Gruppe ihm auf der{" "}
         <a href="/management/tokens" class="link">

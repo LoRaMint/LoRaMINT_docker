@@ -10,6 +10,7 @@ export {
   currentDarkMode,
   currentTimeZone,
   currentScope,
+  currentPath,
 } from "./request-context";
 export {
   readThemeCookie,

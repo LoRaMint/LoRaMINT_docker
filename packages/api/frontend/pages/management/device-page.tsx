@@ -95,7 +95,7 @@ export default function DevicePage(props: {
               <span class="font-mono text-sm break-all">
                 {formatHex(props.appKey)}
               </span>
-              <p class="text-xs text-base-content/60 mt-1">
+              <p class="text-xs text-base-content/70 mt-1">
                 Nur in dieser Ansicht sichtbar – ein Neuladen der Seite verdeckt
                 ihn wieder.
               </p>
@@ -110,7 +110,7 @@ export default function DevicePage(props: {
               )}
             </form>
           ) : (
-            <span class="text-base-content/60">
+            <span class="text-base-content/70">
               Verdeckt. Den AppKey einzusehen ist Administratoren vorbehalten –
               er steht auch auf dem Modul und in der TTN-Console.
             </span>
@@ -173,7 +173,7 @@ export default function DevicePage(props: {
               <span
                 class={
                   props.assignment?.publicRead
-                    ? "text-base-content/50"
+                    ? "text-base-content/70"
                     : "font-medium"
                 }
               >
@@ -190,7 +190,7 @@ export default function DevicePage(props: {
                 class={
                   props.assignment?.publicRead
                     ? "font-medium"
-                    : "text-base-content/50"
+                    : "text-base-content/70"
                 }
               >
                 Für alle lesbar
@@ -239,7 +239,7 @@ export default function DevicePage(props: {
           </div>
         </form>
       ) : (
-        <p class="text-base-content/70 max-w-3xl">
+        <p class="text-base-content/70 max-w-[65ch]">
           Zum Umbenennen fehlt die Verbindung, über die der Vorgang protokolliert
           wird (<code>DATABASE_URL_MANAGE</code>).
         </p>

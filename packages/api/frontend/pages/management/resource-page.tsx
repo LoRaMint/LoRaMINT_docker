@@ -1,4 +1,5 @@
 import Layout from "../../components/layout/Layout";
+import { TrashIcon } from "../../components/icons";
 import PageHeading from "../../components/PageHeading";
 import Notice from "../../components/Notice";
 import ModeSwitch from "../../components/manage/ModeSwitch";
@@ -185,7 +186,7 @@ export default function ResourcePage(props: {
                 placeholder="z. B. Skalenfaktor im Sketch falsch"
               />
             </label>
-            <span class="text-sm text-base-content/60 pb-2">
+            <span class="text-sm text-base-content/70 pb-2">
               Pflichtfeld. Gilt für alles, was in diesem Zug gespeichert oder
               gelöscht wird, und steht später im Protokoll.
             </span>
@@ -240,13 +241,17 @@ export default function ResourcePage(props: {
             <span class="grow" />
             {spec.capabilities.remove && (
               <>
+                {/* Outline: this sits in a toolbar next to other actions, not
+                    on a page whose only purpose is this one - red stays a signal
+                    here rather than becoming a button colour. */}
                 <button
                   type="submit"
                   name="deleteSelected"
                   value="1"
                   formaction={`${spec.path}/delete`}
-                  class="btn btn-sm btn-error"
+                  class="btn btn-sm btn-outline btn-error gap-1.5"
                 >
+                  <TrashIcon class="h-3.5 w-3.5" />
                   Auswahl löschen
                 </button>
                 {/* Separate from the selection on purpose: a faulty series has
@@ -324,7 +329,7 @@ export default function ResourcePage(props: {
           id="reason-required"
           role="alertdialog"
           aria-labelledby="reason-required-title"
-          class="fixed inset-0 m-auto h-fit w-11/12 max-w-md rounded-box border-2 border-error bg-base-200 p-6 text-base-content shadow-lg backdrop:bg-base-content/50"
+          class="fixed inset-0 m-auto h-fit w-11/12 max-w-md rounded-box border-2 border-error bg-base-200 p-6 text-base-content shadow-[0_4px_12px_rgba(20,60,85,.16)] backdrop:bg-base-content/50"
         >
           <h3 id="reason-required-title" class="text-lg font-bold text-error mb-2">
             Grund fehlt

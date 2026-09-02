@@ -87,7 +87,7 @@ export default function ExportPage() {
         <div class="flex items-center gap-4 lg:col-span-3">
           <button id="download" class="btn btn-primary">CSV herunterladen</button>
           <span id="count" class="text-sm text-base-content/70"></span>
-          <span id="status" class="text-sm text-base-content/50"></span>
+          <span id="status" class="text-sm text-base-content/70"></span>
         </div>
       </div>
 

@@ -58,7 +58,7 @@ export default function BoardManagePage(props: {
         <tbody>
           {props.entries.length === 0 ? (
             <tr>
-              <td colspan={9} class="text-base-content/60">
+              <td colspan={9} class="text-base-content/70">
                 Noch kein Dashboard-Eintrag.
               </td>
             </tr>
@@ -122,7 +122,7 @@ export default function BoardManagePage(props: {
                     </button>
                   </form>
                 </td>
-                <td class="whitespace-nowrap text-base-content/60">
+                <td class="whitespace-nowrap text-base-content/70">
                   <LocalTime at={entry.createdAt} />
                   {entry.createdBy && <> von {entry.createdBy}</>}
                 </td>

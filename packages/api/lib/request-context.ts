@@ -32,6 +32,15 @@ export const requestContext = new AsyncLocalStorage<{
    */
   timezone?: string | null;
   /**
+   * The path this request is for.
+   *
+   * The navigation marks the page one is on, and the navigation lives in the
+   * Layout - which, like the HTML shell, takes no props and cannot be handed
+   * anything. Read here rather than passed down so no page has to remember to
+   * do it, and so a page that forgets does not quietly lose the mark.
+   */
+  path?: string;
+  /**
    * Which measurements this request may see, as the row-level policies want it.
    *
    * Worked out once by the middleware in index.ts and read by every service that
@@ -78,6 +87,9 @@ export const currentTimeZone = (): string | null =>
  * is the right answer outside a request and for anonymous visitors alike.
  */
 export const currentScope = (): Scope => requestContext.getStore()?.scope ?? [];
+
+/** The path of the request being rendered, for marking the current page. */
+export const currentPath = (): string => requestContext.getStore()?.path ?? "";
 
 /**
  * The token grants for this request, or null when it is not a token request.

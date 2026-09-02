@@ -36,7 +36,7 @@ export default function DataGroupsPage(props: {
       {props.saved && <Notice tone="success">{props.saved}</Notice>}
       {props.error && <Notice tone="error">{props.error}</Notice>}
 
-      <div class="max-w-3xl text-sm text-base-content/70 mb-6 space-y-2">
+      <div class="max-w-[65ch] text-sm text-base-content/70 mb-6 space-y-2">
         <p>
           Hier wird festgelegt, <strong>welche</strong> Verzeichnisgruppen als
           Datengruppen gelten – eine echte Teilmenge dessen, was im Verzeichnis
@@ -48,7 +48,7 @@ export default function DataGroupsPage(props: {
           <em>was</em> jemand tun darf; eine Datengruppe regelt, <em>welche</em>{" "}
           Daten gemeint sind. Der Eintrag einer Rollengruppe wird abgewiesen.
         </p>
-        <p class="text-base-content/50">
+        <p class="text-base-content/70">
           Noch ohne Wirkung: Messwerte tragen bisher keine Gruppe.
         </p>
       </div>
@@ -66,7 +66,7 @@ export default function DataGroupsPage(props: {
           <tbody>
             {props.groups.length === 0 ? (
               <tr>
-                <td colspan={5} class="text-base-content/60">
+                <td colspan={5} class="text-base-content/70">
                   Noch keine Datengruppe erklärt.
                 </td>
               </tr>
@@ -103,7 +103,7 @@ export default function DataGroupsPage(props: {
                       </button>
                     </form>
                   </td>
-                  <td class="whitespace-nowrap text-base-content/60">
+                  <td class="whitespace-nowrap text-base-content/70">
                     <LocalTime at={group.createdAt} />
                     {group.createdBy && <> von {group.createdBy}</>}
                   </td>
@@ -143,7 +143,7 @@ export default function DataGroupsPage(props: {
             ))}
           </datalist>
           {suggestions.length > 0 && (
-            <p class="text-sm text-base-content/60 mt-1">
+            <p class="text-sm text-base-content/70 mt-1">
               Deine eigenen Gruppen stehen als Vorschlag im Feld.
             </p>
           )}

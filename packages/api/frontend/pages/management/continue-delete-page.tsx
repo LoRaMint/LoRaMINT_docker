@@ -1,4 +1,5 @@
 import Layout from "../../components/layout/Layout";
+import { TrashIcon } from "../../components/icons";
 import PageHeading from "../../components/PageHeading";
 import type { ResourceSpec } from "../../components/manage/spec";
 import Notice from "../../components/Notice";
@@ -76,17 +77,20 @@ export default function ContinueDeletePage(props: {
         {props.fields.map((field) => (
           <input type="hidden" name={field.name} value={field.value} />
         ))}
-        <button type="submit" class="btn btn-error">
-          Weitere {Math.min(props.left, props.blockSize)} löschen
-        </button>
+        {/* The way out first, and with room before the one that acts. */}
+        <a href={`${props.spec.path}${props.view}`} class="btn btn-ghost" autofocus>
+          Zurück zur Tabelle
+        </a>
         {/* Hidden until the script shows it: without JavaScript nothing runs on
             its own, so there would be nothing to stop. */}
         <button type="button" class="btn btn-ghost" data-continue-stop hidden>
           Automatik anhalten
         </button>
-        <a href={`${props.spec.path}${props.view}`} class="btn btn-ghost">
-          Zurück zur Tabelle
-        </a>
+        <span class="w-6" aria-hidden="true" />
+        <button type="submit" class="btn btn-error gap-2">
+          <TrashIcon />
+          Weitere {Math.min(props.left, props.blockSize)} löschen
+        </button>
       </form>
 
       <p class="text-sm text-base-content/70 mt-3" data-continue-status>

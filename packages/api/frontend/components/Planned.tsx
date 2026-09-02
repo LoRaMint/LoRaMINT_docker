@@ -39,7 +39,7 @@ export default function Planned(props: {
       </ul>
 
       {props.note && (
-        <p class="mt-6 max-w-3xl text-sm text-base-content/70">{props.note}</p>
+        <p class="mt-6 max-w-[65ch] text-sm text-base-content/70">{props.note}</p>
       )}
     </>
   );

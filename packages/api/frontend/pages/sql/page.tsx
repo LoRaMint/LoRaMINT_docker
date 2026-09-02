@@ -1,4 +1,5 @@
 import Layout from "../../components/layout/Layout";
+import { TrashIcon } from "../../components/icons";
 import TableFrame from "../../components/TableFrame";
 import { maxRows, timeoutMs, type ConsoleResult } from "../../../services/query";
 import PageHeading from "../../components/PageHeading";
@@ -75,7 +76,7 @@ export default function SqlPage(props: {
           </textarea>
         </label>
         {props.writable ? (
-          <p class="text-warning text-sm mt-2 max-w-3xl">
+          <p class="text-warning text-sm mt-2 max-w-[65ch]">
             <strong>Achtung:</strong> Schreibende Anweisungen wirken sofort und
             lassen sich nicht rückgängig machen – es gibt kein
             Verlaufsprotokoll und keinen Papierkorb. Ein zu weit gefasstes WHERE
@@ -84,7 +85,7 @@ export default function SqlPage(props: {
             einem UPDATE nicht.
           </p>
         ) : (
-          <p class="text-sm mt-2 max-w-3xl text-base-content/60">
+          <p class="text-sm mt-2 max-w-[65ch] text-base-content/70">
             Nur lesend: Ändern und Löschen weist die Datenbank ab. Eine große
             Abfrage kostet trotzdem Rechenzeit – schränke sie mit WHERE ein,
             statt die Zeilenbegrenzung als Filter zu benutzen.
@@ -112,13 +113,16 @@ export default function SqlPage(props: {
           <form method="post" action="/sql" class="flex flex-wrap gap-3">
             <input type="hidden" name="statement" value={props.statement} />
             <input type="hidden" name="confirm" value="1" />
-            <button type="submit" class="btn btn-error">
+            {/* The safe way out first, and with room before the one that acts. */}
+            <a href="/sql" class="btn btn-ghost" autofocus>
+              Abbrechen
+            </a>
+            <span class="w-6" aria-hidden="true" />
+            <button type="submit" class="btn btn-error gap-2">
+              <TrashIcon />
               {props.result.affected} Zeile
               {props.result.affected === 1 ? "" : "n"} endgültig löschen
             </button>
-            <a href="/sql" class="btn btn-ghost">
-              Abbrechen
-            </a>
           </form>
         </Notice>
       )}
@@ -134,12 +138,12 @@ export default function SqlPage(props: {
 
       {props.result?.kind === "rows" &&
         (props.result.rows.length === 0 ? (
-          <p class="text-sm text-base-content/60">
+          <p class="text-sm text-base-content/70">
             Die Abfrage lieferte keine Zeilen ({props.result.durationMs} ms).
           </p>
         ) : (
           <>
-            <p class="text-sm text-base-content/60 mb-2">
+            <p class="text-sm text-base-content/70 mb-2">
               {props.result.rows.length} Zeile
               {props.result.rows.length === 1 ? "" : "n"} in{" "}
               {props.result.durationMs} ms

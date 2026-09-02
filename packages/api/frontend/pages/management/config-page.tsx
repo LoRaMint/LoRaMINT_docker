@@ -278,7 +278,7 @@ export default function ConfigPage(props: {
                   ))}
                 </tbody>
               </TableFrame>
-            <p class="text-sm text-base-content/70 mt-3 max-w-3xl">
+            <p class="text-sm text-base-content/70 mt-3 max-w-[65ch]">
               Jede optionale Funktion mit ihrem Zustand und der Einstellung, die
               ihn verursacht. Die Einzelheiten stehen in den Bereichen links.
             </p>
@@ -378,7 +378,7 @@ export default function ConfigPage(props: {
                                 >
                                   {row.editValue}
                                 </textarea>
-                                <div class="text-xs text-base-content/70 max-w-3xl">
+                                <div class="text-xs text-base-content/70 max-w-[65ch]">
                                   Markdown: <code># Überschrift</code>,{" "}
                                   <code>## Unterüberschrift</code>,{" "}
                                   <code>- Aufzählung</code>,{" "}
@@ -474,7 +474,7 @@ export default function ConfigPage(props: {
               </tbody>
             </TableFrame>
 
-          <p class="text-sm text-base-content/70 mt-3 max-w-3xl">
+          <p class="text-sm text-base-content/70 mt-3 max-w-[65ch]">
             „Datenbank" heisst, dass der Wert hier eingestellt wurde;
             „Umgebung", dass er von aussen kommt; „Default", dass die Anwendung
             ihren eingebauten Wert benutzt. Geheimnisse und

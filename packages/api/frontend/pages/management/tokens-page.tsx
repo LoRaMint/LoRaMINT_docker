@@ -85,7 +85,7 @@ export default function TokensPage(props: {
                     gehört <code>{token.ownerGroup}</code>
                   </span>
                 </div>
-                <div class="text-sm text-base-content/60">
+                <div class="text-sm text-base-content/70">
                   läuft ab <LocalTime at={token.expiresAt} />
                   {token.lastUsedAt ? (
                     <>
@@ -110,7 +110,7 @@ export default function TokensPage(props: {
                 <tbody>
                   {token.grants.length === 0 ? (
                     <tr>
-                      <td colspan={3} class="text-base-content/60">
+                      <td colspan={3} class="text-base-content/70">
                         Keine Freigabe – dieses Token sieht nur, was ohnehin
                         öffentlich ist.
                       </td>
@@ -164,7 +164,7 @@ export default function TokensPage(props: {
                       Erteilen
                     </button>
                   </form>
-                  <p class="text-xs text-base-content/60 mt-1">
+                  <p class="text-xs text-base-content/70 mt-1">
                     Leere Felder heißen „alles der Gruppe". Ausgefüllte engen ein.
                   </p>
                 </details>
@@ -176,7 +176,7 @@ export default function TokensPage(props: {
                   <summary class="cursor-pointer text-sm link">
                     Bekannt machen{" "}
                     {token.announcedTo.length > 0 && (
-                      <span class="text-base-content/60">
+                      <span class="text-base-content/70">
                         (bei {token.announcedTo.join(", ")})
                       </span>
                     )}
@@ -220,7 +220,7 @@ export default function TokensPage(props: {
                       Bekannt machen
                     </button>
                   </form>
-                  <p class="text-xs text-base-content/60 mt-1">
+                  <p class="text-xs text-base-content/70 mt-1">
                     Die Gruppe sieht das Token danach und kann ihm <em>eigene</em>{" "}
                     Daten freigeben. Den Wert erfährt sie nicht – sie könnte es
                     sonst selbst benutzen und käme damit auch an die Daten aller

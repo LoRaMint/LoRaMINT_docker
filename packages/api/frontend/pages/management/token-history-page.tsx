@@ -90,7 +90,7 @@ export default function TokenHistoryPage(props: { entries: LogEntry[] }) {
                   <td>
                     {ACTIONS[entry.action]}
                     {detail && (
-                      <div class="text-xs text-base-content/60">{detail}</div>
+                      <div class="text-xs text-base-content/70">{detail}</div>
                     )}
                   </td>
                   <td>{entry.tokenName}</td>

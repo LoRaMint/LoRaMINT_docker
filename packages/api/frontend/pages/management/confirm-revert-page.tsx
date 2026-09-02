@@ -1,4 +1,5 @@
 import Layout from "../../components/layout/Layout";
+import { UndoIcon } from "../../components/icons";
 import PageHeading from "../../components/PageHeading";
 import { actionLabel, tableLabel } from "./audit-labels";
 import Notice from "../../components/Notice";
@@ -66,13 +67,16 @@ export default function ConfirmRevertPage(props: {
           />
         </label>
 
-        <div class="flex flex-wrap gap-3">
-          <button type="submit" class="btn btn-error">
-            {count} Änderung{count === 1 ? "" : "en"} zurücknehmen
-          </button>
-          <a href={`${PATH}${props.view}`} class="btn btn-ghost">
+        <div class="flex flex-wrap gap-3 items-center">
+          {/* The way out first, and with room before the one that acts. */}
+          <a href={`${PATH}${props.view}`} class="btn btn-ghost" autofocus>
             Abbrechen
           </a>
+          <span class="w-6" aria-hidden="true" />
+          <button type="submit" class="btn btn-error gap-2">
+            <UndoIcon />
+            {count} Änderung{count === 1 ? "" : "en"} zurücknehmen
+          </button>
         </div>
       </form>
     </Layout>

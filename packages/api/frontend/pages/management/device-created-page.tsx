@@ -101,12 +101,12 @@ export default function DeviceCreatedPage(props: {
                   </div>
                 )}
                 {done && !leftover && !clean && (
-                  <div class="text-sm text-base-content/60 mt-1">
+                  <div class="text-sm text-base-content/70 mt-1">
                     Ging durch und wurde wieder entfernt.
                   </div>
                 )}
                 {!done && !failed && (
-                  <div class="text-sm text-base-content/60 mt-1">
+                  <div class="text-sm text-base-content/70 mt-1">
                     Nicht mehr versucht.
                   </div>
                 )}

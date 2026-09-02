@@ -3,6 +3,7 @@ import PageHeading from "../../components/PageHeading";
 import DataTable from "../../components/manage/DataTable";
 import { columnsByKey, type ResourceSpec } from "../../components/manage/spec";
 import Notice from "../../components/Notice";
+import { TrashIcon } from "../../components/icons";
 
 /**
  * What a deletion is about to remove - as rows, not as a number.
@@ -15,25 +16,6 @@ import Notice from "../../components/Notice";
  * the preview was taken: the confirmation deletes what was shown, not whatever
  * matches the filter by the time it is clicked.
  */
-/** The bin that goes on every button which removes something. */
-function TrashIcon() {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="2"
-      stroke-linecap="round"
-      stroke-linejoin="round"
-      class="h-4 w-4"
-      aria-hidden="true"
-    >
-      <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" />
-    </svg>
-  );
-}
-
 export default function ConfirmDeletePage(props: {
   spec: ResourceSpec;
   /** The first rows that would go, for looking at. */
