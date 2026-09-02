@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.13.3] - 2026-09-02
+
+### Fixed
+
+- **Eine zweite Schattenstufe hatte sich eingeschlichen.** Der Bildbetrachter
+  der ESP32-Anleitung benutzte `shadow-2xl`, obwohl das Design genau eine Stufe
+  kennt — vorbehalten für Dinge, die über der Seite schweben. Beim vorigen
+  Durchgang übersehen, weil die Suche nur `shadow-lg` kannte.
+
+- **Diese eine Stufe stand zweimal als Literal im Code.** Sie ist jetzt das
+  Token `--shadow-raised` und wird als Klasse `shadow-raised` benutzt. Ein
+  Nebenbefund beim Bauen: Tailwind löst den Wert zu `#143c5529` auf — 20 60 85
+  ist das Markenpetrol, der Schatten ist also die Markenfarbe bei 16 % und kein
+  beliebiges Grau.
+
+### Changed
+
+- **`--gauge-von`/`--gauge-bis` heißen `--gauge-from`/`--gauge-to`.** Es waren
+  die einzigen deutschen Bezeichner in einem durchgehend englischen Code.
+
+Gefunden wurde beides durch einen maschinellen Abgleich des Frontends gegen die
+Tokendatei des Designsystems statt nach Augenschein. Alles Übrige hielt stand:
+28 Themewerte, beide Datenpaletten, Radien, Rahmen, Fokusring, Schrift,
+Logo-Umschaltung — keine Abweichung.
+
 ## [1.13.2] - 2026-09-02
 
 ### Fixed
@@ -1367,7 +1392,8 @@ reach its own configuration, and the ones the security model rests on.
 
 Releases up to and including [0.1.8] (2026-05-12) predate this changelog.
 
-[Unreleased]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.13.2...HEAD
+[Unreleased]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.13.3...HEAD
+[1.13.3]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.13.2...v1.13.3
 [1.13.2]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.13.1...v1.13.2
 [1.13.1]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.13.0...v1.13.1
 [1.13.0]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.12.0...v1.13.0
