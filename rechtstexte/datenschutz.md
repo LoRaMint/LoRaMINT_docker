@@ -69,6 +69,10 @@ ausschließlich angemeldete Personen mit entsprechender Berechtigung.
 Rechtsgrundlage: Art. 6 Abs. 1 lit. f) DSGVO; berechtigtes Interesse an der
 Nachvollziehbarkeit und Rücknehmbarkeit von Änderungen an Messdaten.
 
+Ebenso aufgezeichnet wird der Umgang mit API-Token (siehe dort): Anmeldename,
+Anzeigename, Zeitpunkt, Vorgang, Bezeichnung des Token und betroffene
+Datengruppe.
+
 Die Protokolle sind technisch als reine Anfüge-Protokolle ausgeführt; die
 Anwendung kann Einträge weder ändern noch löschen. Berechtigten Löschverlangen
 wird durch den Verantwortlichen unmittelbar in der Datenbank entsprochen.
@@ -81,6 +85,33 @@ Umweltgrößen. Soweit sich ein Gerät einer bestimmten Person zuordnen lässt u
 dadurch ein Personenbezug entsteht, ist Rechtsgrundlage Art. 6 Abs. 1 lit. f)
 DSGVO; berechtigtes Interesse am Betrieb des Messnetzes und an der Auswertung
 der Messreihen.
+
+## API-Token
+
+Angemeldete Personen können Token anlegen, mit denen ein Programm die
+Schnittstelle lesend abrufen darf. Ein Token gehört einer Datengruppe, nicht
+einer Person.
+
+Gespeichert werden die Bezeichnung des Token, ein Streuwert des Token-Wertes
+(nicht der Wert selbst), die besitzende Datengruppe, der Ablaufzeitpunkt, der
+Zeitpunkt der letzten Verwendung sowie der **Anmeldename derjenigen Person, die
+das Token angelegt, freigegeben oder bekannt gemacht hat**. Jede dieser
+Handlungen wird zusätzlich im Protokoll nach dem vorstehenden Abschnitt
+festgehalten.
+
+Rechtsgrundlage: Art. 6 Abs. 1 lit. f) DSGVO; berechtigtes Interesse an der
+Nachvollziehbarkeit erteilter Zugriffsrechte und an ihrer gezielten Rücknahme.
+
+## Öffentliches Dashboard
+
+Berechtigte Personen können auswählen, welche Messwerte auf der öffentlich
+zugänglichen Übersichtsseite erscheinen. Zu jedem Eintrag werden Bezeichnung,
+Gerätekennung, Sensor, Messgröße, Wertebereich, Zeitpunkt der Anlage und der
+Anmeldename der anlegenden Person gespeichert. Für Besucherinnen und Besucher
+der Seite entsteht dabei kein Datensatz.
+
+Rechtsgrundlage: Art. 6 Abs. 1 lit. f) DSGVO; berechtigtes Interesse an einer
+nachvollziehbaren Kuratierung der öffentlich gezeigten Messwerte.
 
 ## Empfänger
 
@@ -104,7 +135,9 @@ Eine Übermittlung in Länder außerhalb der Europäischen Union findet nicht st
 - Sitzungs-Cookie: 8 Stunden
 - Darstellungs-Cookie: 12 Monate
 - Kontodaten: für die Dauer des Kontos
-- Änderungs- und Geräteprotokoll: für die Dauer der zugehörigen Messdaten
+- Änderungs-, Geräte- und Token-Protokoll: für die Dauer der zugehörigen Messdaten
+- API-Token: bis zum Ablauf oder bis zur Löschung durch die besitzende Datengruppe
+- Einträge des öffentlichen Dashboards: bis zu ihrer Entfernung
 - Messdaten: bis zum Wegfall des Auswertungszwecks
 - Anfragen per E-Mail: bis zur abschließenden Bearbeitung, soweit keine Aufbewahrungspflichten entgegenstehen
 
@@ -155,4 +188,4 @@ Art. 22 DSGVO findet nicht statt.
 
 ## Stand
 
-9. August 2026. Es gilt jeweils die auf dieser Seite veröffentlichte Fassung.
+2. September 2026. Es gilt jeweils die auf dieser Seite veröffentlichte Fassung.
