@@ -45,8 +45,8 @@ export default function Gauge(props: {
     <svg viewBox="0 0 200 190" class="w-full h-full" preserveAspectRatio="xMidYMid meet">
       <defs>
         <linearGradient id={gradientId} gradientUnits="userSpaceOnUse" x1={CX - R} y1={CY} x2={CX + R} y2={CY}>
-          <stop offset="0%" stop-color="var(--gauge-von)" />
-          <stop offset="100%" stop-color="var(--gauge-bis)" />
+          <stop offset="0%" stop-color="var(--gauge-from)" />
+          <stop offset="100%" stop-color="var(--gauge-to)" />
         </linearGradient>
       </defs>
 

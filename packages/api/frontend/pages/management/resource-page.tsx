@@ -329,7 +329,7 @@ export default function ResourcePage(props: {
           id="reason-required"
           role="alertdialog"
           aria-labelledby="reason-required-title"
-          class="fixed inset-0 m-auto h-fit w-11/12 max-w-md rounded-box border-2 border-error bg-base-200 p-6 text-base-content shadow-[0_4px_12px_rgba(20,60,85,.16)] backdrop:bg-base-content/50"
+          class="fixed inset-0 m-auto h-fit w-11/12 max-w-md rounded-box border-2 border-error bg-base-200 p-6 text-base-content shadow-raised backdrop:bg-base-content/50"
         >
           <h3 id="reason-required-title" class="text-lg font-bold text-error mb-2">
             Grund fehlt

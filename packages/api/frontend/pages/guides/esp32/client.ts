@@ -34,7 +34,7 @@ function openLightbox(src: string, alt: string) {
   const img = document.createElement("img");
   img.src = src;
   img.alt = alt;
-  img.className = "max-h-full max-w-full rounded-box shadow-2xl";
+  img.className = "max-h-full max-w-full rounded-box shadow-raised";
   overlay.appendChild(img);
 
   const close = () => {

@@ -36,7 +36,7 @@ const tabCurrent = "text-primary font-medium border-b-2 border-b-primary";
 const panelClass =
   "menu dropdown-content z-10 mt-0 w-56 gap-1 p-1.5 " +
   "bg-base-100 text-base-content border border-base-300 " +
-  "rounded-b-box rounded-tr-box shadow-[0_4px_12px_rgba(20,60,85,.16)]";
+  "rounded-b-box rounded-tr-box shadow-raised";
 
 /** A no-JS nav dropdown (daisyUI `<details>` menu) with a chevron indicator. */
 function NavDropdown(props: {
