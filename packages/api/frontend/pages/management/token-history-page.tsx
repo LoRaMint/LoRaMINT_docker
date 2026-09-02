@@ -3,6 +3,7 @@ import TableFrame, { EmptyRow } from "../../components/TableFrame";
 import LocalTime from "../../components/LocalTime";
 import PageHeading from "../../components/PageHeading";
 import type { LogEntry, TokenAction } from "../../../services/api-tokens";
+import { PAGES } from "../../../lib";
 
 const ACTIONS: Record<TokenAction, string> = {
   create: "angelegt",
@@ -53,8 +54,8 @@ export default function TokenHistoryPage(props: { entries: LogEntry[] }) {
   return (
     <Layout>
       <PageHeading
-        title="API-Token: Historie"
-        back={{ href: "/management/tokens", label: "Zurück zu den Token" }}
+        title={PAGES.tokenLog.label}
+        back={PAGES.tokens}
         intro={
           <>
             Wer wann welche Berechtigung erteilt, entzogen oder ein Token

@@ -4,6 +4,7 @@ import LocalTime from "../../components/LocalTime";
 import PageHeading from "../../components/PageHeading";
 import { pageLink, pageWindow } from "../../../lib/manage-view";
 import type { DeviceLogEntry } from "../../../services/device-log";
+import { PAGES } from "../../../lib";
 
 /**
  * What this application did in The Things Network, and how it went.
@@ -64,7 +65,7 @@ export default function DeviceLogPage(props: {
     <Layout>
       <PageHeading
         title="Geräteprotokoll"
-        back={{ href: "/management/devices", label: "Geräte verwalten" }}
+        back={PAGES.devices}
         intro={
           <>
             Wer wann welches Gerät in The Things Network angelegt oder umbenannt

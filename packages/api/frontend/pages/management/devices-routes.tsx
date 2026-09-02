@@ -4,7 +4,7 @@ import { auth, manage, ttn } from "../../../config";
 import { deviceLog, devices, measurements } from "../../../services";
 import { assignDevice, assignmentFor } from "../../../services/device-groups";
 import { listDataGroups } from "../../../services/data-groups";
-import { currentScope, currentUser, hasRole, parsePage, parseReason } from "../../../lib";
+import { currentScope, currentUser, hasRole, PAGES, parsePage, parseReason } from "../../../lib";
 import {
   deviceProblems,
   nextDeviceId,
@@ -100,7 +100,7 @@ export const registerDeviceRoutes = (
     PATH,
     guards.requireRole,
     ...ssr(async (c) => {
-      c.get("page").title = "Geräte verwalten";
+      c.get("page").title = PAGES.devices.label;
       const message = c.req.query("msg") ?? null;
 
       if (!ttn.enabled) {
@@ -307,7 +307,7 @@ export const registerDeviceRoutes = (
     `${PATH}/log`,
     guards.requireRole,
     ...ssr(async (c) => {
-      c.get("page").title = "Geräteprotokoll";
+      c.get("page").title = PAGES.deviceLog.label;
       const page = parsePage(c.req.query("page"));
       const { rows, total } = await deviceLog.list({
         page,

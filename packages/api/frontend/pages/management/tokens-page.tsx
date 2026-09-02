@@ -7,6 +7,7 @@ import Field from "../../components/Field";
 import SectionHeading from "../../components/SectionHeading";
 import type { TokenRow } from "../../../services/api-tokens";
 import { FILTER_KEYS, MAX_DAYS, type GrantFilter } from "../../../lib/api-tokens";
+import { PAGES } from "../../../lib";
 
 const PATH = "/management/tokens";
 
@@ -51,7 +52,7 @@ export default function TokensPage(props: {
   return (
     <Layout>
       <PageHeading
-        title="API-Token"
+        title={PAGES.tokens.label}
         intro={
           <>
             Ein Token lässt ein Programm die API lesen, ohne dass jemandes

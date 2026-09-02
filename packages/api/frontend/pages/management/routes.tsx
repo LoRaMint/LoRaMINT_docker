@@ -24,6 +24,7 @@ import {
   parseSelection,
   parseSort,
   type Params,
+  PAGES,
 } from "../../../lib";
 import type { PaginationParams } from "../../../lib/pagination";
 import { NO_GROUP } from "../../../types";
@@ -526,7 +527,7 @@ export const registerAuditRoutes = (
     AUDIT_PATH,
     guards.requireRead,
     ...ssr(async (c) => {
-      c.get("page").title = "Änderungsprotokoll";
+      c.get("page").title = PAGES.audit.label;
       const query = c.req.query();
 
       const visibleColumns = parseColumns(

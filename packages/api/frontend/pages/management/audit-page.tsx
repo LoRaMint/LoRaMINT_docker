@@ -14,6 +14,7 @@ import {
 } from "../../../lib/manage-view";
 import { actionLabel, revertState, tableLabel } from "./audit-labels";
 import Notice from "../../components/Notice";
+import { PAGES } from "../../../lib";
 
 /**
  * The change log, read as *operations* rather than as entries.
@@ -132,7 +133,7 @@ export default function AuditPage(props: {
       <PageHeading
         title="Änderungsprotokoll"
         intro="Jede Änderung über die Verwaltung steht hier – und bleibt hier. Etwas zurückzunehmen löscht nichts, sondern kommt als weiterer Vorgang dazu."
-        back={{ href: "/management/data", label: "Daten verwalten" }}
+        back={PAGES.data}
       />
 
       {props.message && MESSAGES[props.message] && (

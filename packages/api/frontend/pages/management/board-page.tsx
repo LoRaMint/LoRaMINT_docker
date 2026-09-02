@@ -6,6 +6,7 @@ import Notice from "../../components/Notice";
 import Field from "../../components/Field";
 import SectionHeading from "../../components/SectionHeading";
 import type { DashboardEntry, Triple } from "../../../services/dashboard";
+import { PAGES } from "../../../lib";
 
 const PATH = "/management/board";
 
@@ -28,7 +29,7 @@ export default function BoardManagePage(props: {
   return (
     <Layout>
       <PageHeading
-        title="Dashboard managen"
+        title={PAGES.boardManage.label}
         intro={
           <>
             Welche Messwerte auf der öffentlichen{" "}

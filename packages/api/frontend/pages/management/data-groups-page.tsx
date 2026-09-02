@@ -6,6 +6,7 @@ import Notice from "../../components/Notice";
 import Field from "../../components/Field";
 import type { DataGroup } from "../../../services/data-groups";
 import SectionHeading from "../../components/SectionHeading";
+import { PAGES } from "../../../lib";
 
 /**
  * Declaring which directory groups count as data groups.
@@ -30,7 +31,7 @@ export default function DataGroupsPage(props: {
 
   return (
     <Layout>
-      <PageHeading title="Datengruppen" />
+      <PageHeading title={PAGES.groups.label} />
 
       {props.saved && <Notice tone="success">{props.saved}</Notice>}
       {props.error && <Notice tone="error">{props.error}</Notice>}

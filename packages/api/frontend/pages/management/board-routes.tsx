@@ -1,6 +1,6 @@
 import type { Hono, MiddlewareHandler } from "hono";
 import { ssr } from "../../../config/ssr";
-import { currentUser } from "../../../lib";
+import { currentUser, PAGES } from "../../../lib";
 import {
   createEntry,
   deleteEntry,
@@ -50,7 +50,7 @@ export const registerBoardRoutes = (
     PATH,
     guards.requireRole,
     ...ssr(async (c) => {
-      c.get("page").title = "Dashboard managen";
+      c.get("page").title = PAGES.boardManage.label;
       const [entries, triples] = await Promise.all([listEntries(), knownTriples()]);
       return (
         <BoardManagePage

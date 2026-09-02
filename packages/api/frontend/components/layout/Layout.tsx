@@ -1,6 +1,6 @@
 import type { JSX } from "solid-js";
 import { legal, auth, sqlConsole, board, setupAccount } from "../../../config";
-import { currentScope, currentUser, hasRole } from "../../../lib";
+import { currentScope, currentUser, hasRole, PAGES } from "../../../lib";
 
 const tabClass =
   "tab tab-lifted [--tab-border-color:theme(colors.base-300)] text-base-content/80 hover:text-base-content hover:[--tab-border-color:theme(colors.primary)]";
@@ -101,7 +101,6 @@ function AuthControl() {
 
 export default function Layout(props: { children: JSX.Element }) {
   const user = currentUser();
-  const dataRole = hasRole(user, "data", auth);
   const managementUser = hasRole(user, "management", auth);
   const adminUser = hasRole(user, "admin", auth);
   const boardUser = hasRole(user, "board", auth);
@@ -125,84 +124,59 @@ export default function Layout(props: { children: JSX.Element }) {
    * again for itself.
    */
   const sections: { label: string; items: { href: string; label: string }[] }[] = [
+    // Looking at data. Public but for the console, and the dashboard belongs
+    // here rather than in a section of its own: for most visitors that section
+    // held a single link, and its curation page sits with the other curation
+    // pages under "Verwaltung".
     {
       label: "Daten",
       items: [
-        { href: "/plots", label: "Plots" },
-        { href: "/export", label: "Export" },
-        { href: "/status", label: "Status" },
-        ...(sqlConsole.enabled && user ? [{ href: "/sql", label: "SQL" }] : []),
+        PAGES.plots,
+        PAGES.export,
+        PAGES.status,
+        ...(board.enabled ? [PAGES.board] : []),
+        ...(sqlConsole.enabled && user ? [PAGES.sql] : []),
       ],
     },
-    // Public, unlike every section below it: /board has no login requirement,
-    // so this must not be gated on `user` the way "Verwaltung" is. Board and
-    // admin members get a second entry; everyone else sees one plain link.
+    // Looking after what the school runs. Built from what this person actually
+    // holds rather than from one gate - the areas do not contain one another,
+    // so somebody who only manages devices sees one entry here, and that is
+    // correct.
     //
-    // BOARD_ENABLED only switches the public page off - /management/board stays
-    // reachable for curators either way, so the section survives with just that
-    // one entry for them, and disappears entirely for anyone who is neither a
-    // curator nor has a page to look at.
-    ...(board.enabled || boardUser || adminUser
-      ? [
-          {
-            label: "Dashboard",
-            items: board.enabled
-              ? boardUser || adminUser
-                ? [
-                    { href: "/board", label: "Dashboard ansehen" },
-                    { href: "/management/board", label: "Dashboard managen" },
-                  ]
-                : [{ href: "/board", label: "Dashboard" }]
-              : [{ href: "/management/board", label: "Dashboard managen" }],
-          },
-        ]
-      : []),
-    // The three areas no longer contain one another, so the section is built
-    // from what this person actually holds rather than from one gate. Somebody
-    // who only manages devices sees one entry here, and that is correct.
-    ...(dataUser || dataRole || managementUser || adminUser
+    // The change log is deliberately absent: it needs the data role, and it is
+    // already a card on the "Daten verwalten" hub, where that condition is
+    // checked. One way in is enough.
+    ...(dataUser || managementUser || boardUser || adminUser
       ? [
           {
             label: "Verwaltung",
             items: [
-              ...(dataUser
-                ? [{ href: "/management/data", label: "Daten verwalten" }]
-                : []),
-              // The change log, not the data pages: it holds the full contents
-              // of every changed row and has no group of its own, so it stays
-              // with the role that may see every group anyway.
-              ...(dataRole
-                ? [{ href: "/management/data/audit", label: "Änderungsprotokoll" }]
-                : []),
-              ...(managementUser
-                ? [{ href: "/management/devices", label: "Geräte verwalten" }]
-                : []),
+              ...(dataUser ? [PAGES.data] : []),
+              ...(managementUser ? [PAGES.devices] : []),
+              // Reachable even when BOARD_ENABLED is off, so entries can be
+              // prepared before the public page is switched on.
+              ...(boardUser || adminUser ? [PAGES.boardManage] : []),
               // A token belongs to a *data group*, so membership is what counts -
               // not the data role, which sees every group but is in none. The
               // scope says which: an array with entries is real membership,
               // "all" only says the role. Same rule as requireGroupMember.
               ...(adminUser || (Array.isArray(scope) && scope.length > 0)
-                ? [{ href: "/management/tokens", label: "API-Token" }]
-                : []),
-              // Administrators only: the page lists bind accounts, database
-              // roles and the shape of every secret.
-              ...(adminUser
-                ? [
-                    { href: "/management/groups", label: "Datengruppen" },
-                    { href: "/management/config", label: "Konfiguration" },
-                  ]
+                ? [PAGES.tokens]
                 : []),
             ],
           },
         ]
       : []),
-    { label: "HowTo", items: [{ href: "/guides/esp32", label: "ESP32" }] },
+    // The server itself, administrators only. Called "System" rather than
+    // "Administration", which would sit beside "Verwaltung" as a synonym and
+    // leave the difference to be guessed.
+    ...(adminUser
+      ? [{ label: "System", items: [PAGES.groups, PAGES.config] }]
+      : []),
+    { label: "Anleitungen", items: [PAGES.guideEsp32] },
     {
-      label: "Code",
-      items: [
-        { href: "/api/v1/docs", label: "API Docs" },
-        { href: "https://github.com/LoRaMint/LoRaMINT_docker", label: "GitHub" },
-      ],
+      label: "Entwicklung",
+      items: [PAGES.apiDocs, PAGES.github],
     },
   ];
 

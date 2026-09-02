@@ -2,6 +2,7 @@ import Layout from "../../components/layout/Layout";
 import PageHeading from "../../components/PageHeading";
 import Notice from "../../components/Notice";
 import { STEP_LABELS, type CreateOutcome, type RegistrationStep } from "../../../services/ttn";
+import { PAGES } from "../../../lib";
 
 /**
  * What became of a registration, step by step.
@@ -31,7 +32,7 @@ export default function DeviceCreatedPage(props: {
     <Layout>
       <PageHeading
         title={clean ? "Gerät angelegt" : "Gerät nicht angelegt"}
-        back={{ href: "/management/devices", label: "Geräte verwalten" }}
+        back={PAGES.devices}
       />
 
       {clean ? (

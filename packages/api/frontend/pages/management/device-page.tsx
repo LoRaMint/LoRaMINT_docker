@@ -8,6 +8,7 @@ import { formatEui, formatHex } from "../../../lib/ttn-ids";
 import type { TtnDeviceDetail } from "../../../services/ttn";
 import { DEVICE_MESSAGES } from "./devices-page";
 import SectionHeading from "../../components/SectionHeading";
+import { PAGES } from "../../../lib";
 
 /**
  * One device, laid out the way the TTN console lays it out - general
@@ -49,7 +50,7 @@ export default function DevicePage(props: {
     <Layout>
       <PageHeading
         title={device.name ?? device.deviceId}
-        back={{ href: "/management/devices", label: "Geräte verwalten" }}
+        back={PAGES.devices}
       />
 
       {message && <Notice tone={message.tone}>{message.text}</Notice>}

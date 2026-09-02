@@ -5,6 +5,7 @@ import ModeSwitch from "../../components/manage/ModeSwitch";
 import FilterBar from "../../components/manage/FilterBar";
 import DataTable from "../../components/manage/DataTable";
 import { columnsByKey, type FilterOption, type ResourceSpec } from "../../components/manage/spec";
+import { PAGES } from "../../../lib";
 import {
   buildQuery,
   columnSummary,
@@ -123,7 +124,7 @@ export default function ResourcePage(props: {
       <PageHeading
         title={spec.title}
         intro={spec.intro}
-        back={{ href: "/management/data", label: "Daten verwalten" }}
+        back={PAGES.data}
       />
 
       {props.message && MESSAGES[props.message] && (

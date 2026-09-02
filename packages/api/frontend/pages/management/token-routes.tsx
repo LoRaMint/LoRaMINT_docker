@@ -1,7 +1,7 @@
 import type { Hono, MiddlewareHandler } from "hono";
 import { ssr } from "../../../config/ssr";
 import { auth } from "../../../config";
-import { currentUser, hasRole } from "../../../lib";
+import { currentUser, hasRole, PAGES } from "../../../lib";
 import { dataGroupsOf, listDataGroups } from "../../../services/data-groups";
 import * as apiTokens from "../../../services/api-tokens";
 import type { TokenActor, TokenRow, Visibility } from "../../../services/api-tokens";
@@ -81,7 +81,7 @@ export const registerTokenRoutes = (
     PATH,
     guards.requireGroupMember,
     ...ssr(async (c) => {
-      c.get("page").title = "API-Token";
+      c.get("page").title = PAGES.tokens.label;
       const isAdmin = hasRole(currentUser(), "admin", auth);
       const [groups, declared] = await Promise.all([ownGroups(), listDataGroups()]);
       const tokens = await apiTokens.listForUser(groups, isAdmin);
@@ -102,7 +102,7 @@ export const registerTokenRoutes = (
     `${PATH}/history`,
     guards.requireGroupMember,
     ...ssr(async (c) => {
-      c.get("page").title = "API-Token: Historie";
+      c.get("page").title = PAGES.tokenLog.label;
       const isAdmin = hasRole(currentUser(), "admin", auth);
       const entries = await apiTokens.history(await ownGroups(), isAdmin);
       return <TokenHistoryPage entries={entries} />;

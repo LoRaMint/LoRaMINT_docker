@@ -1,6 +1,7 @@
 import Layout from "../../components/layout/Layout";
 import PageHeading from "../../components/PageHeading";
 import Notice from "../../components/Notice";
+import { PAGES } from "../../../lib";
 
 /**
  * The one moment the token's value exists in readable form.
@@ -16,7 +17,7 @@ export default function TokenCreatedPage(props: { name: string; value: string })
     <Layout>
       <PageHeading
         title="API-Token angelegt"
-        back={{ href: "/management/tokens", label: "Zurück zu den Token" }}
+        back={PAGES.tokens}
       />
 
       <Notice tone="warning">

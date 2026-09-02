@@ -1,6 +1,7 @@
 import Layout from "../../components/layout/Layout";
 import PageHeading from "../../components/PageHeading";
 import Field from "../../components/Field";
+import { PAGES } from "../../../lib";
 
 /**
  * CSV export page. The markup is server-rendered (static shell); all
@@ -14,7 +15,7 @@ export default function ExportPage() {
   return (
     <Layout>
       <PageHeading
-        title="CSV-Export"
+        title={PAGES.export.label}
         intro={
           <>
             Messdaten gefiltert als CSV herunterladen: Gerät, Messgröße, Sensor,

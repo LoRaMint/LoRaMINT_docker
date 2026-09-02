@@ -56,3 +56,5 @@ export {
   sortLink,
 } from "./manage-view";
 export type { FilterChip, Params, SortDirection } from "./manage-view";
+export { PAGES } from "./pages";
+export type { PageRef } from "./pages";

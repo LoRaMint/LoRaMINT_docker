@@ -4,6 +4,7 @@ import { maxRows, timeoutMs, type ConsoleResult } from "../../../services/query"
 import PageHeading from "../../components/PageHeading";
 import Notice from "../../components/Notice";
 import { Muted } from "../../components/Row";
+import { PAGES } from "../../../lib";
 
 /**
  * The SQL console. One page for both roles: the data role opens it read-only,
@@ -36,7 +37,7 @@ export default function SqlPage(props: {
   return (
     <Layout>
       <PageHeading
-        title="SQL-Konsole"
+        title={PAGES.sql.label}
         intro={
           <>
             {props.writable ? (

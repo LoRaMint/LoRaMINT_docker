@@ -1,7 +1,7 @@
 import type { Hono, MiddlewareHandler } from "hono";
 import { ssr } from "../../../config/ssr";
 import { auth } from "../../../config";
-import { currentUser } from "../../../lib";
+import { currentUser, PAGES } from "../../../lib";
 import {
   declareDataGroup,
   describeDataGroup,
@@ -37,7 +37,7 @@ export const registerDataGroupRoutes = (
     PATH,
     guards.requireAdmin,
     ...ssr(async (c) => {
-      c.get("page").title = "Datengruppen";
+      c.get("page").title = PAGES.groups.label;
       // Awaited before the JSX: Solid compiles props into getters, and a getter
       // cannot be async.
       const groups = await listDataGroups();

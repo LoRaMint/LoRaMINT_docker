@@ -6,7 +6,7 @@ import {
   settingsDetail,
   type StoredSetting,
 } from "../../../services/settings";
-import { currentUser } from "../../../lib";
+import { currentUser, PAGES } from "../../../lib";
 import {
   CATALOG,
   displayValue,
@@ -86,7 +86,7 @@ export const registerConfigRoutes = (
     PATH,
     guards.requireAdmin,
     ...ssr(async (c) => {
-      c.get("page").title = "Konfiguration";
+      c.get("page").title = PAGES.config.label;
       const env = currentEnv();
       const detail = await settingsDetail();
       const codes: Record<string, { text: string; tone: "success" | "error" }> = {
@@ -120,7 +120,7 @@ export const registerConfigRoutes = (
     guards.requireAdmin,
     guards.sameOrigin,
     ...ssr(async (c) => {
-      c.get("page").title = "Konfiguration";
+      c.get("page").title = PAGES.config.label;
       const env = currentEnv();
       const detail = await settingsDetail();
       const body = await c.req.parseBody();

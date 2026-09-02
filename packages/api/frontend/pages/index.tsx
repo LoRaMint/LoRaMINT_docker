@@ -37,6 +37,7 @@ import {
   THEME_COOKIE,
   type Role,
   type SessionUser,
+  PAGES,
 } from "../../lib";
 import HomePage from "./home/page";
 import PlotsPage from "./plots/page";
@@ -102,7 +103,7 @@ pages.get(
 pages.get(
   "/plots",
   ...ssr((c) => {
-    c.get("page").title = "Plots";
+    c.get("page").title = PAGES.plots.label;
     return <PlotsPage />;
   }),
 );
@@ -110,7 +111,7 @@ pages.get(
 pages.get(
   "/export",
   ...ssr((c) => {
-    c.get("page").title = "CSV-Export";
+    c.get("page").title = PAGES.export.label;
     return <ExportPage />;
   }),
 );
@@ -118,7 +119,7 @@ pages.get(
 pages.get(
   "/status",
   ...ssr(async (c) => {
-    c.get("page").title = "Status";
+    c.get("page").title = PAGES.status.label;
     const [sensors, logs] = await Promise.all([
       measurements.status(),
       logEntries.status(),
@@ -134,7 +135,7 @@ if (board.enabled) {
   pages.get(
     "/board",
     ...ssr(async (c) => {
-      c.get("page").title = "Dashboard";
+      c.get("page").title = PAGES.board.label;
       const tiles = await dashboard.boardTiles();
       return <BoardPage tiles={tiles} />;
     }),
@@ -144,7 +145,7 @@ if (board.enabled) {
 pages.get(
   "/guides/esp32",
   ...ssr((c) => {
-    c.get("page").title = "Anleitung: ESP32 mit Thonny";
+    c.get("page").title = PAGES.guideEsp32.label;
     return <Esp32GuidePage />;
   }),
 );
@@ -382,7 +383,7 @@ if (auth.enabled || setupAccount.enabled) {
     "/profile",
     requireLogin,
     ...ssr(async (c) => {
-      c.get("page").title = "Profil";
+      c.get("page").title = PAGES.profile.label;
       const user = currentUser()!;
       // Awaited here and not in the prop: Solid compiles props into getters, and
       // a getter cannot be async - the page would receive a Promise.
@@ -463,7 +464,7 @@ if (auth.enabled || setupAccount.enabled) {
       "/sql",
       requireLogin,
       ...ssr((c) => {
-        c.get("page").title = "SQL";
+        c.get("page").title = PAGES.sql.label;
         return renderConsole("", false);
       }),
     );
@@ -474,7 +475,7 @@ if (auth.enabled || setupAccount.enabled) {
       "/sql",
       requireLogin,
       ...ssr(async (c) => {
-        c.get("page").title = "SQL";
+        c.get("page").title = PAGES.sql.label;
         const form = await c.req.parseBody();
         // Only the second submit carries this, so a deletion always needs two
         // deliberate clicks rather than one.
@@ -490,14 +491,19 @@ if (auth.enabled || setupAccount.enabled) {
     "/management/data",
     requireDataAccess,
     ...ssr(async (c) => {
-      c.get("page").title = "Daten verwalten";
+      c.get("page").title = PAGES.data.label;
+      // The change log needs the data role, unlike the two datasets, which a
+      // group member reaches too. Showing its card to everybody here sent them
+      // to a 404 - the card has to ask the same question the route does.
+      const maySeeAudit = hasRole(currentUser(), "data", auth);
       const [measurementCount, logCount, auditCount] = await Promise.all([
         measurements.count(),
         logEntries.count(),
-        auditLog.count(),
+        maySeeAudit ? auditLog.count() : Promise.resolve(0),
       ]);
       return (
         <ManageDataPage
+          maySeeAudit={maySeeAudit}
           counts={{
             measurements: measurementCount,
             "log-entries": logCount,

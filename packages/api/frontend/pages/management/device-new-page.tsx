@@ -3,6 +3,7 @@ import PageHeading from "../../components/PageHeading";
 import Field from "../../components/Field";
 import Notice from "../../components/Notice";
 import type { DeviceInput } from "../../../lib/ttn-ids";
+import { PAGES } from "../../../lib";
 
 /**
  * Registering a device, from the numbers printed on the module.
@@ -69,7 +70,7 @@ export default function DeviceNewPage(props: {
     <Layout>
       <PageHeading
         title="Gerät anlegen"
-        back={{ href: "/management/devices", label: "Geräte verwalten" }}
+        back={PAGES.devices}
         intro={
           <>
             Die Kenncodes stehen auf dem Modul und dürfen mit Leerzeichen
