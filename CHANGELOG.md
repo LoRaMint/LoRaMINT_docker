@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.13.1] - 2026-09-02
+
+### Changed
+
+- **Die E-Mail-Adressen auf Impressum und Datenschutz stehen nicht mehr im
+  ausgelieferten HTML.** Beide Dokumente schreiben ihre Adresse als
+  `[name@host](mailto:name@host)` — sie stand also doppelt in der Seite, im
+  Verweisziel und als Text des Links. Nur das Ziel zu verschleiern wäre eine
+  Geste gewesen; der Text hätte die Adresse weiterhin buchstabiert.
+
+  Der Markdown-Renderer trennt die Adresse jetzt am `@`, dreht beide Hälften
+  mit ROT13 und legt sie in getrennte Attribute; fünfzehn Zeilen Inline-Skript
+  setzen sie im Browser wieder zusammen. Die Trennung ist kein Beiwerk: ROT13
+  lässt das `@` unangetastet, die Adresse als Ganzes zu kodieren hätte also
+  genau das Zeichen stehen lassen, auf das jedes Sammelmuster anspringt.
+
+  **Was das leistet, und was nicht.** Ein Sammler, der HTML abruft und
+  `\S+@\S+` sucht, findet nichts — und das ist die große Mehrheit. Einer, der
+  JavaScript ausführt, bekommt die Adresse, und daran ändert keine Kodierung
+  etwas: Was ein Browser rückgängig machen kann, kann ein Skript auch. Der
+  Schutz liegt in der Ausführungspflicht, nicht in der Kodierung.
+
+  Ein `<noscript>` trägt „name (at) host“ für Besucher ohne JavaScript. Das
+  betrifft §5 DDG, nicht das Abfischen: Ein Impressum, dessen Kontakt nur für
+  Skript-Ausführende existiert, erfüllt die Anforderung schlecht.
+
+  Nicht erfasst: eine Adresse, die als reiner Text statt als Link geschrieben
+  ist. Beide Dokumente tun das derzeit nicht.
+
 ## [1.13.0] - 2026-09-02
 
 ### Fixed
@@ -1289,7 +1318,8 @@ reach its own configuration, and the ones the security model rests on.
 
 Releases up to and including [0.1.8] (2026-05-12) predate this changelog.
 
-[Unreleased]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.13.0...HEAD
+[Unreleased]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.13.1...HEAD
+[1.13.1]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.13.0...v1.13.1
 [1.13.0]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.12.0...v1.13.0
 [1.12.0]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.11.0...v1.12.0
 [1.8.0]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.7.0...v1.8.0
