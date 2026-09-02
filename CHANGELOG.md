@@ -7,6 +7,81 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.13.0] - 2026-09-02
+
+### Fixed
+
+- **Die neue Diagrammpalette war in 1.12.0 gar nicht ausgeliefert.**
+  `public/plots.js` ist ein versioniertes Bauartefakt und wurde nicht neu
+  gebaut: Der Quelltext trug die neue Palette, die Seite zeichnete weiter mit
+  der alten. Der Rot-Grün-Kollaps, den 1.12.0 zu beheben angetreten war, stand
+  also unverändert auf der Plots-Seite. Behoben.
+
+- **Im dunklen Theme fehlte das Logo praktisch.** Die dunkle Fassung lag seit
+  1.12.0 in `public/`, wurde aber von niemandem verwendet — die Umschaltung
+  gehörte in `Layout.tsx`, und die war beim letzten Release ausgespart. Auf der
+  dunklen Kopfzeile erreicht das helle Logo für den Wortteil „MINT“ **1,07:1**.
+  Welche Fassung gilt, entscheidet jetzt der Server, wo das Theme ohnehin
+  bekannt ist; ein nachträglicher Tausch per Skript würde beim Laden erst die
+  falsche zeigen.
+
+- **Nebentext in weiteren 25 Fällen unter dem Kontrastminimum.** Der Durchgang
+  aus 1.12.0 musste elf Dateien auslassen, weil sie zu dem Zeitpunkt einen
+  laufenden Umbau trugen. `base-content/50` (3,25:1) und `/60` (4,43:1) sind
+  dort nun ebenfalls auf `/70` angehoben.
+
+- **Die Fußzeile grenzte sich nicht ab.** `base-200` gegen `base-100` ergibt
+  1,09:1 — keine Kante, die jemand sieht. Sie trägt jetzt eine 1-px-Linie. Ihr
+  Trenner zwischen Impressum und Datenschutz war ein leeres `<span>` mit einem
+  Leerzeichen darin, in einer Flex-Zeile mit Abstand: Es bewirkte nichts außer
+  zusätzlicher Breite. Und ihr Logo ist Dekoration und sagt das nun mit leerem
+  `alt` — dasselbe Logo steht schon in der Kopfzeile.
+
+### Changed
+
+- **Die Kopfzeile löst ein, was sie verspricht.** Die Reiter sahen aus wie
+  Reiter und verhielten sich wie nichts: Ein hochgezogener Reiter kündigt eine
+  angeschlossene Fläche an, das Menü schwebte aber frei darunter, in Petrol.
+  Aus derselben Ursache folgte, dass **nie markiert war, auf welcher Seite man
+  sich befindet**.
+
+  Geöffnet trägt ein Reiter jetzt die Fläche des Menüs, verliert seinen unteren
+  Rand, und das Menü setzt bündig an — beide sind eine Form. Die aktuelle Seite
+  ist mit einem 2-px-Unterstrich in der Markenfarbe markiert, ihr Eintrag im
+  Menü ist gefüllt und trägt `aria-current`.
+
+  Damit die Markierung weiß, worauf sie sich bezieht, führt der Anfragekontext
+  jetzt den Pfad mit — neben Benutzer und Theme, die er schon hielt. Das Layout
+  nimmt keine Eigenschaften entgegen; würde jede Seite den Pfad durchreichen
+  müssen, verlöre die erste, die es vergisst, die Markierung stillschweigend.
+
+- **Weiteres in der Kopfzeile.** Der Login ist ein Umriss statt einer gefüllten
+  Fläche: Ein Primärbutton dort konkurriert auf jeder Seite mit der eigentlichen
+  Primäraktion der Seite. Die Leiste misst 56&nbsp;px statt rund 72, das Logo
+  40&nbsp;px. Das Menü nutzt die eine Schattenstufe des Designs statt einer
+  zweiten, und das Menü auf schmalen Bildschirmen dieselbe Fläche wie das breite
+  statt eines Petrolblocks.
+
+- **Rot ist wieder Signalfarbe.** Zwei gefüllte rote Buttons standen in einer
+  Werkzeugleiste neben anderen Aktionen; sie sind Umrisse geworden. Gefüllt
+  bleiben vier — alle auf Seiten, deren einzige Primäraktion die zerstörende
+  ist, und dort soll die Warnung am lautesten sein. Alle vier tragen ein Symbol,
+  bei allen vieren steht der Ausweg links mit Abstand davor und bekommt beim
+  Öffnen den Fokus; zuvor führte der Weg dorthin mit der Tastatur durch die
+  gesamte Vorschau.
+
+- **Fließtext bricht bei 65 Zeichen um**, in zehn weiteren Absätzen, die auf
+  768&nbsp;px und damit rund 87 Zeichen liefen. Formulare, Raster, Textfelder
+  und der Anleitungsartikel behalten ihre Breite — die Regel gilt für Prosa.
+
+### Added
+
+- **`components/icons.tsx`.** Der Papierkorb war im Begriff, seine vierte Kopie
+  zu werden. Die Datei hält ihn und den Rücknahme-Pfeil und schreibt die Regel
+  dazu, der beide folgen: 24er-Raster, 2-px-Strich, keine Flächen,
+  `currentColor` — damit ein Symbol die Farbe des Textes daneben annimmt und im
+  dunklen Theme nichts über es gesagt werden muss.
+
 ## [1.12.0] - 2026-09-02
 
 ### Fixed
@@ -1214,7 +1289,8 @@ reach its own configuration, and the ones the security model rests on.
 
 Releases up to and including [0.1.8] (2026-05-12) predate this changelog.
 
-[Unreleased]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.12.0...HEAD
+[Unreleased]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.13.0...HEAD
+[1.13.0]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.12.0...v1.13.0
 [1.12.0]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.11.0...v1.12.0
 [1.8.0]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.7.0...v1.8.0
 [1.7.0]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.6.1...v1.7.0
