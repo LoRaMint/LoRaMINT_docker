@@ -7,6 +7,114 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.12.0] - 2026-09-02
+
+### Fixed
+
+- **Weißer Text auf dem Erfolgsgrün war nicht lesbar.** `--color-success-content`
+  stand im hellen Theme auf Weiß, über `#86b94c` sind das **2,32:1** — verlangt
+  sind 4,5:1. Jede Bestätigungsmeldung war betroffen. Das Grün selbst bleibt auf
+  den Zehntelwert genau, es ist das Grün des SFZ-Logos; geändert ist nur die
+  Schrift darauf (`#101a08`, 7,7:1).
+
+- **Die Diagrammfarben brachen bei Rot-Grün-Blindheit zusammen.** Die Palette
+  hatte Rot (`#d62728`) auf Platz zwei und Grün (`#2ca02c`) auf Platz drei.
+  Unter Deuteranopie werden beide zu demselben Oliv — Abstand ΔE 3,9, wo 8 das
+  Ziel ist. Das ist genau das Paar, das ein Diagramm mit zwei Messgrößen zuerst
+  zeichnet, und es betrifft rund 8 % der männlichen Nutzer.
+
+  Die neue Palette wurde gegen Helligkeitsband, Buntheit, Trennschärfe bei
+  simulierter Farbfehlsichtigkeit, Trennschärfe bei normalem Sehen und Kontrast
+  zur Fläche gerechnet, in beiden Themes. Schlechtestes Nachbarpaar: ΔE 9,1 hell,
+  8,4 dunkel. Platz eins liegt jetzt auf dem Markenton. Für dunkle Oberflächen
+  gibt es einen eigenen Satz; welcher gilt, entscheidet `data-theme`.
+
+- **Der Tastaturfokus war unsichtbar.** Die Grundstile setzen den Ring des
+  Browsers zurück, ein eigener war nirgends definiert: Wer die Anwendung mit der
+  Tastatur bedient, sah nicht, wo er stand. Der Ring ist zweifarbig — innen
+  2 px in der Flächenfarbe, außen 2 px in der Markenfarbe. Der Abstandsring ist
+  der Grund, warum er auf jedem Untergrund funktioniert; ein einfarbiger Ring in
+  der Markenfarbe verschwindet auf einem Button genau dieser Farbe, und ein
+  halbtransparenter erreicht nur 2,45:1. Ausgelöst über `:focus-visible`, also
+  nicht bei Mausbedienung.
+
+- **Nebentext verfehlte im hellen Theme den Kontrast.** `base-content/50` ergibt
+  dort 3,25:1, `/60` ergibt 4,43:1 — beides unter 4,5:1, und der Zeitstempel auf
+  den Dashboard-Kacheln war zusätzlich klein gesetzt. Beide Stufen sind auf `/70`
+  angehoben (6,14:1). Im dunklen Theme bestand keine der Stufen dieses Problem.
+
+- **Die meisten Seiten hatten keine Überschrift der obersten Ebene.** Der
+  Seitentitel war ein `<h2>`, die Gliederung begann also bei Stufe zwei, und wer
+  per Überschriften navigiert, fand keinen Einstieg. Drei Seiten — Impressum,
+  Datenschutz, ESP32-Anleitung — hatten das bemerkt und ein eigenes `<h1>`
+  geschrieben, in einer anderen Größe; sie laufen jetzt über dieselbe Komponente.
+
+### Added
+
+- **Rubik ist die Hausschrift.** Gewählt wurde sie nicht: Das Logo ist seit jeher
+  darin gesetzt, es stand nur nirgends geschrieben. Eine variable Schriftdatei
+  deckt alle Schnitte von 300 bis 700 in einem Ladevorgang ab; `OFL.txt` liegt
+  daneben, wie die SIL Open Font License 1.1 es bei Weitergabe verlangt.
+
+  Das `@font-face` steht bewusst in `public/fonts.css` außerhalb des
+  Tailwind-Baus: Der Bundler löst jedes `url()` auf und würde eine gehashte
+  Kopie der Schrift als unversioniertes Artefakt neben versionierte Dateien
+  legen, mit einem Dateinamen, der sich bei jeder Änderung verschiebt.
+
+- **Das Logo liegt in drei Fassungen vor** — farbig, für dunklen Grund, und
+  einfarbig weiß. Die Schrift darin ist in Pfade umgewandelt; als lebender Text
+  wurde das Logo auf jedem Rechner ohne installiertes Rubik falsch dargestellt.
+  Der Grauton `#8a949c` weicht dem Marken-Blaugrau `#51707a`: Er war ein fünfter
+  Grauton, der zu nichts gehörte, und erreichte auf der Kopfzeile nur 2,37:1.
+
+### Changed
+
+- **Farbe folgt drei Ebenen statt Einzelfallentscheidungen.** Marke färbt die
+  Oberfläche, Signal färbt Zustände, Daten färben Messreihen — und keine Ebene
+  borgt sich Farben aus einer anderen. Daraus folgt unter anderem, dass Rot
+  Signalfarbe bleibt und nicht zur Schaltflächenfarbe wird; die einzige Ausnahme
+  ist die Bestätigungsseite, wo das Löschen die einzige Primäraktion ist.
+
+- **Die Gauges verlieren den Ampelverlauf.** Grün nach Rot behauptet „hoch ist
+  schlecht“, und für Temperatur, Luftdruck oder Helligkeit trifft das nicht zu —
+  25 °C sind nicht schlechter als 15. Der Bogen ist einfarbig und zeigt den
+  Füllstand, sonst nichts. Eine Ampel wäre erst wieder begründet, wo für eine
+  Messgröße ein Sollbereich hinterlegt ist.
+
+  Dazu die zwei Angaben, ohne die der Bogen nicht lesbar war: die Einheit steht
+  jetzt beim Wert statt drei Zeilen darunter, und die Enden der Skala sind
+  beschriftet — ein zu 60 % gefüllter Bogen sagt ohne `min` und `max` nichts.
+
+- **Messwerttabellen lassen sich spaltenweise lesen.** Zahlen stehen rechtsbündig
+  und in Ziffern gleicher Breite, abgeleitet aus dem `kind` der Spalte, das die
+  Ressourcendefinitionen ohnehin schon führen. Zuvor lagen die Kommata von
+  18,4 / 124,05 / 1013,2 an drei verschiedenen Stellen. Der Spaltenkopf bleibt
+  beim Scrollen stehen, und die Zeile unter dem Zeiger hebt sich ab.
+
+- **Der Löschdialog stellt den Ausweg voran.** „Abbrechen“ stand rechts neben
+  dem Knopf, der löscht; jetzt steht es links, mit Abstand, und trägt den Fokus,
+  wenn die Seite öffnet — vorher führte der Weg dorthin mit der Tastatur durch
+  die gesamte Vorschautabelle. Der Löschknopf bekommt ein Symbol, damit seine
+  Bedeutung nicht allein auf der Farbe ruht.
+
+- **Ein Seitenname steht einmal.** „Geräte verwalten“ stand in acht Dateien,
+  „Daten verwalten“ in fünf — im Menü, im Browsertitel, in der Überschrift und
+  in jedem Zurück-Link. `lib/pages.ts` hält jede Seite einmal; die Form
+  `{ href, label }` ist die, die `PageHeading` für `back` ohnehin erwartet.
+
+- **Die Arduino-Bibliothek liegt bei den ESP32-Quellen.** `packages/arduino` und
+  `packages/esp32` beschreiben dieselbe Platine aus zwei Richtungen, standen aber
+  als getrennte Belange nebeneinander. Reine Verschiebung nach
+  `packages/esp32/arduino`, alle Dateien unverändert; nachgezogen wurden die
+  Pfade in den READMEs, in `LICENSE` und in drei Beispielskizzen.
+
+### Removed
+
+- **Die Farbrollen `accent` und `info`.** `accent` war ein zweites Rot, das keine
+  Komponente verwendete; `info` war eine wortgleiche Kopie von `neutral`. Die
+  einzige Verwendung, ein `badge-info`, ist ein `badge-neutral` geworden — also
+  genau die Farbe, die es vorher schon hatte.
+
 ## [1.11.0] - 2026-08-25
 
 ### Added
@@ -1106,7 +1214,8 @@ reach its own configuration, and the ones the security model rests on.
 
 Releases up to and including [0.1.8] (2026-05-12) predate this changelog.
 
-[Unreleased]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.8.0...HEAD
+[Unreleased]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.12.0...HEAD
+[1.12.0]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.11.0...v1.12.0
 [1.8.0]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.7.0...v1.8.0
 [1.7.0]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.6.1...v1.7.0
 [1.6.1]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.6.0...v1.6.1
