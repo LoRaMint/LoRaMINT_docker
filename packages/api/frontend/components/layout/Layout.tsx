@@ -12,7 +12,16 @@ import { currentDarkMode, currentPath, currentScope, currentUser, hasRole, PAGES
  * loses its bottom border, so the two read as one shape.
  */
 const tabBase =
-  "px-3 py-2 text-sm rounded-t-box border border-transparent -mb-px " +
+  /*
+   * The height is what puts the label near the middle of the bar.
+   *
+   * A tab has to end at the bar's lower edge - that is where the panel hangs
+   * from, and the whole point is that the two meet. So the label cannot be
+   * centred by centring the tab. It is centred *inside* a tab tall enough to
+   * reach most of the way up instead: 3.25rem of tab in a 4rem bar leaves the
+   * text a little below the middle rather than sitting on the floor.
+   */
+  "h-[3.25rem] px-3 text-sm rounded-t-box border border-transparent -mb-px " +
   "text-base-content/80 hover:text-base-content cursor-pointer select-none " +
   "list-none marker:content-none [&::-webkit-details-marker]:hidden";
 
@@ -230,7 +239,7 @@ export default function Layout(props: { children: JSX.Element }) {
   return (
     <div class="min-h-screen flex flex-col">
       {/* Header */}
-      <header class="navbar min-h-14 h-14 items-end bg-base-300 px-3 sm:px-4 gap-2 pb-0">
+      <header class="navbar min-h-16 h-16 items-end bg-base-300 px-3 sm:px-4 gap-2 pb-0">
         <div class="flex-1 min-w-0 self-center">
           <a href="/">
             {/*
@@ -318,9 +327,11 @@ export default function Layout(props: { children: JSX.Element }) {
         </details>
 
         {/* The account control has its own place on wide screens; on a phone it
-            lives in the menu above, where there is room for the name. */}
+            lives in the menu above, where there is room for the name.
+            Centred, not bottom-aligned: only the tabs need to touch the lower
+            edge, and a button sitting on it looks like it fell there. */}
         {loginPossible && (
-          <div class="hidden md:block">
+          <div class="hidden md:block self-center">
             <AuthControl />
           </div>
         )}
