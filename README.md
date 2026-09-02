@@ -26,7 +26,7 @@ This is a monorepo. Each package is self-contained and independently usable.
 | Package | Description | Docs |
 |---------|-------------|------|
 | [`packages/api`](packages/api) | Backend API + server-rendered web frontend (Bun, Hono, SolidJS, PostgreSQL). The deployable service. | [README](packages/api/README.md) |
-| [`packages/arduino`](packages/arduino) | Arduino library for LoRaMINT sensor nodes (LoRaMINT + Adafruit sensor drivers). | [README](packages/arduino/README.md) |
+| [`packages/esp32/arduino`](packages/esp32/arduino) | Arduino library for LoRaMINT sensor nodes (LoRaMINT + Adafruit sensor drivers). | [README](packages/esp32/arduino/README.md) |
 | [`packages/esp32`](packages/esp32) | MicroPython library for ESP32 sensor nodes. _Planned – not yet implemented._ | – |
 
 Only `packages/api` is a JavaScript/Bun project; the sensor libraries are
@@ -47,7 +47,7 @@ bun run dev                               # http://localhost:8090
 ```
 
 **Program a sensor node:** see the
-[Arduino README](packages/arduino/README.md).
+[Arduino README](packages/esp32/arduino/README.md).
 
 ## Production Deployment
 

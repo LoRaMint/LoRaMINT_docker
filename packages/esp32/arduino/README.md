@@ -5,9 +5,9 @@ long-range measurement system for STEM education in schools. It encodes measurem
 values and sends them via LoRaWAN (Dragino LA66 shield) to The Things Network (TTN),
 which forwards them to the LoRaMINT backend via webhook.
 
-> This package is part of the [LoRaMINT monorepo](../../README.md). The backend
+> This package is part of the [LoRaMINT monorepo](../../../README.md). The backend
 > that receives the data lives in `packages/api`. All paths below are relative to
-> this directory (`packages/arduino/`).
+> this directory (`packages/esp32/arduino/`).
 
 ## 1 Contents
 

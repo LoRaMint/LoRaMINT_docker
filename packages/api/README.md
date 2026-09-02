@@ -6,7 +6,7 @@ IoT data collection service for LoRaWAN sensors. Receives measurement data from 
 
 > This package contains the backend API and the server-rendered web frontend.
 > It is part of the [LoRaMINT monorepo](../../README.md); the sensor libraries
-> live in sibling packages (`packages/arduino`, `packages/esp32`).
+> live in the sibling package `packages/esp32`.
 
 ## 1 Application and Usage
 

@@ -7,7 +7,7 @@ the LoRaMINT message protocol (version 1) into the JSON object that the API's
 `measurand`, `location`, `sensor`, `datatype`, `timemethode`, `timevalue`).
 
 It is kept here because it is part of the protocol, exactly like
-`packages/esp32/loramint/mintvalue.py` and `packages/arduino/LoRaMINT/MintValue.cpp`
+`packages/esp32/loramint/mintvalue.py` and `packages/esp32/arduino/LoRaMINT/MintValue.cpp`
 — change one and you have to check the others.
 
 ## Installing it

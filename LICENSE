@@ -11,7 +11,7 @@ license.
 materials authored by the Licensor, excluding Third-Party Components.
 
 "Third-Party Components" means software included in this repository that was not
-authored by the Licensor — for example, the libraries under packages/arduino —
+authored by the Licensor — for example, the libraries under packages/esp32/arduino —
 which remains subject to its own respective license terms.
 
 "Licensor" means Matthias Ruf.

@@ -293,5 +293,5 @@ unit 0x1E  measurand 0x1E  location 0x1E  sensor 0x1E
 0x00 ...   zero padding             up to 99 bytes
 ```
 
-This matches `packages/arduino` and the TTN payload formatter. The encoding is
+This matches `packages/esp32/arduino` and the TTN payload formatter. The encoding is
 verified by an encode/decode round-trip against a port of that formatter.

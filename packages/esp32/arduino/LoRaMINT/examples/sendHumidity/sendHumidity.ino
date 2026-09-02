@@ -13,7 +13,7 @@
 #include <Wire.h>
 // Requires these Adafruit libraries — install them via the Arduino Library Manager:
 //   Adafruit BME280 Library, Adafruit Unified Sensor, Adafruit BusIO
-// (see packages/arduino/README.md for download links)
+// (see packages/esp32/arduino/README.md for download links)
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BME280.h>
 #include "LoRaMINT.h"
