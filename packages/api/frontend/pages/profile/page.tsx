@@ -66,7 +66,7 @@ export default function ProfilePage(props: {
 
         <Row label="Anzeigename">
           {props.user.displayName === props.user.username ? (
-            <span class="text-base-content/60">
+            <span class="text-base-content/70">
               {props.user.displayName} (kein eigener Anzeigename im Verzeichnis)
             </span>
           ) : (
@@ -76,7 +76,7 @@ export default function ProfilePage(props: {
 
         <Row label="Gruppen im Verzeichnis">
           {props.user.groups.length === 0 ? (
-            <span class="text-base-content/60">keine</span>
+            <span class="text-base-content/70">keine</span>
           ) : (
             <div class="flex flex-wrap gap-2">
               {props.user.groups.map((group) => (
@@ -92,7 +92,7 @@ export default function ProfilePage(props: {
             says what this person may do, the other which data it is about. */}
         <Row label="Datengruppen">
           {props.dataGroups.length === 0 ? (
-            <span class="text-base-content/60">
+            <span class="text-base-content/70">
               keine – deine Verzeichnisgruppen sind (noch) nicht als
               Datengruppen erklärt
             </span>
@@ -156,7 +156,7 @@ export default function ProfilePage(props: {
                 </optgroup>
               )}
             </select>
-            <p class="text-sm text-base-content/60 mt-2">
+            <p class="text-sm text-base-content/70 mt-2">
               Gespeichert wird immer UTC – die Einstellung betrifft nur die
               Anzeige. Zeiten, die in einer <em>anderen</em> Zone stehen, tragen
               das Kürzel dahinter; in deiner eigenen Zone steht keines.
@@ -174,7 +174,7 @@ export default function ProfilePage(props: {
                 the input, and a second one would leave assistive technology
                 announcing "Farbschema Hell Dunkel" as the name of the control. */}
             <div class="inline-flex items-center gap-3">
-              <span class={darkMode ? "text-base-content/50" : "font-medium"}>
+              <span class={darkMode ? "text-base-content/70" : "font-medium"}>
                 Hell
               </span>
               <input
@@ -185,11 +185,11 @@ export default function ProfilePage(props: {
                 checked={darkMode}
                 class="toggle"
               />
-              <span class={darkMode ? "font-medium" : "text-base-content/50"}>
+              <span class={darkMode ? "font-medium" : "text-base-content/70"}>
                 Dunkel
               </span>
             </div>
-            <p class="text-sm text-base-content/60 mt-2">
+            <p class="text-sm text-base-content/70 mt-2">
               Gilt für diesen Browser auch nach dem Abmelden.
             </p>
           </Row>
@@ -205,7 +205,7 @@ export default function ProfilePage(props: {
         </div>
       </form>
 
-      <div class="max-w-3xl mt-8 text-sm text-base-content/60">
+      <div class="max-w-3xl mt-8 text-sm text-base-content/70">
         <p class="mb-2">
           Gespeichert werden dein Anmeldename, der Anzeigename aus dem
           Verzeichnis, der Zeitpunkt der letzten Anmeldung und die beiden

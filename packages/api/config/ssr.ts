@@ -42,6 +42,7 @@ export const { config, plugin, html } = createConfig<PageOptions>({
     <meta name="description" content="${description ?? "LoRaWAN measurement data collection service"}">
     <link rel="icon" type="image/png" sizes="32x32" href="/public/favicon.png">
     <link rel="icon" type="image/svg+xml" href="/public/favicon.svg">
+    <link rel="stylesheet" href="/public/fonts.css">
     <link rel="stylesheet" href="/public/global.css">
   </head>
   <body>

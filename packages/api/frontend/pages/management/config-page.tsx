@@ -37,7 +37,7 @@ function Icon(props: { path: string }) {
       stroke-width="1.8"
       stroke-linecap="round"
       stroke-linejoin="round"
-      class="h-4 w-4 shrink-0 text-base-content/60"
+      class="h-4 w-4 shrink-0 text-base-content/70"
       aria-hidden="true"
     >
       <path d={props.path} />
@@ -74,7 +74,7 @@ function NavEntry(props: {
           </span>
         ) : null}
         {props.count !== undefined ? (
-          <span class="text-xs text-base-content/50 tabular-nums">
+          <span class="text-xs text-base-content/70 tabular-nums">
             {props.count}
           </span>
         ) : null}
@@ -142,7 +142,7 @@ const ORIGIN: Record<Origin, { label: string; badge: string; title: string }> = 
   },
   environment: {
     label: "Umgebung",
-    badge: "badge-info",
+    badge: "badge-neutral",
     title: "In der Umgebung gesetzt – dieser Wert kommt von aussen.",
     },
   default: {
@@ -232,7 +232,7 @@ export default function ConfigPage(props: {
               <>
                 {/* The headings order a column; in a sideways strip they would
                     only be words between the buttons. */}
-                <div class="hidden md:block px-3 pt-4 pb-1 text-xs uppercase tracking-wide text-base-content/50">
+                <div class="hidden md:block px-3 pt-4 pb-1 text-xs uppercase tracking-wide text-base-content/70">
                   {section.label}
                 </div>
                 <ul class="menu menu-sm p-0 gap-1 flex-row flex-nowrap md:flex-col">
@@ -278,7 +278,7 @@ export default function ConfigPage(props: {
                   ))}
                 </tbody>
               </TableFrame>
-            <p class="text-sm text-base-content/60 mt-3 max-w-3xl">
+            <p class="text-sm text-base-content/70 mt-3 max-w-3xl">
               Jede optionale Funktion mit ihrem Zustand und der Einstellung, die
               ihn verursacht. Die Einzelheiten stehen in den Bereichen links.
             </p>
@@ -303,7 +303,7 @@ export default function ConfigPage(props: {
                     <tr class="align-top">
                       <td>
                         <div class="font-mono text-xs">{row.key}</div>
-                        <div class="text-xs text-base-content/60 mt-1 max-w-md">
+                        <div class="text-xs text-base-content/70 mt-1 max-w-md">
                           {row.meaning}
                         </div>
                       </td>
@@ -313,7 +313,7 @@ export default function ConfigPage(props: {
                             <span class="font-mono text-xs break-all">
                               {revealed}
                             </span>
-                            <div class="text-xs text-base-content/60 mt-1">
+                            <div class="text-xs text-base-content/70 mt-1">
                               Nur in dieser Ansicht sichtbar – ein Neuladen
                               verdeckt den Wert wieder.
                             </div>
@@ -323,7 +323,7 @@ export default function ConfigPage(props: {
                             <span
                               class={`font-mono text-xs break-all ${
                                 row.origin === "unset"
-                                  ? "text-base-content/50 italic"
+                                  ? "text-base-content/70 italic"
                                   : ""
                               }`}
                             >
@@ -378,7 +378,7 @@ export default function ConfigPage(props: {
                                 >
                                   {row.editValue}
                                 </textarea>
-                                <div class="text-xs text-base-content/60 max-w-3xl">
+                                <div class="text-xs text-base-content/70 max-w-3xl">
                                   Markdown: <code># Überschrift</code>,{" "}
                                   <code>## Unterüberschrift</code>,{" "}
                                   <code>- Aufzählung</code>,{" "}
@@ -427,7 +427,7 @@ export default function ConfigPage(props: {
                           </form>
                         )}
                         {!row.editable && row.note && (
-                          <div class="text-xs text-base-content/60 mt-2 italic">
+                          <div class="text-xs text-base-content/70 mt-2 italic">
                             {row.note}
                           </div>
                         )}
@@ -440,7 +440,7 @@ export default function ConfigPage(props: {
                           </div>
                         )}
                         {row.updatedBy && row.updatedAt && (
-                          <div class="text-xs text-base-content/50 mt-2">
+                          <div class="text-xs text-base-content/70 mt-2">
                             Zuletzt geändert von {row.updatedBy} am{" "}
                             <LocalTime at={row.updatedAt} />
                           </div>
@@ -474,7 +474,7 @@ export default function ConfigPage(props: {
               </tbody>
             </TableFrame>
 
-          <p class="text-sm text-base-content/60 mt-3 max-w-3xl">
+          <p class="text-sm text-base-content/70 mt-3 max-w-3xl">
             „Datenbank" heisst, dass der Wert hier eingestellt wurde;
             „Umgebung", dass er von aussen kommt; „Default", dass die Anwendung
             ihren eingebauten Wert benutzt. Geheimnisse und

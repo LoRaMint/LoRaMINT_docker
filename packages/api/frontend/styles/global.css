@@ -13,10 +13,6 @@
     --color-secondary: #a81c13;
     --color-secondary-content: #ffffff;
 
-    /* Accent: Dunkles Weinrot #723437 */
-    --color-accent: #723437;
-    --color-accent-content: #ffffff;
-
     /* Neutral: Blaugrau #51707A */
     --color-neutral: #51707a;
     --color-neutral-content: #ffffff;
@@ -29,13 +25,12 @@
 
     /* Semantic */
     --color-success: #86b94c;
-    --color-success-content: #ffffff;
+    /* Nicht weiss: das ergab auf diesem Gruen 2,32:1 und war unlesbar. */
+    --color-success-content: #101a08;
     --color-warning: #e6a817;
     --color-warning-content: #1a1a2e;
     --color-error: #a81c13;
     --color-error-content: #ffffff;
-    --color-info: #51707a;
-    --color-info-content: #ffffff;
 
     --radius-box: 0.5rem;
     --radius-field: 0.25rem;
@@ -69,10 +64,6 @@
     --color-secondary: #e05a50;
     --color-secondary-content: #240705;
 
-    /* Accent: Weinrot, ebenfalls angehoben */
-    --color-accent: #b8797c;
-    --color-accent-content: #1b0f11;
-
     /* Neutral: das Blaugrau, unveraendert brauchbar */
     --color-neutral: #51707a;
     --color-neutral-content: #f2f6f8;
@@ -90,11 +81,45 @@
     --color-warning-content: #241a02;
     --color-error: #e8635a;
     --color-error-content: #250806;
-    --color-info: #7fadba;
-    --color-info-content: #0b1a1f;
 
     --radius-box: 0.5rem;
     --radius-field: 0.25rem;
     --border: 1px;
 }
+/*
+ * Der Bogen der Dashboard-Gauges. Einfarbig, damit er nur den Fuellstand zeigt
+ * und nichts bewertet: ein Ampelverlauf behauptet "hoch ist schlecht", was fuer
+ * Temperatur, Luftdruck oder Helligkeit nicht zutrifft. Beide Enden werden aus
+ * der Markenfarbe gemischt, damit der Verlauf in beiden Themes sichtbar bleibt -
+ * im hellen laeuft er hell nach dunkel, im dunklen umgekehrt.
+ */
+:root {
+  --gauge-von: color-mix(in srgb, var(--color-primary) 45%, var(--color-base-100));
+  --gauge-bis: var(--color-primary);
+}
+
+/*
+ * Der Fokusring. Zweifarbig: innen 2 px in der Flaechenfarbe als Abstand,
+ * aussen 2 px voll deckendes Primary. Der Abstandsring ist der Grund, warum das
+ * auf jedem Untergrund funktioniert - ein einfarbiger Ring in der Markenfarbe
+ * verschwindet auf einem Button genau dieser Farbe (1,00:1). Halbtransparent
+ * geht nicht: 45 % Deckung ergeben gegen die Flaeche nur 2,45:1, gefordert
+ * sind 3:1.
+ *
+ * :focus-visible und nicht :focus - sonst sehen ihn auch Mausbedienende, wo er
+ * nur stoert.
+ */
+@layer base {
+  :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+    outline: none;
+    box-shadow:
+      0 0 0 2px var(--color-base-100),
+      0 0 0 4px var(--color-primary);
+  }
+}
+
+@theme {
+  --font-sans: "Rubik", ui-sans-serif, system-ui, sans-serif;
+}
+
 @source "../../frontend";

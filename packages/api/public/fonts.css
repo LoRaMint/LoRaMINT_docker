@@ -1,0 +1,23 @@
+/*
+ * Rubik - the typeface the LoRaMINT logo is already set in; it was simply never
+ * written down anywhere. SIL Open Font License 1.1, see fonts/OFL.txt, which
+ * travels with the file because the licence asks for it whenever the font is
+ * passed on.
+ *
+ * This file is deliberately NOT part of the Tailwind build. The bundler
+ * resolves every url() it meets and would emit a content-hashed copy of the
+ * font into public/ - an untracked build artefact next to files that are
+ * tracked, and a filename that changes whenever the font does. Kept out of the
+ * build, the path stays what it says it is.
+ *
+ * One variable file covers every weight from 300 to 700, so this is a single
+ * request rather than four. `swap` shows the system sans at once and exchanges
+ * it when the font lands: a brief change of typeface beats a blank page.
+ */
+@font-face {
+  font-family: "Rubik";
+  src: url("/public/fonts/Rubik-VariableFont_wght.ttf") format("truetype-variations");
+  font-weight: 300 700;
+  font-style: normal;
+  font-display: swap;
+}

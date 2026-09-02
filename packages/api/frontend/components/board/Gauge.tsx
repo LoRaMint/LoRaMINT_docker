@@ -1,4 +1,4 @@
-import { arcPath, fillEndAngle, GAP_START_DEG } from "./gauge-geometry";
+import { arcPath, fillEndAngle, GAP_START_DEG, SWEEP_DEG, pointOnCircle } from "./gauge-geometry";
 
 const CX = 100;
 const CY = 110;
@@ -12,13 +12,23 @@ const formatValue = (value: number): string => {
 };
 
 /**
- * A 270°-arc gauge: a grey track behind a colour-graded fill that grows from
- * the low (bottom-left) end towards the high (bottom-right) end as `value`
- * approaches `max`. Pure SSR - no client JS, matching the rest of /board.
+ * A 270°-arc gauge: a grey track behind a fill that grows from the low
+ * (bottom-left) end towards the high (bottom-right) end as `value` approaches
+ * `max`. Pure SSR - no client JS, matching the rest of /board.
+ *
+ * The fill is a single hue, not a traffic light. A green-to-red gradient says
+ * "high is bad", and for temperature, pressure or brightness that is simply
+ * untrue - 25 °C is not worse than 15. Colour would be earning its meaning only
+ * where a target range is configured, and none is.
+ *
+ * `min` and `max` are written at the ends of the arc, because a bar filled to
+ * 60 % says nothing without them.
  */
 export default function Gauge(props: {
   id: string;
   value: number | null;
+  /** Written next to the value - a reading without its unit is incomplete. */
+  unit?: string | null;
   min: number;
   max: number;
   hasRange: boolean;
@@ -28,14 +38,15 @@ export default function Gauge(props: {
     ? Math.max(0, Math.min(1, (props.value! - props.min) / (props.max - props.min)))
     : 0;
   const gradientId = `gauge-grad-${props.id}`;
+  const lowEnd = pointOnCircle(CX, CY, R, GAP_START_DEG);
+  const highEnd = pointOnCircle(CX, CY, R, GAP_START_DEG + SWEEP_DEG);
 
   return (
     <svg viewBox="0 0 200 190" class="w-full h-full" preserveAspectRatio="xMidYMid meet">
       <defs>
         <linearGradient id={gradientId} gradientUnits="userSpaceOnUse" x1={CX - R} y1={CY} x2={CX + R} y2={CY}>
-          <stop offset="0%" stop-color="#22c55e" />
-          <stop offset="50%" stop-color="#eab308" />
-          <stop offset="100%" stop-color="#ef4444" />
+          <stop offset="0%" stop-color="var(--gauge-von)" />
+          <stop offset="100%" stop-color="var(--gauge-bis)" />
         </linearGradient>
       </defs>
 
@@ -60,9 +71,35 @@ export default function Gauge(props: {
         />
       )}
 
+      {/* The ends of the scale, just outside the arc's low and high points. */}
+      {props.hasRange && (
+        <>
+          <text
+            x={lowEnd.x}
+            y={lowEnd.y + 16}
+            text-anchor="middle"
+            font-size={String(R * 0.15)}
+            fill="currentColor"
+            opacity="0.7"
+          >
+            {formatValue(props.min)}
+          </text>
+          <text
+            x={highEnd.x}
+            y={highEnd.y + 16}
+            text-anchor="middle"
+            font-size={String(R * 0.15)}
+            fill="currentColor"
+            opacity="0.7"
+          >
+            {formatValue(props.max)}
+          </text>
+        </>
+      )}
+
       <text
         x={CX}
-        y={CY}
+        y={props.unit ? CY - 6 : CY}
         text-anchor="middle"
         dominant-baseline="middle"
         font-size={String(R * 0.32)}
@@ -71,6 +108,19 @@ export default function Gauge(props: {
       >
         {props.value !== null ? formatValue(props.value) : "–"}
       </text>
+      {props.unit && (
+        <text
+          x={CX}
+          y={CY + R * 0.24}
+          text-anchor="middle"
+          dominant-baseline="middle"
+          font-size={String(R * 0.16)}
+          fill="currentColor"
+          opacity="0.7"
+        >
+          {props.unit}
+        </text>
+      )}
     </svg>
   );
 }

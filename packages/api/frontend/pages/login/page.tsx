@@ -112,7 +112,7 @@ export default function LoginPage(props: {
                   Passwort ändern in der Nutzerverwaltung
                 </a>
               ) : (
-                <span class="text-sm text-center text-base-content/60">
+                <span class="text-sm text-center text-base-content/70">
                   Passwort vergessen? Bitte an die Administration wenden.
                 </span>
               )}

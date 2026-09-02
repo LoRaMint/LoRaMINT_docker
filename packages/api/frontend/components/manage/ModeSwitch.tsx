@@ -20,7 +20,7 @@ export default function ModeSwitch(props: {
 }) {
   if (!props.available) {
     return (
-      <p class="text-sm text-base-content/60 mb-4">
+      <p class="text-sm text-base-content/70 mb-4">
         Diese Ansicht ist auf diesem Server nur lesend – für das Ändern von Daten
         ist keine eigene Datenbankverbindung eingerichtet.
       </p>
@@ -45,7 +45,7 @@ export default function ModeSwitch(props: {
           Bearbeiten
         </a>
       </div>
-      <span class="text-sm text-base-content/60">
+      <span class="text-sm text-base-content/70">
         {props.editing
           ? "Zellen sind beschreibbar. Ungespeichertes geht beim Filtern und Blättern verloren."
           : "Nur ansehen – versehentlich lässt sich hier nichts ändern."}

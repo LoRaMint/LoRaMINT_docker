@@ -59,7 +59,7 @@ export default function ContinueDeletePage(props: {
         value={props.done}
         max={total}
       />
-      <p class="text-sm text-base-content/60 mt-1 mb-4">{percent} %</p>
+      <p class="text-sm text-base-content/70 mt-1 mb-4">{percent} %</p>
 
       {props.reason && (
         <p class="text-sm text-base-content/70 mb-4">
@@ -89,7 +89,7 @@ export default function ContinueDeletePage(props: {
         </a>
       </form>
 
-      <p class="text-sm text-base-content/60 mt-3" data-continue-status>
+      <p class="text-sm text-base-content/70 mt-3" data-continue-status>
         Ein Klick pro Block. Was bereits gelöscht ist, bleibt gelöscht – der
         Vorgang lässt sich hier jederzeit verlassen.
       </p>

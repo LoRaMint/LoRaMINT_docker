@@ -29,7 +29,14 @@ export default function TableFrame(props: {
         props.class ?? ""
       }`}
     >
-      <table class="table table-sm table-zebra">{props.children}</table>
+      {/*
+        * `table-pin-rows` keeps the header where it is while the body scrolls.
+        * On a measurement table twenty rows in, the column a number belongs to
+        * is otherwise a guess.
+        */}
+      <table class="table table-sm table-zebra table-pin-rows [&_tbody_tr:hover]:bg-primary/[.08]">
+        {props.children}
+      </table>
     </div>
   );
 }
@@ -46,7 +53,7 @@ export default function TableFrame(props: {
 export function EmptyRow(props: { columns: number; children: JSX.Element }) {
   return (
     <tr>
-      <td colspan={props.columns} class="text-center text-base-content/60 py-6">
+      <td colspan={props.columns} class="text-center text-base-content/70 py-6">
         {props.children}
       </td>
     </tr>

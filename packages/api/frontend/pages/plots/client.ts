@@ -85,11 +85,34 @@ function setUpTimeZones() {
   });
 }
 
-// Base colour per measurand; sensors within a measurand are told apart by dash.
-const MEASURAND_COLORS = [
-  "#1f77b4", "#d62728", "#2ca02c", "#9467bd",
-  "#ff7f0e", "#17becf", "#8c564b", "#e377c2",
+/**
+ * Base colour per measurand; sensors within a measurand are told apart by dash.
+ *
+ * The order is the safety mechanism, not a preference: it is what keeps
+ * neighbouring series apart for red-green colour blindness, and it must not be
+ * reordered. The palette this replaced put red (#d62728) next to green
+ * (#2ca02c), and under deuteranopia those two collapsed into the same olive -
+ * which is exactly the pair a plot with two measurands draws first.
+ *
+ * Slot 1 sits on the brand hue (243°, the petrol of the logo) lightened until
+ * it works as a data colour; the petrol itself is too dark and too grey for one.
+ *
+ * Two sets, because a colour that reads well on #f8f9fa does not on #141f27.
+ * The theme is decided server-side and never changes without a reload, so
+ * reading it once here is enough - see lib/theme.ts.
+ */
+const PALETTE_LIGHT = [
+  "#0081c6", "#eb6834", "#1baf7a", "#eda100",
+  "#e87ba4", "#008300", "#4a3aa7", "#e34948",
 ];
+const PALETTE_DARK = [
+  "#0090dc", "#d95926", "#199e70", "#c98500",
+  "#d55181", "#008300", "#9085e9", "#e66767",
+];
+const MEASURAND_COLORS =
+  document.documentElement.dataset.theme === "loramint-dark"
+    ? PALETTE_DARK
+    : PALETTE_LIGHT;
 const SENSOR_DASHES = ["solid", "dot", "dash", "dashdot", "longdash"];
 const Y_PADDING_FRACTION = 1 / 20;
 
@@ -180,7 +203,7 @@ const fillCheckboxes = (container: HTMLDivElement, values: string[]): string[] =
   container.innerHTML = "";
   if (values.length === 0) {
     const hint = document.createElement("span");
-    hint.className = "text-sm text-base-content/50";
+    hint.className = "text-sm text-base-content/70";
     hint.textContent = "– keine –";
     container.appendChild(hint);
     return previous;
@@ -363,7 +386,7 @@ function buildFigure(groups: Map<string, Series[]>, mode: "overlay" | "stacked")
 
   measurands.forEach((measurand, mi) => {
     const seriesList = groups.get(measurand)!;
-    const color = MEASURAND_COLORS[mi % MEASURAND_COLORS.length] ?? "#1f77b4";
+    const color = MEASURAND_COLORS[mi % MEASURAND_COLORS.length] ?? MEASURAND_COLORS[0]!;
     const unit = seriesList[0]?.unit ?? "";
     const allValues: number[] = [];
 

@@ -122,7 +122,7 @@ export default function PlotsPage() {
 </Field>
           <button id="download" class="btn btn-outline">Herunterladen</button>
         </div>
-        <p class="text-sm text-base-content/60 mt-2">
+        <p class="text-sm text-base-content/70 mt-2">
           PNG: höhere Faktoren = schärfer, können je nach Browser aber
           fehlschlagen. SVG ist vektorbasiert und beliebig skalierbar (Faktor
           ohne Wirkung).

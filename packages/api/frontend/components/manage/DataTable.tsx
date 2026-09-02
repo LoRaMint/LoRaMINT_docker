@@ -57,6 +57,22 @@ export function Cell(props: { value: unknown }) {
 // TABLE
 //====================================
 
+/**
+ * How a column is set: numbers to the right and in figures of equal width,
+ * everything else to the left.
+ *
+ * Left-aligned proportional numbers put the units, tens and hundreds of a
+ * column in different places, and 18,4 / 124,05 / 1013,2 then cannot be
+ * compared by looking down them. `tabular-nums` is the half people forget:
+ * right alignment alone still lets a "1" take less room than a "0", so the
+ * commas wander anyway.
+ *
+ * Read off `kind`, which the resource definitions already carry - no new
+ * column property, and no list of "these ones are numbers" to keep in step.
+ */
+const cellClass = (column: ColumnSpec): string =>
+  column.kind === "number" ? "text-right tabular-nums" : "";
+
 export default function DataTable(props: {
   columns: ColumnSpec[];
   rows: Record<string, unknown>[];
@@ -97,7 +113,7 @@ export default function DataTable(props: {
               </th>
             )}
             {props.columns.map((column) => (
-              <th>
+              <th class={cellClass(column)}>
                 {props.sortable.includes(column.key) ? (
                   <a href={props.sortHref(column.key)} class="link no-underline">
                     {column.label}
@@ -135,7 +151,9 @@ export default function DataTable(props: {
                     const editable = props.editing && column.editable === true;
                     const text = formatValue(row[column.key]);
                     return (
-                      <td class={editable ? "p-1" : "whitespace-nowrap"}>
+                      <td
+                        class={`${editable ? "p-1" : "whitespace-nowrap"} ${cellClass(column)}`}
+                      >
                         {editable ? (
                           <>
                             <input

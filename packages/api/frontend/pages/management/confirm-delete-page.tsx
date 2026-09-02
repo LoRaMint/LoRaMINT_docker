@@ -15,6 +15,25 @@ import Notice from "../../components/Notice";
  * the preview was taken: the confirmation deletes what was shown, not whatever
  * matches the filter by the time it is clicked.
  */
+/** The bin that goes on every button which removes something. */
+function TrashIcon() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      class="h-4 w-4"
+      aria-hidden="true"
+    >
+      <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" />
+    </svg>
+  );
+}
+
 export default function ConfirmDeletePage(props: {
   spec: ResourceSpec;
   /** The first rows that would go, for looking at. */
@@ -89,7 +108,7 @@ export default function ConfirmDeletePage(props: {
       />
 
       {rest > 0 && (
-        <p class="text-sm text-base-content/60 mt-2">
+        <p class="text-sm text-base-content/70 mt-2">
           … und {rest} weitere.
         </p>
       )}
@@ -109,14 +128,36 @@ export default function ConfirmDeletePage(props: {
           <input type="hidden" name={field.name} value={field.value} />
         ))}
         <input type="hidden" name="confirm" value="1" />
-        <button type="submit" class="btn btn-error">
+        {/*
+          * Cancel first, and with room between the two.
+          *
+          * They stood side by side, the destructive one first. On a page whose
+          * whole purpose is a last look before something goes, the safe way out
+          * should not be the thing a slipped click lands on. It also takes the
+          * focus when the page opens (autofocus), because otherwise the way to
+          * it by keyboard runs through the entire preview table.
+          */}
+        <a
+          href={`${props.spec.path}${props.view}`}
+          class="btn btn-ghost"
+          autofocus
+        >
+          Abbrechen
+        </a>
+        <span class="w-6" aria-hidden="true" />
+        {/*
+          * Filled, not outlined - the one place the design system allows it.
+          * Red is a signal colour and does not become a button colour, except
+          * where deleting *is* the page's only primary action and the warning
+          * should be at its loudest. The icon is there so the meaning does not
+          * rest on the colour alone.
+          */}
+        <button type="submit" class="btn btn-error gap-2">
+          <TrashIcon />
           {blocks > 0
             ? `${props.total} ${props.spec.title} löschen – erster Block`
             : `${props.total} ${props.spec.title} endgültig löschen`}
         </button>
-        <a href={`${props.spec.path}${props.view}`} class="btn btn-ghost">
-          Abbrechen
-        </a>
       </form>
     </Layout>
   );

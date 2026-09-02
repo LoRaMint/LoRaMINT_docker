@@ -1,6 +1,7 @@
 import type { JSX } from "solid-js";
 import TableFrame from "../../../components/TableFrame";
 import Layout from "../../../components/layout/Layout";
+import PageHeading from "../../../components/PageHeading";
 import SectionHeading from "../../../components/SectionHeading";
 
 /** A note / callout block (the "> …" blockquotes in the source guide). */
@@ -50,7 +51,7 @@ function Figure(props: { src: string; alt: string; caption?: string }) {
         class="zoomable w-full rounded-box border border-base-300 cursor-zoom-in"
       />
       {props.caption && (
-        <figcaption class="text-sm text-base-content/60 mt-1">
+        <figcaption class="text-sm text-base-content/70 mt-1">
           {props.caption}
         </figcaption>
       )}
@@ -72,9 +73,7 @@ export default function AnleitungPage() {
   return (
     <Layout>
       <article class="max-w-3xl mx-auto">
-        <h1 class="text-2xl font-bold mt-8 mb-2">
-          HowTo / Daten mit ESP32 aufnehmen
-        </h1>
+        <PageHeading title="HowTo / Daten mit ESP32 aufnehmen" />
         <p class={p}>
           Mit dieser Anleitung bringst du einen <strong>ESP32</strong> dazu, mit
           dem Funkmodul <strong>Dragino LA66</strong> Messwerte an das Netzwerk{" "}

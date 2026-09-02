@@ -243,7 +243,7 @@ export default function ManageDevicesPage(props: {
                       {row.name ?? row.deviceId}
                     </a>
                   ) : (
-                    <span class="text-base-content/60 italic">
+                    <span class="text-base-content/70 italic">
                       nicht in TTN
                     </span>
                   )}
@@ -279,7 +279,7 @@ export default function ManageDevicesPage(props: {
           </tbody>
         </TableFrame>
 
-      <p class="text-sm text-base-content/60 mt-3 max-w-3xl">
+      <p class="text-sm text-base-content/70 mt-3 max-w-3xl">
         „stumm" heisst: in TTN registriert, aber in den letzten 24 Stunden kam
         nichts an. „verwaist" heisst: es kommen Messwerte unter einer DevEUI an,
         die in TTN nicht registriert ist – die Werte bleiben erhalten, aber

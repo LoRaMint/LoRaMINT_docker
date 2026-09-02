@@ -50,7 +50,20 @@ export function FieldGroup(props: {
 
 export default function Field(props: {
   label: JSX.Element;
-  /** Marks the field and tells the browser, which then says so before the trip. */
+  /**
+   * Marks the field as one that must be filled.
+   *
+   * It says so in a word rather than with a red asterisk: the asterisk is a
+   * convention, and a convention only works for people who have met it. The
+   * word costs a little room next to the label and nothing else.
+   *
+   * **This does not set `required` on the control** - the control arrives as
+   * `children`, already rendered, and there is no DOM to reach into on the
+   * server. The caller has to set the attribute as well, which means the two
+   * can drift apart: a field marked here that the browser never checks. Fixing
+   * that properly means this component owning the `<input>` rather than
+   * receiving it, which changes every caller. Until then, both.
+   */
   required?: boolean;
   /** The sentence under the control: what the value means, or what it costs. */
   hint?: JSX.Element;
@@ -68,7 +81,9 @@ export default function Field(props: {
     <label class={`block ${props.class ?? ""}`}>
       <span class="block text-sm mb-1 text-base-content/80">
         {props.label}
-        {props.required && <span class="text-error"> *</span>}
+        {props.required && (
+          <span class="text-error text-xs font-medium"> · Pflichtfeld</span>
+        )}
       </span>
       {props.children}
       {props.problem ? (
@@ -77,7 +92,7 @@ export default function Field(props: {
         </span>
       ) : (
         props.hint && (
-          <span class="block text-sm text-base-content/60 mt-1">
+          <span class="block text-sm text-base-content/70 mt-1">
             {props.hint}
           </span>
         )

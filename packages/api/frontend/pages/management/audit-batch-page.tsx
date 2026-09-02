@@ -23,7 +23,7 @@ function FieldDiff(props: { fields: Record<string, { from: unknown; to: unknown 
     <ul class="space-y-1">
       {Object.entries(props.fields).map(([column, change]) => (
         <li class="font-mono text-xs">
-          <span class="text-base-content/60">{column}:</span>{" "}
+          <span class="text-base-content/70">{column}:</span>{" "}
           {change.from === null ? (
             <Muted>leer</Muted>
           ) : (
@@ -49,7 +49,7 @@ function RowSnapshot(props: { row: Record<string, unknown>; summary: string }) {
       <ul class="mt-1 space-y-1">
         {Object.entries(props.row).map(([column, value]) => (
           <li class="font-mono text-xs">
-            <span class="text-base-content/60">{column}:</span>{" "}
+            <span class="text-base-content/70">{column}:</span>{" "}
             {value === null ? (
               <Muted>leer</Muted>
             ) : (
@@ -136,7 +136,7 @@ export default function AuditBatchPage(props: {
             <button type="submit" name="batch" value={batchId} class="btn btn-sm btn-error btn-outline">
               Ganzen Vorgang zurücknehmen
             </button>
-            <span class="text-sm text-base-content/60">
+            <span class="text-sm text-base-content/70">
               Oder unten einzelne Änderungen – der Vorgang bleibt in beiden Fällen im
               Protokoll stehen.
             </span>
@@ -176,7 +176,7 @@ export default function AuditBatchPage(props: {
                             zurückgenommen
                           </a>
                         ) : (
-                          <span class="text-sm text-base-content/60">offen</span>
+                          <span class="text-sm text-base-content/70">offen</span>
                         )}
                       </td>
                       {props.canRevert && (
