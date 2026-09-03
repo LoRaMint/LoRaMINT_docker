@@ -223,7 +223,10 @@ Tabellen und Formulare.
 | 500 Medium | Überschriften |
 | 700 Bold | Titel, Hervorhebung |
 
-**SCHRIFT-01** — Kursive wird NICHT verwendet. Hervorhebung trägt Halbfett.
+**SCHRIFT-01** — Kursive wird NICHT als **Hervorhebung** verwendet;
+Hervorhebung trägt Halbfett. Davon unberührt bleibt Kursive als eingeführte
+Auszeichnung anderer Art — Werktitel in einem Literaturverzeichnis etwa. Sie
+dort zu entfernen macht das Verzeichnis schlechter lesbar und gewinnt nichts.
 **SCHRIFT-02** — Ersatzschrift ist `ui-sans-serif, system-ui, sans-serif`.
 Das Laden MUSS mit `font-display: swap` geschehen, damit die Seite sofort
 lesbar ist.
