@@ -25,6 +25,14 @@ jobs:
       - name: Typecheck
         run: bun run typecheck
 
+      # The corporate design compares the frontend against tokens.json and exits
+      # 1 on any deviation. Its own README called it CI-ready from the day it was
+      # written, and nothing ran it - so the rules were enforced by whoever
+      # remembered to. It needs no services and is over in a second, hence here.
+      - name: Corporate design
+        working-directory: ${{ github.workspace }}
+        run: bun guidelines/design/pruefung.ts
+
       # The integration tests skip themselves when the service they need is not
       # answering, so without this they would quietly test nothing here. Start
       # the same containers developers use, and wait until each is really usable
@@ -95,3 +103,15 @@ jobs:
       # committed, so the copies cannot silently go stale.
       - name: Guide assets in sync
         run: bun run sync-guide-assets && git diff --exit-code
+
+      # Build the image without pushing it.
+      #
+      # Until this step existed, `docker build` ran for the first time in
+      # publish.yml - triggered by a tag, and therefore *after* the tag was
+      # already pushed. That matters more than it sounds: build-css.ts and
+      # build-islands.ts run only inside the image, never in this workflow, so a
+      # broken Tailwind source or an island that no longer compiles was invisible
+      # until the release was already named.
+      - name: Image builds
+        working-directory: ${{ github.workspace }}
+        run: docker build -f packages/api/Dockerfile packages/api

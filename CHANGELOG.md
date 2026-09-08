@@ -7,6 +7,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Eine Workshop-Seite, im Browser geschrieben.** Unter `Downloads → Workshop`
+  steht ein Text, der wie das Impressum aus Markdown entsteht, und darunter die
+  Dateien, die dazugehören — Arbeitsblätter, Codedateien, Bilder. Solange nichts
+  geschrieben ist, gibt es weder Seite noch Reiter.
+
+- **Eine kleine Dateiverwaltung** unter `Verwaltung → Workshop verwalten`:
+  hochladen, ausblenden, löschen, dazu der fertige Markdown-Schnipsel zum
+  Einfügen. „Ausgeblendet" heißt dabei *nicht in der Liste* und ist kein
+  Zugriffsschutz — gedacht für Bilder, die im Text stehen und darunter nicht
+  noch einmal als Download auftauchen sollen.
+
+- **Die Rolle `editor`** (`LDAP_EDITOR_GROUP`). Sie darf die Workshop-Seite
+  schreiben und sonst nichts: keine Messwerte, keine Geräte, keine
+  Konfiguration. Wie die übrigen Rollen enthält sie keine andere, und `admin`
+  enthält sie.
+
+- **Der Markdown-Renderer kann jetzt Codeblöcke, Tabellen und Bilder.** Die
+  Reihenfolge, die seine Sicherheit trägt, bleibt unverändert: erst maskieren,
+  dann Markup erzeugen. Bilder nehmen nur lokale Pfade — ein fremd gehostetes
+  Bild schickte die IP jedes Besuchers zu einem Dritten.
+
+### Fixed
+
+- **Ein protokollrelativer Link galt als interner.** `[x](//fremd.example)`
+  kam durch den `/`-Zweig der Schema-Prüfung und wurde ohne
+  `rel="noopener noreferrer"` und ohne neues Fenster gerendert — ein externes
+  Ziel in der Aufmachung eines internen.
+
+- **Tailwind sah `lib/` nicht an.** Der Markdown-Renderer erzeugt Klassen, liegt
+  aber außerhalb des durchsuchten Verzeichnisses; dass die Listen im Impressum
+  trotzdem aussahen wie Listen, lag daran, dass die ESP32-Anleitung zufällig
+  dieselben Klassen benutzt. `@source "../../lib"` schließt die Lücke.
+
+- **`isRoleGroup` führte eine eigene Liste der Rollengruppen** und war dabei
+  stehengeblieben — der Kommentar sprach von dreien, das Feld enthielt vier. Die
+  Liste kommt jetzt aus `lib/roles.ts`, wo die Rollen definiert sind.
+
+- **Die Designprüfung durchsuchte nur `frontend/`.** Seit der Markdown-Renderer
+  Markup mit Klassen erzeugt, gehört `lib/` dazu.
+
 ## [1.13.3] - 2026-09-02
 
 ### Fixed

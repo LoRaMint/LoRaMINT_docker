@@ -7,6 +7,7 @@ import { html, ssr } from "../../config/ssr";
 import {
   config,
   legal,
+  content,
   auth,
   sqlConsole,
   board,
@@ -63,6 +64,9 @@ import { registerBoardRoutes } from "./management/board-routes";
 import { registerTokenRoutes } from "./management/token-routes";
 import { dataGroupsOf, listDataGroups } from "../../services/data-groups";
 import ImpressumPage from "./impressum/page";
+import WorkshopPage from "./workshop/page";
+import { registerWorkshopRoutes } from "./management/workshop-routes";
+import { listVisibleFiles } from "../../services/uploads";
 import DatenschutzPage from "./datenschutz/page";
 
 const pages = new Hono();
@@ -572,6 +576,14 @@ if (auth.enabled || setupAccount.enabled) {
   // API tokens. Not behind a role: a token belongs to a data group, so what
   // matters is being in one - see requireGroupMember.
   registerTokenRoutes(pages, { requireGroupMember, sameOrigin });
+
+  // The workshop page and the files on it. Its own role, because looking after
+  // teaching material is neither measurements nor devices - and an editor
+  // should not inherit either.
+  registerWorkshopRoutes(pages, {
+    requireEditor: requireRole("editor"),
+    sameOrigin,
+  });
 }
 
 /**
@@ -599,6 +611,24 @@ pages.get(
     if (!legal.datenschutz) return c.notFound();
     c.get("page").title = "Datenschutz";
     return <DatenschutzPage />;
+  }),
+);
+
+/**
+ * The workshop page, on the same principle as the two above: it exists while
+ * there is something on it, decided per request. Writing the first sentence in
+ * the editor publishes it, and emptying the box takes it down again - neither
+ * needs a restart.
+ */
+pages.get(
+  "/workshop",
+  ...ssr(async (c) => {
+    if (!content.workshop) return c.notFound();
+    c.get("page").title = PAGES.workshop.label;
+    // Awaited before the element, not inside a prop: Solid's SSR transform turns
+    // every dynamic prop into a getter, and a getter cannot be awaited in.
+    const files = await listVisibleFiles();
+    return <WorkshopPage files={files} />;
   }),
 );
 

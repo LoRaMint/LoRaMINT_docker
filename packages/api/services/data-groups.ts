@@ -1,5 +1,5 @@
 import { reading, writing } from "./connections";
-import type { RoleConfig } from "../lib/roles";
+import { roleGroups, type RoleConfig } from "../lib/roles";
 import type { SessionUser } from "../lib/session";
 
 
@@ -92,20 +92,23 @@ export const dataGroupsOf = (
 //====================================
 
 /**
- * Whether this name is one of the three role groups.
+ * Whether this name is one of the role groups.
  *
  * Exported and pure so the rule can be tested without a database - the refusal
  * below is the one thing in this module that must not be got wrong, and a test
  * for it should not depend on a connection being up.
  *
- * An unconfigured role group is null and matches nothing; without the filter, a
- * deployment with no LDAP_ADMIN_GROUP would compare against null and could match
- * in a way nobody intended.
+ * The list comes from lib/roles.ts rather than being spelled out here. It used
+ * to be spelled out, and it drifted: the comment said "the three role groups"
+ * while the array held four. Deriving it means a role added over there cannot be
+ * missed over here.
+ *
+ * An unconfigured role group is null and matches nothing; `roleGroups` drops
+ * those, because a deployment with no LDAP_ADMIN_GROUP would otherwise compare
+ * against null and could match in a way nobody intended.
  */
 export const isRoleGroup = (name: string, config: RoleConfig): boolean =>
-  [config.dataGroup, config.managementGroup, config.adminGroup, config.boardGroup]
-    .filter((group): group is string => group !== null)
-    .includes(name);
+  roleGroups(config).includes(name);
 
 /**
  * Declares a directory group to be a data group.

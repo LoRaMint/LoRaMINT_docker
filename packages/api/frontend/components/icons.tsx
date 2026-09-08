@@ -48,3 +48,40 @@ export function UndoIcon(props: { class?: string }) {
     </Icon>
   );
 }
+
+/** Fetching a file: the arrow into the tray. */
+export function DownloadIcon(props: { class?: string }) {
+  return (
+    <Icon class={props.class}>
+      <path d="M12 3v12m0 0l-4-4m4 4l4-4" />
+      <path d="M4 19h16" />
+    </Icon>
+  );
+}
+
+/**
+ * Shown, and not shown.
+ *
+ * Both exist because the state has to be readable without colour: the row says
+ * the word as well, and the icon is what makes the button it sits on legible at
+ * a glance. See the design rule against carrying meaning in colour alone.
+ */
+export function EyeIcon(props: { class?: string }) {
+  return (
+    <Icon class={props.class}>
+      <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7" />
+      <circle cx="12" cy="12" r="3" />
+    </Icon>
+  );
+}
+
+export function EyeOffIcon(props: { class?: string }) {
+  return (
+    <Icon class={props.class}>
+      <path d="M4 4l16 16" />
+      <path d="M9.9 5.2A9.6 9.6 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4.1" />
+      <path d="M6.5 7.4A16.6 16.6 0 0 0 2 12s3.6 7 10 7a9.7 9.7 0 0 0 4.2-.9" />
+      <path d="M9.9 9.9a3 3 0 0 0 4.2 4.2" />
+    </Icon>
+  );
+}

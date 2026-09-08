@@ -19,6 +19,9 @@ import type { SessionUser } from "./session";
  *   board       LDAP_BOARD_GROUP       curates the public /board page: which
  *                                      measurements appear there and with what
  *                                      display range. Nothing else.
+ *   editor      LDAP_EDITOR_GROUP      writes the workshop page and looks after
+ *                                      the files offered for download there.
+ *                                      Touches no measurement and no device.
  *
  * Someone who only manages devices no longer edits measurements, and someone who
  * only edits measurements does not touch devices. Whoever needs both is put in
@@ -34,9 +37,15 @@ import type { SessionUser } from "./session";
  * `admin` remains the one containing role, because "admin may do everything" is
  * the property that keeps a locked-out deployment recoverable.
  */
-export type Role = "data" | "management" | "admin" | "board";
+export type Role = "data" | "management" | "admin" | "board" | "editor";
 
-const ROLES: readonly Role[] = ["data", "management", "admin", "board"] as const;
+const ROLES: readonly Role[] = [
+  "data",
+  "management",
+  "admin",
+  "board",
+  "editor",
+] as const;
 
 export type RoleConfig = {
   /** Group granting the data role, or null when no restriction is configured. */
@@ -47,6 +56,8 @@ export type RoleConfig = {
   adminGroup: string | null;
   /** Group granting the board role. Null means nobody reaches it. */
   boardGroup: string | null;
+  /** Group granting the editor role. Null means nobody reaches it. */
+  editorGroup: string | null;
 };
 
 const groupFor = (role: Role, config: RoleConfig): string | null => {
@@ -59,8 +70,25 @@ const groupFor = (role: Role, config: RoleConfig): string | null => {
       return config.adminGroup;
     case "board":
       return config.boardGroup;
+    case "editor":
+      return config.editorGroup;
   }
 };
+
+/**
+ * Every configured role group, in one place.
+ *
+ * services/data-groups.ts refuses to declare one of these as a *data* group, and
+ * before this existed it kept its own list of four - which is a list that has to
+ * be remembered whenever a role is added. It was not remembered: the comment
+ * there still said "the three role groups" while the array held four. Derived
+ * from `groupFor`, so a new role cannot be forgotten here, only in one place
+ * that the compiler then points at.
+ */
+export const roleGroups = (config: RoleConfig): string[] =>
+  ROLES.map((role) => groupFor(role, config)).filter(
+    (group): group is string => group !== null,
+  );
 
 const inGroup = (user: SessionUser, group: string | null) =>
   group !== null && user.groups.includes(group);
@@ -84,12 +112,12 @@ export const hasRole = (
   // useful if it can reach everything.
   if (user.setup) return true;
 
-  // Admin contains the others. Not a ladder: the two below do not contain each
-  // other, and this is the single line that makes an exception.
+  // Admin contains the others. Not a ladder: none of the rest contains another,
+  // and this is the single line that makes an exception.
   if (inGroup(user, config.adminGroup)) return true;
 
   // An unconfigured data group means every signed-in user may read, which is
-  // what a deployment that never set this up expects. The other two always need
+  // what a deployment that never set this up expects. The others always need
   // their group - configured-but-held-by-nobody must not be indistinguishable
   // from unconfigured, or editing rights get granted by accident.
   if (role === "data" && config.dataGroup === null) return true;

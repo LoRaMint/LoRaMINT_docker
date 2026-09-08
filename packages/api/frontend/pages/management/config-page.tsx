@@ -25,6 +25,7 @@ const ICONS: Record<Group | "overview", string> = {
   board: "M4 15a8 8 0 0 1 16 0M12 15l4-4",
   devices: "M6 4h12v16H6zM10 20h4",
   legal: "M6 3h9l3 3v15H6zM14 3v4h4",
+  workshop: "M12 4v10m0 0l-4-4m4 4l4-4M4 18h16",
 };
 
 function Icon(props: { path: string }) {

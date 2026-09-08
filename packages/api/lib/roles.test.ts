@@ -7,6 +7,7 @@ const CONFIG: RoleConfig = {
   managementGroup: "loramint-management",
   adminGroup: "loramint-admin",
   boardGroup: "loramint-board",
+  editorGroup: "loramint-editor",
 };
 
 const user = (...groups: string[]): SessionUser => ({
@@ -43,9 +44,29 @@ describe("die Leiter ist weg", () => {
   /** The one exception, and it is deliberate: a locked-out server must be recoverable. */
   test("admin enthält weiterhin alles", () => {
     const person = user("loramint-admin");
-    for (const role of ["data", "management", "admin", "board"] as const) {
+    for (const role of ["data", "management", "admin", "board", "editor"] as const) {
       expect(hasRole(person, role, CONFIG)).toBe(true);
     }
+  });
+
+  /**
+   * The editor writes the workshop page and nothing else. Both directions matter:
+   * that the role grants its own area, and that it grants no other - somebody who
+   * may publish a page must not thereby be able to correct a measurement.
+   */
+  test("editor ist weder admin noch sonst etwas", () => {
+    const person = user("loramint-editor");
+    expect(hasRole(person, "editor", CONFIG)).toBe(true);
+    expect(hasRole(person, "admin", CONFIG)).toBe(false);
+    expect(hasRole(person, "data", CONFIG)).toBe(false);
+    expect(hasRole(person, "management", CONFIG)).toBe(false);
+    expect(hasRole(person, "board", CONFIG)).toBe(false);
+  });
+
+  test("eine nicht konfigurierte Editorgruppe gibt niemandem etwas", () => {
+    const ohne: RoleConfig = { ...CONFIG, editorGroup: null };
+    expect(hasRole(user("loramint-editor"), "editor", ohne)).toBe(false);
+    expect(hasRole(user(), "editor", ohne)).toBe(false);
   });
 
   test("das Einrichtungskonto ebenfalls, es hat gar keine Gruppen", () => {
@@ -55,7 +76,13 @@ describe("die Leiter ist weg", () => {
       groups: [],
       setup: true,
     };
-    expect(rolesOf(setup, CONFIG)).toEqual(["data", "management", "admin", "board"]);
+    expect(rolesOf(setup, CONFIG)).toEqual([
+      "data",
+      "management",
+      "admin",
+      "board",
+      "editor",
+    ]);
   });
 
   test("ohne Anmeldung nichts", () => {

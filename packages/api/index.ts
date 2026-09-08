@@ -9,7 +9,8 @@ import { Scalar } from "@scalar/hono-api-reference";
 import { createMarkdownFromOpenApi } from "@scalar/openapi-to-markdown";
 import { z } from "zod";
 import { getCookie } from "hono/cookie";
-import { config, auth, setupAccount, validateConfig, verifyAppKey } from "./config";
+import { config, auth, setupAccount, uploads, validateConfig, verifyAppKey } from "./config";
+import { downloadHandler } from "./services/downloads";
 import { loadSettings, refreshSettingsIfStale } from "./services/settings";
 import {
   openApiMeta,
@@ -383,6 +384,12 @@ root.use(async (c, next) => {
 
 root.route("/_ssr", routes(ssrConfig));
 root.use("/public/*", serveStatic({ root: "./" }));
+/*
+ * Files uploaded for the workshop page. Deliberately *not* served by the line
+ * above: `serveStatic` types a file by its extension, which would hand out an
+ * uploaded `.html` as html from this origin. See services/downloads.ts.
+ */
+root.get("/downloads/:name", downloadHandler);
 root.route("/api/v1", app);
 /**
  * The settings table decides which routes exist at all - `auth.enabled` and
@@ -405,4 +412,19 @@ console.log(`LoRaMINT listening on port ${config.port}`);
 export default {
   port: config.port,
   fetch: root.fetch,
+  /*
+   * The ceiling on a request body, and the reason it is set here rather than
+   * left at Bun's default of 128 MB.
+   *
+   * The upload route checks `Content-Length` before it parses and the real size
+   * afterwards. A request with chunked transfer-encoding carries no
+   * Content-Length at all, so the first check is skipped - and `parseBody()`
+   * has buffered the whole body before the second one can look at it. Without
+   * this line the effective limit was 128 MB while the configured one was 20,
+   * and the difference was memory somebody else got to choose.
+   *
+   * A megabyte of slack over the configured maximum, for the multipart envelope
+   * around the file.
+   */
+  maxRequestBodySize: uploads.maxBytes + 1024 * 1024,
 };
