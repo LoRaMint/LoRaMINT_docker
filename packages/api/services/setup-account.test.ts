@@ -134,6 +134,7 @@ describe("was das Konto darf", () => {
     managementGroup: null,
     adminGroup: null,
     boardGroup: null,
+    editorGroup: null,
   };
 
   test("es ist Administrator, obwohl es keine Gruppen hat", async () => {
@@ -147,6 +148,7 @@ describe("was das Konto darf", () => {
       "management",
       "admin",
       "board",
+      "editor",
     ]);
   });
 

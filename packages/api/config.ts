@@ -1,4 +1,6 @@
 import { createHash, timingSafeEqual } from "node:crypto";
+import { resolve } from "node:path";
+import { accessSync, constants } from "node:fs";
 import { CATALOG } from "./lib/config-catalog";
 import { storedSetting } from "./lib/settings-store";
 import { DB_ROLES, roleDsn } from "./lib/db-roles";
@@ -332,6 +334,46 @@ export const legal = {
   },
 };
 
+/**
+ * Pages whose text is written in the application rather than deployed with it.
+ *
+ * Like the legal pages above: no content, no page. The workshop page only
+ * exists once somebody has written something on it, so a deployment that does
+ * not run workshops shows no empty tab.
+ */
+export const content = {
+  get workshop() {
+    return optional("CONTENT_WORKSHOP");
+  },
+};
+
+/**
+ * Where the files offered on the workshop page are kept.
+ *
+ * A path inside the working directory, which is what lets development and
+ * production agree without anybody setting a variable: `/usr/src/app/uploads` in
+ * the container, `packages/api/uploads` on a developer's machine. In production
+ * that path carries a named volume - without one, every upload lives in the
+ * container's writable layer and is gone at the next `docker compose up`.
+ *
+ * Resolved inside the getter on every call, never memoised at module level: the
+ * tests describe a deployment by setting UPLOAD_DIR at runtime, and a value
+ * captured while the module was first evaluated would ignore them.
+ *
+ * UPLOAD_DIR is an environment setting rather than one of the movable ones on
+ * purpose. Everything movable can be changed from /management/config in a
+ * browser, and a path that an administrator can retype there turns a form into a
+ * way to read and write anywhere on the file system.
+ */
+export const uploads = {
+  get dir() {
+    return resolve(optional("UPLOAD_DIR") ?? "./uploads");
+  },
+  get maxBytes() {
+    return optionalInt("UPLOAD_MAX_BYTES", 20 * 1024 * 1024);
+  },
+};
+
 //====================================
 // AUTHENTICATION (LDAP)
 //====================================
@@ -431,10 +473,10 @@ export const auth = {
    *
    * The defaults are not symmetric, on purpose. An unset LDAP_DATA_GROUP means
    * "no restriction configured", so every signed-in user keeps the read-only
-   * query page. Unset LDAP_MANAGEMENT_GROUP, LDAP_ADMIN_GROUP and
-   * LDAP_BOARD_GROUP mean nobody holds those roles: a deployment that has not
-   * configured them must never hand out editing rights, write access to the
-   * database, or the board's curation page by accident.
+   * query page. Unset LDAP_MANAGEMENT_GROUP, LDAP_ADMIN_GROUP, LDAP_BOARD_GROUP
+   * and LDAP_EDITOR_GROUP mean nobody holds those roles: a deployment that has
+   * not configured them must never hand out editing rights, write access to the
+   * database, the board's curation page or the workshop page by accident.
    */
   get dataGroup() {
     return optional("LDAP_DATA_GROUP");
@@ -447,6 +489,9 @@ export const auth = {
   },
   get boardGroup() {
     return optional("LDAP_BOARD_GROUP");
+  },
+  get editorGroup() {
+    return optional("LDAP_EDITOR_GROUP");
   },
   session: {
     // Signing key for the session cookie. Required once the login is enabled;
@@ -565,4 +610,37 @@ export const validateConfig = () => {
   }
 
   checkTtnKeys();
+  checkUploadDir();
+};
+
+/**
+ * Whether the upload directory can be written to.
+ *
+ * **Warns, never throws.** The workshop page is optional, and a permissions
+ * problem in a corner of the application must not take the whole site down -
+ * measurements keep arriving whether or not anybody can upload a worksheet.
+ *
+ * It exists because the failure it reports is otherwise invisible until the
+ * worst moment. A named volume mounted onto a path the image did not have is
+ * created owned by root; the server runs as `bun` and cannot write a byte into
+ * it. Nothing says so until somebody stands in front of a class and uploads the
+ * first file. The Dockerfile creates and chowns the directory so a *fresh*
+ * volume inherits the ownership - this catches the case where it did not.
+ *
+ * A missing directory is not reported: it is created on the first upload, and
+ * saying so at every start would be noise on every developer machine.
+ */
+const checkUploadDir = () => {
+  try {
+    accessSync(uploads.dir, constants.W_OK);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return;
+    console.warn(
+      `config: ${uploads.dir} is not writable, so no file can be uploaded for ` +
+        "the workshop page. In the container this usually means the volume was " +
+        "created before the image had the directory and is owned by root. Repair " +
+        "with: docker compose run --rm --user root app chown -R bun:bun " +
+        uploads.dir,
+    );
+  }
 };

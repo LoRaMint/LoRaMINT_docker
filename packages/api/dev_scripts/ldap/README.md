@@ -47,15 +47,19 @@ Base DN `dc=loramint,dc=test`, admin `cn=admin,dc=loramint,dc=test` / `adminpw`.
 
 Groups (`ou=groups`, plain `groupOfNames`):
 
-| Group                 | Members                        | Level      |
+| Group                 | Members                        | Role       |
 | --------------------- | ------------------------------ | ---------- |
 | `loramint`            | everyone above except `extern` | read-only  |
 | `loramint-management` | `aschmidt`                     | management |
 | `loramint-admin`      | `mruf`                         | admin      |
+| `loramint-editor`     | `nodisplay`                    | editor     |
 
-Nobody is in more than one, on purpose: the levels form a ladder, so `mruf`
-reaches management and reading through the admin group alone. That is what makes
-the fixture a test of the ladder rather than of the directory.
+Nobody is in more than one, on purpose. The roles are **not** a ladder: only
+`admin` contains the others, so `mruf` reaches everything through that one group
+while `aschmidt` reaches devices and nothing else. `nodisplay` is the interesting
+case — editor and nothing besides, which is what proves that somebody who may
+publish the workshop page still cannot touch a measurement, and that the
+Verwaltung menu appears for them all the same.
 
 Service account for search-and-bind:
 `cn=service,ou=system,dc=loramint,dc=test` / `servicepw`.
@@ -83,6 +87,7 @@ LDAP_GROUP_SEARCH_BASE='ou=groups,dc=loramint,dc=test'
 LDAP_DATA_GROUP=loramint
 LDAP_MANAGEMENT_GROUP=loramint-management
 LDAP_ADMIN_GROUP=loramint-admin
+LDAP_EDITOR_GROUP=loramint-editor
 SESSION_SECRET=0123456789abcdef0123456789abcdef
 ```
 

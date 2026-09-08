@@ -23,6 +23,15 @@ const hier = dirname(fileURLToPath(import.meta.url));
 const wurzel = join(hier, "..", "..");
 const frontend = join(wurzel, "packages", "api", "frontend");
 
+/*
+ * Markup is not only written in the frontend. lib/markdown.ts turns what
+ * somebody typed into a box into HTML - code blocks, images, tables - and its
+ * class names are class names like any other. Left out of the search, a second
+ * shadow or an <i> could sit there unseen, which is the exact failure this
+ * script was written after.
+ */
+const lib = join(wurzel, "packages", "api", "lib");
+
 const tokens = JSON.parse(readFileSync(join(hier, "tokens.json"), "utf8"));
 
 type Befund = { regel: string; text: string };
@@ -36,12 +45,17 @@ const pruefe = (regel: string, ok: boolean, text: string) => {
 
 const lies = (pfad: string) => readFileSync(join(frontend, pfad), "utf8");
 
-/** Alle Dateien unter frontend/, als Text. */
+/** Alle Dateien unter frontend/ und lib/, als Text. */
 const alleDateien = (): { pfad: string; inhalt: string }[] => {
   const { execSync } = require("node:child_process");
-  const liste = execSync(`find ${frontend} -type f \\( -name '*.ts' -o -name '*.tsx' -o -name '*.css' \\)`)
+  const liste = execSync(
+    `find ${frontend} ${lib} -type f \\( -name '*.ts' -o -name '*.tsx' -o -name '*.css' \\)`,
+  )
     .toString().trim().split("\n");
-  return liste.map((p: string) => ({ pfad: p.replace(frontend + "/", ""), inhalt: readFileSync(p, "utf8") }));
+  return liste.map((p: string) => ({
+    pfad: p.replace(join(wurzel, "packages", "api") + "/", ""),
+    inhalt: readFileSync(p, "utf8"),
+  }));
 };
 const dateien = alleDateien();
 const irgendwo = (muster: RegExp) =>

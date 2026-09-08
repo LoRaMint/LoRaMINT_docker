@@ -85,14 +85,15 @@ services:
       - LDAP_DISPLAY_NAME_ATTRIBUTE=${LDAP_DISPLAY_NAME_ATTRIBUTE:-}
       - LDAP_PASSWORD_RESET_URL=${LDAP_PASSWORD_RESET_URL:-}
       - LDAP_TIMEOUT_MS=${LDAP_TIMEOUT_MS:-}
-      # The four groups that grant privileges. An unset data group means every
-      # signed-in user may read; unset management, admin and board groups mean
-      # nobody reaches those areas, so editing rights and the board curation
-      # page are never granted by accident.
+      # The five groups that grant privileges. An unset data group means every
+      # signed-in user may read; unset management, admin, board and editor
+      # groups mean nobody reaches those areas, so editing rights, the board
+      # curation page and the workshop page are never granted by accident.
       - LDAP_DATA_GROUP=${LDAP_DATA_GROUP:-}
       - LDAP_MANAGEMENT_GROUP=${LDAP_MANAGEMENT_GROUP:-}
       - LDAP_ADMIN_GROUP=${LDAP_ADMIN_GROUP:-}
       - LDAP_BOARD_GROUP=${LDAP_BOARD_GROUP:-}
+      - LDAP_EDITOR_GROUP=${LDAP_EDITOR_GROUP:-}
 
       # --- Tuning (optional) -----------------------------------------------
       # The restricted database roles are no longer configured here: they are
@@ -103,6 +104,26 @@ services:
       - QUERY_TIMEOUT_MS=${QUERY_TIMEOUT_MS:-}
       - MANAGE_MAX_DELETE=${MANAGE_MAX_DELETE:-}
       - MANAGE_TIMEOUT_MS=${MANAGE_TIMEOUT_MS:-}
+
+      # --- Workshop-Seite (optional) ---------------------------------------
+      # Der Text der Seite steht in der Datenbank und wird im Browser
+      # geschrieben; hier steht nur, wo die Dateien liegen und wie gross sie
+      # sein duerfen. Beides hat brauchbare Vorgaben.
+      - UPLOAD_DIR=${UPLOAD_DIR:-}
+      - UPLOAD_MAX_BYTES=${UPLOAD_MAX_BYTES:-}
+    volumes:
+      # Die Dateien der Workshop-Seite - Arbeitsblaetter, Codedateien, Bilder.
+      #
+      # Ohne dieses Volume laege alles Hochgeladene in der Schreibschicht des
+      # Containers: Es funktioniert, es sieht richtig aus, und beim naechsten
+      # `docker compose up -d` ist es weg. Datenverlust, der sich als Erfolg
+      # zeigt.
+      #
+      # Es ist zugleich der einzige Zustand ausserhalb von Postgres und liegt
+      # damit NICHT im Datenbank-Dump. Eine Wiederherstellung, die nur pg_dump
+      # einspielt, kommt mit dem Text zurueck, der auf die Dateien verweist,
+      # und ohne die Dateien.
+      - uploads:/usr/src/app/uploads
     depends_on:
       - db
     networks:
@@ -136,3 +157,4 @@ networks:
 
 volumes:
   db_data:
+  uploads:

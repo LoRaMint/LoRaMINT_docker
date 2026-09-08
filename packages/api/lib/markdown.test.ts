@@ -202,3 +202,198 @@ describe("Randfälle", () => {
     expect(renderMarkdown("2 * 3 = 6")).toContain("2 * 3 = 6");
   });
 });
+
+describe("Codeblöcke", () => {
+  /**
+   * The reason `segments()` exists. Blank lines separate blocks everywhere else,
+   * and a Python function with an empty line in it would otherwise be torn in
+   * half at exactly that line.
+   */
+  test("eine Leerzeile zerreisst den Block nicht", () => {
+    const html = renderMarkdown("```\neins\n\nzwei\n```");
+    expect(html.match(/<pre /g)).toHaveLength(1);
+    expect(html).toContain("eins\n\nzwei");
+  });
+
+  test("Markdown im Codeblock bleibt wörtlich", () => {
+    const html = renderMarkdown("```\n**fett** [x](/y) - Punkt\n# keine Überschrift\n```");
+    expect(html).not.toContain("<strong>");
+    expect(html).not.toContain("<a ");
+    expect(html).not.toContain("<li>");
+    expect(html).not.toContain("<h2");
+    expect(html).toContain("**fett**");
+  });
+
+  test("HTML im Codeblock wird Text, nicht Tag und nicht doppelt escapt", () => {
+    const html = renderMarkdown("```\n<script>alert(1)</script>\n```");
+    expect(html).not.toContain("<script>");
+    expect(html).toContain("&lt;script&gt;");
+    expect(html).not.toContain("&amp;lt;");
+  });
+
+  /** Einrückung ist in Python Bedeutung, nicht Geschmack. */
+  test("Einrückung bleibt Zeichen für Zeichen erhalten", () => {
+    const html = renderMarkdown("```python\ndef f():\n    return 1\n```");
+    expect(html).toContain("def f():\n    return 1");
+  });
+
+  test("die Sprachangabe wird zur Klasse", () => {
+    expect(renderMarkdown("```python\nx\n```")).toContain('class="language-python"');
+  });
+
+  test("eine unbrauchbare Sprachangabe wird verworfen", () => {
+    const html = renderMarkdown('```py"onload=x\nx\n```');
+    expect(html).not.toContain("language-");
+    expect(html).toContain("<code>");
+  });
+
+  /**
+   * A forgotten closing fence must not make the rest of the page disappear while
+   * somebody is still typing it.
+   */
+  test("ein nicht geschlossener Zaun verschluckt den Rest nicht", () => {
+    const html = renderMarkdown("Vorher\n\n```\ncode hier");
+    expect(html).toContain("Vorher");
+    expect(html).toContain("code hier");
+    expect(html).toContain("<pre ");
+  });
+
+  test("~~~ ist kein Zaun", () => {
+    const html = renderMarkdown("~~~\nx\n~~~");
+    expect(html).not.toContain("<pre ");
+    expect(html).toContain("~~~");
+  });
+});
+
+describe("Code im Fließtext", () => {
+  test("in Backticks wird nichts mehr ausgezeichnet", () => {
+    const html = renderMarkdown("Schreib `**nicht fett**` hin.");
+    expect(html).not.toContain("<strong>");
+    expect(html).toContain("**nicht fett**");
+    expect(html).toContain("<code ");
+  });
+
+  test("ein einzelner Backtick bleibt Text", () => {
+    expect(renderMarkdown("ein ` Zeichen")).not.toContain("<code ");
+  });
+
+  test("ein Pipe in Inline-Code macht keine Tabelle", () => {
+    const html = renderMarkdown("`a | b`");
+    expect(html).not.toContain("<table");
+    expect(html).toContain("<code ");
+  });
+});
+
+describe("Bilder", () => {
+  test("ein lokales Bild wird zum img", () => {
+    const html = renderMarkdown("![Schema](/downloads/aufbau.png)");
+    expect(html).toContain('<img src="/downloads/aufbau.png"');
+    expect(html).toContain('alt="Schema"');
+    expect(html).toContain('loading="lazy"');
+  });
+
+  /**
+   * A foreign image would send every visitor's IP to a third party on load - the
+   * same reason the mail addresses on these pages are obfuscated.
+   */
+  test("ein fremd gehostetes Bild bleibt Text", () => {
+    const html = renderMarkdown("![x](https://fremd.example/x.png)");
+    expect(html).not.toContain("<img");
+    expect(html).toContain("![x]");
+  });
+
+  test("javascript: und data: ebenso wenig", () => {
+    for (const href of ["javascript:alert(1)", "data:image/svg+xml,<svg>"]) {
+      expect(renderMarkdown(`![x](${href})`)).not.toContain("<img");
+    }
+  });
+
+  /**
+   * The text stays in the attribute - it is the quote that must not survive as a
+   * quote. So the assertion is about the attribute being whole, not about the
+   * words inside it being gone.
+   */
+  test("ein Anführungszeichen im Alt-Text bricht nicht aus dem Attribut aus", () => {
+    const html = renderMarkdown('![a"onerror=alert(1)](/x.png)');
+    expect(html).toContain('alt="a&quot;onerror=alert(1)"');
+    expect(html).not.toContain('" onerror');
+  });
+
+  test("leerer Alt-Text ist erlaubt", () => {
+    expect(renderMarkdown("![](/x.png)")).toContain('alt=""');
+  });
+
+  /** `![alt](url)` enthält `[alt](url)`; ohne die richtige Reihenfolge bleibt ein `!` vor einem Anchor stehen. */
+  test("Bild und Link in einer Zeile stören sich nicht", () => {
+    const html = renderMarkdown("![B](/b.png) und [L](/l)");
+    expect(html).toContain("<img");
+    expect(html).toContain("<a ");
+    expect(html).not.toContain("!<a");
+  });
+});
+
+describe("Tabellen", () => {
+  const TABELLE = "| Datei | Größe |\n|---|---:|\n| a.py | 1 |\n| b.pdf | 2 |";
+
+  test("Kopf, Trennzeile und Datenzeilen werden zur Tabelle", () => {
+    const html = renderMarkdown(TABELLE);
+    expect(html).toContain("<table");
+    expect(html.match(/<th /g)).toHaveLength(2);
+    expect(html.match(/<tr>/g)).toHaveLength(3);
+    expect(html).toContain("a.py");
+  });
+
+  test("die Ausrichtung kommt aus der Trennzeile", () => {
+    const html = renderMarkdown("| l | m | r |\n|:---|:---:|---:|\n| 1 | 2 | 3 |");
+    expect(html).toContain("text-left");
+    expect(html).toContain("text-center");
+    expect(html).toContain("text-right");
+  });
+
+  test("zu wenige Zellen werden aufgefüllt, zu viele abgeschnitten", () => {
+    const html = renderMarkdown("| a | b |\n|---|---|\n| 1 |\n| 1 | 2 | 3 |");
+    expect(html.match(/<tr>/g)).toHaveLength(3);
+    expect(html.match(/<td /g)).toHaveLength(4);
+  });
+
+  test("ein maskiertes Pipe bleibt Text in der Zelle", () => {
+    const html = renderMarkdown("| Befehl |\n|---|\n| ls \\| wc |");
+    expect(html).toContain("ls | wc");
+    expect(html.match(/<td /g)).toHaveLength(1);
+  });
+
+  test("eine Tabelle ohne Datenzeilen ist trotzdem eine Tabelle", () => {
+    const html = renderMarkdown("| a | b |\n|---|---|");
+    expect(html).toContain("<table");
+    expect(html).toContain("<tbody></tbody>");
+  });
+
+  test("ein Absatz mit einem Pipe bleibt ein Absatz", () => {
+    const html = renderMarkdown("Das a | b Verfahren\nist gemeint");
+    expect(html).not.toContain("<table");
+    expect(html).toContain("<p ");
+  });
+
+  test("Auszeichnung und Links wirken in Zellen", () => {
+    const html = renderMarkdown("| a |\n|---|\n| **fett** und [L](/l) |");
+    expect(html).toContain("<strong>");
+    expect(html).toContain("<a ");
+  });
+
+  test("--- allein bleibt eine Trennlinie", () => {
+    expect(renderMarkdown("---")).toContain("<hr ");
+  });
+});
+
+describe("Links, die keine internen sind", () => {
+  /**
+   * `//example.com` passed the `/` branch of SAFE_SCHEME and then failed the
+   * `^https?:` test, so it was rendered as an internal link: an external
+   * destination without rel="noopener noreferrer".
+   */
+  test("ein protokollrelativer Link gilt nicht als interner Pfad", () => {
+    const html = renderMarkdown("[x](//fremd.example/x)");
+    expect(html).not.toContain("<a ");
+    expect(html).toContain("[x]");
+  });
+});

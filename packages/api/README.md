@@ -61,6 +61,34 @@ cp .env.prod.example .env.prod
 docker compose -f compose.prod.yml --env-file .env.prod up -d
 ```
 
+#### Backups: two volumes, not one
+
+| Volume | Holds | Note |
+|---|---|---|
+| `db_data` | Measurements, devices, settings — including the text of the Impressum, the privacy notice and the workshop page | `pg_dump`, or a copy of the volume |
+| `uploads` | The files offered on the workshop page: worksheets, code files, images | The only state **outside** Postgres |
+
+A backup that covers the database alone restores the workshop page with every
+link it contains and none of the files those links point at. The links stay,
+and lead nowhere.
+
+```bash
+docker compose -f compose.prod.yml --env-file .env.prod exec -T db \
+  pg_dump -U "$DB_USER" "$DB_NAME" > backup.sql
+docker run --rm -v loramint_uploads:/from -v "$PWD":/to alpine \
+  tar czf /to/uploads.tgz -C /from .
+```
+
+The volume's real name carries Compose's project prefix - `docker volume ls`
+shows it. If the server cannot write into the upload directory - typically
+because the volume was created before the image had the directory and is owned
+by root - it says so in a warning at startup, and the way back is:
+
+```bash
+docker compose -f compose.prod.yml run --rm --user root app \
+  chown -R bun:bun /usr/src/app/uploads
+```
+
 ### 1.4 Tech Stack
 
 Bun, TypeScript, Hono, PostgreSQL, Zod, SolidJS, TailwindCSS v4, DaisyUI v5

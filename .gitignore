@@ -44,3 +44,9 @@ diagrams/
 
 # Persönliche Deployment-Dateien - gehören nicht ins Repo.
 matthias_*.yml
+
+# Hochgeladene Dateien der Workshop-Seite. In der Entwicklung liegen sie hier,
+# in der Produktion in einem Docker-Volume - in beiden Fällen sind es Inhalte
+# und kein Quelltext. Ohne diese Zeile bringt ein lokal hochgeladenes PDF den
+# CI-Schritt `sync-guide-assets && git diff --exit-code` zu Fall.
+packages/api/uploads/

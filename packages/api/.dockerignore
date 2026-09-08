@@ -5,3 +5,7 @@ node_modules
 .DS_Store
 # generated at build time by build-css.ts
 public/global.css
+# Lokale Uploads gehören nicht ins Image: Ein frisches Volume wird aus dem
+# Verzeichnis im Image befüllt, es würde also die Dateien eines Entwicklers in
+# die Produktion tragen.
+uploads

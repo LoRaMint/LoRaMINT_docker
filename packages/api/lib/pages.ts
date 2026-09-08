@@ -49,6 +49,10 @@ export const PAGES = {
   groups: { href: "/management/groups", label: "Datengruppen verwalten" },
   config: { href: "/management/config", label: "Konfiguration" },
 
+  //---- Downloads ----
+  workshop: { href: "/workshop", label: "Workshop" },
+  workshopManage: { href: "/management/workshop", label: "Workshop verwalten" },
+
   //---- Anleitungen und Entwicklung ----
   guideEsp32: { href: "/guides/esp32", label: "ESP32" },
   apiDocs: { href: "/api/v1/docs", label: "API-Dokumentation" },

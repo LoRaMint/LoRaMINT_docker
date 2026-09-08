@@ -1,5 +1,5 @@
 import type { JSX } from "solid-js";
-import { legal, auth, sqlConsole, board, setupAccount } from "../../../config";
+import { legal, auth, sqlConsole, board, setupAccount, content } from "../../../config";
 import { currentDarkMode, currentPath, currentScope, currentUser, hasRole, PAGES } from "../../../lib";
 
 /**
@@ -150,6 +150,7 @@ export default function Layout(props: { children: JSX.Element }) {
   const managementUser = hasRole(user, "management", auth);
   const adminUser = hasRole(user, "admin", auth);
   const boardUser = hasRole(user, "board", auth);
+  const editorUser = hasRole(user, "editor", auth);
   // Not a role: since the ladder went, being in one data group is enough to have
   // measurements worth showing. The scope is worked out once per request in
   // index.ts, because rendering cannot query for it.
@@ -202,7 +203,7 @@ export default function Layout(props: { children: JSX.Element }) {
     // The change log is deliberately absent: it needs the data role, and it is
     // already a card on the "Daten verwalten" hub, where that condition is
     // checked. One way in is enough.
-    ...(dataUser || managementUser || boardUser || adminUser
+    ...(dataUser || managementUser || boardUser || adminUser || editorUser
       ? [
           {
             label: "Verwaltung",
@@ -219,6 +220,11 @@ export default function Layout(props: { children: JSX.Element }) {
               ...(adminUser || (Array.isArray(scope) && scope.length > 0)
                 ? [PAGES.tokens]
                 : []),
+              // Editors hold nothing else, so without this condition in the
+              // gate above they would see no "Verwaltung" at all and could not
+              // reach the one page they exist for. `editorUser` is already true
+              // for administrators - hasRole says so - so no second term here.
+              ...(editorUser ? [PAGES.workshopManage] : []),
             ],
           },
         ]
@@ -228,6 +234,14 @@ export default function Layout(props: { children: JSX.Element }) {
     // leave the difference to be guessed.
     ...(adminUser
       ? [{ label: "System", items: [PAGES.groups, PAGES.config] }]
+      : []),
+    // Its own tab, at the request of whoever runs the workshops - and unlike
+    // the dashboard above it is meant to grow: further material gets further
+    // entries here rather than a second section. Bound to the content the way
+    // the legal links in the footer are, so a deployment that runs no workshop
+    // shows no empty tab.
+    ...(content.workshop
+      ? [{ label: "Downloads", items: [PAGES.workshop] }]
       : []),
     { label: "Anleitungen", items: [PAGES.guideEsp32] },
     {

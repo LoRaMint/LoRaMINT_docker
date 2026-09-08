@@ -8,6 +8,7 @@ const ROLES: RoleConfig = {
   managementGroup: "loramint-verwalten",
   adminGroup: "loramint-admins",
   boardGroup: "loramint-board",
+  editorGroup: "loramint-editor",
 };
 
 const user = (groups: string[]): SessionUser => ({
@@ -96,7 +97,13 @@ describe("was nicht zur Datengruppe erklärt werden darf", () => {
    * match nothing rather than compare equal to something.
    */
   test("nicht konfigurierte Rollengruppen blockieren nichts", () => {
-    const none = { dataGroup: null, managementGroup: null, adminGroup: null, boardGroup: null };
+    const none = {
+      dataGroup: null,
+      managementGroup: null,
+      adminGroup: null,
+      boardGroup: null,
+      editorGroup: null,
+    };
     expect(isRoleGroup("klasse-8b", none)).toBe(false);
     expect(isRoleGroup("", none)).toBe(false);
   });

@@ -132,4 +132,16 @@
   --shadow-raised: 0 4px 12px rgb(20 60 85 / 0.16);
 }
 
+/*
+ * Where Tailwind looks for class names. `frontend` is the obvious half;
+ * `lib` is there because lib/markdown.ts produces markup as a string - the
+ * rendered Impressum, the workshop page - and its classes are real classes that
+ * have to exist in the stylesheet.
+ *
+ * Without this line they only survived by accident: `list-disc` reached the
+ * build because the ESP32 guide happens to use it too, so the Impressum's lists
+ * were styled by a coincidence in an unrelated file. Anything markdown.ts used
+ * on its own was silently unstyled.
+ */
 @source "../../frontend";
+@source "../../lib";

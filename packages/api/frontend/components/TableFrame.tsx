@@ -1,4 +1,5 @@
 import type { JSX } from "solid-js";
+import { TABLE_CLASS, TABLE_FRAME_CLASS } from "../../lib/table-style";
 
 /**
  * A table in the bordered, side-scrollable box this application shows tables in.
@@ -24,19 +25,16 @@ export default function TableFrame(props: {
   children: JSX.Element;
 }) {
   return (
-    <div
-      class={`overflow-x-auto rounded-box border border-base-300 ${
-        props.class ?? ""
-      }`}
-    >
+    <div class={`${TABLE_FRAME_CLASS} ${props.class ?? ""}`}>
       {/*
         * `table-pin-rows` keeps the header where it is while the body scrolls.
         * On a measurement table twenty rows in, the column a number belongs to
         * is otherwise a guess.
+        *
+        * The classes come from lib/table-style.ts because lib/markdown.ts
+        * builds the same table as a string and the two must not drift.
         */}
-      <table class="table table-sm table-zebra table-pin-rows [&_tbody_tr:hover]:bg-primary/[.08]">
-        {props.children}
-      </table>
+      <table class={TABLE_CLASS}>{props.children}</table>
     </div>
   );
 }

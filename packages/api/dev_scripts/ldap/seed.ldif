@@ -111,9 +111,9 @@ member: uid=aschmidt,ou=people,dc=loramint,dc=test
 member: uid=nodisplay,ou=people,dc=loramint,dc=test
 member: uid=we\, ird*,ou=people,dc=loramint,dc=test
 
-# Two further groups, one member each. Nobody is in more than one, which is the
-# point: the levels form a ladder, so being in the admin group alone is enough to
-# reach management and reading as well.
+# Three further groups, one member each. Nobody is in more than one, and that is
+# the point: the roles are *not* a ladder. Only admin contains the others, so
+# mruf reaches everything while aschmidt reaches devices and nothing else.
 dn: cn=loramint-admin,ou=groups,dc=loramint,dc=test
 objectClass: groupOfNames
 cn: loramint-admin
@@ -123,8 +123,18 @@ member: uid=mruf,ou=people,dc=loramint,dc=test
 dn: cn=loramint-management,ou=groups,dc=loramint,dc=test
 objectClass: groupOfNames
 cn: loramint-management
-description: May open the Verwaltung section, and everything below it
+description: May register and rename devices
 member: uid=aschmidt,ou=people,dc=loramint,dc=test
+
+# nodisplay holds the editor role and nothing else, which is the case worth being
+# able to try: somebody who may publish the workshop page but may not touch a
+# measurement, a device or the configuration. The Verwaltung menu has to appear
+# for them all the same, or they cannot reach their own page.
+dn: cn=loramint-editor,ou=groups,dc=loramint,dc=test
+objectClass: groupOfNames
+cn: loramint-editor
+description: May write the workshop page and look after its files
+member: uid=nodisplay,ou=people,dc=loramint,dc=test
 
 # Two groups that are *not* role groups: they say which data something is about,
 # not what anybody may do. The application only treats them as data groups once
