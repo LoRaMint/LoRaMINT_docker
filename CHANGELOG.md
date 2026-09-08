@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.14.0] - 2026-09-08
+
+### Beim Aktualisieren
+
+**Ein zweites Volume.** Die Dateien der Workshop-Seite liegen im Dateisystem,
+nicht in der Datenbank. `compose.prod.yml` bringt das Volume mit; wer mit einer
+eigenen Compose-Datei deployt, muss `uploads:/usr/src/app/uploads` dort
+ergänzen. **Fehlt es, landet alles Hochgeladene in der Schreibschicht des
+Containers** — es funktioniert, es sieht richtig aus, und beim nächsten
+`docker compose up -d` ist es weg.
+
+Dasselbe Volume ist ab jetzt der einzige Zustand außerhalb von Postgres und
+gehört damit in die Sicherung. Eine Sicherung, die nur `pg_dump` umfasst, stellt
+den Text mit allen Verweisen wieder her und keine der Dateien, auf die er zeigt.
+`packages/api/README.md` §1.3 nennt beide Volumes und die Befehle.
+
 ### Added
 
 - **Eine Workshop-Seite, im Browser geschrieben.** Unter `Downloads → Workshop`
@@ -29,6 +45,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Reihenfolge, die seine Sicherheit trägt, bleibt unverändert: erst maskieren,
   dann Markup erzeugen. Bilder nehmen nur lokale Pfade — ein fremd gehostetes
   Bild schickte die IP jedes Besuchers zu einem Dritten.
+
+- **Ein Hinweis beim Start**, wenn in das Upload-Verzeichnis nicht geschrieben
+  werden kann — mit dem `chown`-Befehl, der es richtet. Er warnt und wirft
+  nicht: Die Workshop-Seite ist ein Nebenzweig, ein Rechteproblem dort darf die
+  Messwerterfassung nicht anhalten.
+
+### Changed
+
+- **Der Server nimmt keine Anfragen über 21 MB mehr an.** Bisher galt Buns
+  Vorgabe von 128 MB, während die Upload-Grenze bei 20 lag: Eine Anfrage ohne
+  `Content-Length` — Chunked Transfer-Encoding — überging die Prüfung vor dem
+  Parsen, und der ganze Rumpf war gepuffert, bevor die zweite Prüfung ihn sehen
+  konnte. Die Grenze leitet sich jetzt aus `UPLOAD_MAX_BYTES` ab. Uplinks des
+  Webhooks sind um Größenordnungen kleiner und davon nicht berührt.
+
+- **CI prüft zwei Dinge, die es schon gab und die nie liefen.** Die
+  Designprüfung (`guidelines/design/pruefung.ts`) läuft nach dem Typecheck, und
+  das Image wird im Pull Request gebaut. Bisher lief `docker build` zum ersten
+  Mal beim Veröffentlichen — also *nachdem* der Tag existierte, obwohl das CSS
+  und die Islands ausschließlich dort gebaut werden.
 
 ### Fixed
 
@@ -1434,7 +1470,8 @@ reach its own configuration, and the ones the security model rests on.
 
 Releases up to and including [0.1.8] (2026-05-12) predate this changelog.
 
-[Unreleased]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.13.3...HEAD
+[Unreleased]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.14.0...HEAD
+[1.14.0]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.13.3...v1.14.0
 [1.13.3]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.13.2...v1.13.3
 [1.13.2]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.13.1...v1.13.2
 [1.13.1]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.13.0...v1.13.1
