@@ -161,6 +161,46 @@ export const sanitizeFileName = (raw: string): { name: string } | { error: strin
 };
 
 /**
+ * How long a note beside a download may be.
+ *
+ * Two lines in the table, roughly. The field is for where a file came from and
+ * what to know before opening it - a link to the source, a version, a warning
+ * that the sketch needs a certain library. Anything longer belongs in the
+ * workshop text, which is a page and can be structured.
+ */
+export const MAX_NOTE_LENGTH = 300;
+
+/**
+ * A note as it was typed, reduced to the one line that is stored.
+ *
+ * Line breaks become spaces rather than being refused. The note is rendered as
+ * one line of inline markdown, so a break would silently do nothing - turning it
+ * into a space is what somebody pasting two sentences meant anyway, and it keeps
+ * the storage format a single line per file.
+ *
+ * An empty note is not an error: it is how a note is removed, and the caller
+ * gets `""` rather than a special case to remember.
+ */
+export const sanitizeNote = (raw: string): { note: string } | { error: string } => {
+  const note = raw
+    .normalize("NFC")
+    // eslint-disable-next-line no-control-regex
+    .replace(/[\u0000-\u001f\u007f]/g, " ")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+
+  if (note.length > MAX_NOTE_LENGTH) {
+    return {
+      error:
+        `Der Hinweis ist zu lang: ${note.length} Zeichen, erlaubt sind ` +
+        `${MAX_NOTE_LENGTH}. Was mehr Platz braucht, gehört in den Workshop-Text.`,
+    };
+  }
+
+  return { note };
+};
+
+/**
  * The first free name of the form `bild.png`, `bild-2.png`, `bild-3.png`.
  *
  * Used to *suggest* a name, not to pick one behind somebody's back: the file

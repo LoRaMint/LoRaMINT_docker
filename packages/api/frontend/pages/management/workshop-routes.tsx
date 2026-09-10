@@ -3,7 +3,13 @@ import { ssr } from "../../../config/ssr";
 import { currentUser, PAGES } from "../../../lib";
 import { content, uploads } from "../../../config";
 import { saveSetting } from "../../../services/settings";
-import { deleteFile, listFiles, setHidden, storeFile } from "../../../services/uploads";
+import {
+  deleteFile,
+  listFiles,
+  setHidden,
+  setNote,
+  storeFile,
+} from "../../../services/uploads";
 import WorkshopManagePage from "./workshop-page";
 
 /**
@@ -138,6 +144,23 @@ export const registerWorkshopRoutes = (
     return c.redirect(
       result.ok
         ? back({ msg: hidden ? "hidden" : "shown" })
+        : back({ error: result.error }),
+      303,
+    );
+  });
+
+  /**
+   * The note beside a download. An empty field removes it, which is why the
+   * outcome is two different codes: "gespeichert" for a sentence nobody typed
+   * would be a lie, and silence would leave somebody wondering.
+   */
+  pages.post(`${PATH}/note`, guards.requireEditor, guards.sameOrigin, async (c) => {
+    const form = await c.req.parseBody();
+    const note = text(form, "note").trim();
+    const result = await setNote(text(form, "name"), note);
+    return c.redirect(
+      result.ok
+        ? back({ msg: note.length > 0 ? "noted" : "unnoted" })
         : back({ error: result.error }),
       303,
     );

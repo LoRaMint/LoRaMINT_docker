@@ -4,7 +4,9 @@ import {
   extensionOf,
   formatBytes,
   isSafeStoredName,
+  MAX_NOTE_LENGTH,
   sanitizeFileName,
+  sanitizeNote,
   typeOf,
   uniqueName,
 } from "./uploads";
@@ -189,5 +191,39 @@ describe("Grössen", () => {
 
   test("das Dezimaltrennzeichen ist ein Komma", () => {
     expect(formatBytes(1_500_000).wert).toBe("1,5");
+  });
+});
+
+describe("sanitizeNote", () => {
+  /** Convenience: the note, or null when it was refused. */
+  const note = (raw: string) => {
+    const result = sanitizeNote(raw);
+    return "error" in result ? null : result.note;
+  };
+
+  test("macht aus dem Getippten eine Zeile", () => {
+    expect(note("  Quelle:\n  Adafruit   Beispiel ")).toBe("Quelle: Adafruit Beispiel");
+  });
+
+  test("Steuerzeichen werden zu Leerzeichen, nicht in die Zeile getragen", () => {
+    expect(note("a\u0000b\u001fc")).toBe("a b c");
+  });
+
+  test("leer ist kein Fehler, sondern das Entfernen", () => {
+    expect(note("")).toBe("");
+    expect(note("   \n  ")).toBe("");
+  });
+
+  test("die Grenze gilt für das, was übrig bleibt", () => {
+    // Genau an der Grenze geht durch; die Leerzeichen davor zählen nicht mit,
+    // weil sie beim Speichern ohnehin verschwinden.
+    expect(note(`  ${"x".repeat(MAX_NOTE_LENGTH)}  `)).toHaveLength(MAX_NOTE_LENGTH);
+    expect(note("x".repeat(MAX_NOTE_LENGTH + 1))).toBeNull();
+  });
+
+  test("die Absage nennt beide Zahlen", () => {
+    const result = sanitizeNote("x".repeat(400));
+    expect("error" in result && result.error).toContain("400");
+    expect("error" in result && result.error).toContain(String(MAX_NOTE_LENGTH));
   });
 });

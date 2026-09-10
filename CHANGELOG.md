@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Ein Hinweisfeld an jedem Download.** Ein Dateiname sagt für sich genommen
+  fast nichts, und wer auf der Downloads-Seite steht, hat den Workshop-Text
+  nicht neben sich. Jede Datei kann jetzt eine Zeile daneben tragen: die Quelle
+  des Codes, die Bibliothek, die der Sketch braucht, wofür die Vorlage gedacht
+  ist. Gepflegt wird sie unter `Verwaltung → Workshop verwalten` unter der
+  jeweiligen Datei; ein leeres Feld entfernt den Hinweis wieder.
+
+  Der Hinweis nimmt dieselbe Auszeichnung wie der Workshop-Text, aber nur in
+  ihrer einzeiligen Form: `[Quelle](https://…)` wird ein Link, Backticks werden
+  Code, Überschriften und Absätze gibt es hier nicht — in einer Tabellenzelle
+  wären sie keine Hilfe. Höchstens 300 Zeichen; was mehr braucht, gehört in den
+  Workshop-Text.
+
+  Gespeichert wird der Hinweis in `.notes` neben den Dateien, aus demselben
+  Grund wie `.hidden`: er beschreibt eine Datei und muss mit ihr zusammen
+  gesichert und zurückgespielt werden. In der Datenbank überlebte er eine
+  Wiederherstellung, die die Datei nicht überlebt hat. Mit der Datei geht
+  deshalb auch ihr Hinweis — anders als die Markierung „ausgeblendet", die an
+  einem Namen hängt und bleibt.
+
 ## [1.15.0] - 2026-09-10
 
 ### Added

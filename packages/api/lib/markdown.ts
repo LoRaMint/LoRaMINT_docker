@@ -372,6 +372,22 @@ const prosaBlocks = (text: string): string =>
     .join("\n");
 
 /**
+ * Renders one line: links, code spans, bold, italic - and nothing that is a
+ * block.
+ *
+ * For the places where a sentence sits inside something already laid out, like
+ * the note beside a download in a table cell. `renderMarkdown` would wrap it in
+ * a `<p>` and could turn a stray `#` into a heading; here a line break is a
+ * space, because the caller has room for one line and got one.
+ *
+ * The same inline pass as in prose, so `[Quelle](https://…)` behaves the same
+ * way in both places - external links get their `rel`, unsafe schemes stay
+ * text, and a mail address still leaves in two halves.
+ */
+export const renderInlineMarkdown = (source: string): string =>
+  inline(escapeHtml(source.replace(/\s+/g, " ").trim()));
+
+/**
  * Renders the subset to HTML.
  *
  * Blocks are separated by a blank line, which is the one structural rule

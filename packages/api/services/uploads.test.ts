@@ -8,7 +8,7 @@ import { join } from "node:path";
 // which is why the import below is dynamic. A static one would be hoisted above
 // this line and the assignment would come too late.
 process.env.TTN_APP_KEY ??= "integration-test";
-const { listFiles, listVisibleFiles, storeFile, deleteFile, setHidden } =
+const { listFiles, listVisibleFiles, storeFile, deleteFile, setHidden, setNote } =
   await import("./uploads");
 
 /*
@@ -180,5 +180,74 @@ describe("löschen", () => {
     const result = await deleteFile("../../etc/passwd");
     expect(result.ok).toBe(false);
     expect("error" in result && result.error).toContain("gibt es hier nicht");
+  });
+});
+
+describe("Hinweise", () => {
+  test("ein Hinweis steht danach an der Datei", async () => {
+    await storeFile(datei("blatt.pdf"), { replace: false });
+    const result = await setNote("blatt.pdf", "Quelle: [Adafruit](https://adafruit.com)");
+
+    expect(result.ok).toBe(true);
+    const [file] = await listFiles();
+    expect(file?.note).toBe("Quelle: [Adafruit](https://adafruit.com)");
+  });
+
+  test("ohne Hinweis ist das Feld leer, nicht undefined", async () => {
+    await storeFile(datei("blatt.pdf"), { replace: false });
+    const [file] = await listFiles();
+    expect(file?.note).toBe("");
+  });
+
+  test("Zeilenumbrüche werden zu Leerzeichen, damit eine Zeile eine Zeile bleibt", async () => {
+    await storeFile(datei("blatt.pdf"), { replace: false });
+    await setNote("blatt.pdf", "  erste Zeile\n\nzweite   Zeile  ");
+
+    const [file] = await listFiles();
+    expect(file?.note).toBe("erste Zeile zweite Zeile");
+  });
+
+  test("ein leerer Hinweis entfernt ihn", async () => {
+    await storeFile(datei("blatt.pdf"), { replace: false });
+    await setNote("blatt.pdf", "steht hier");
+    await setNote("blatt.pdf", "   ");
+
+    const [file] = await listFiles();
+    expect(file?.note).toBe("");
+  });
+
+  test("ein zu langer Hinweis wird abgelehnt und ändert nichts", async () => {
+    await storeFile(datei("blatt.pdf"), { replace: false });
+    await setNote("blatt.pdf", "kurz");
+    const result = await setNote("blatt.pdf", "x".repeat(301));
+
+    expect(result.ok).toBe(false);
+    const [file] = await listFiles();
+    expect(file?.note).toBe("kurz");
+  });
+
+  test("zu einer Datei, die es nicht gibt, lässt sich nichts notieren", async () => {
+    // Sonst läge der Satz für immer in .notes und hinge sich an die nächste
+    // Datei, die zufällig so heisst.
+    const result = await setNote("gibtsnicht.pdf", "irgendwas");
+    expect(result.ok).toBe(false);
+  });
+
+  test("mit der Datei geht auch ihr Hinweis", async () => {
+    await storeFile(datei("blatt.pdf"), { replace: false });
+    await setNote("blatt.pdf", "Quelle von irgendwo");
+    await deleteFile("blatt.pdf");
+    await storeFile(datei("blatt.pdf"), { replace: false });
+
+    const [file] = await listFiles();
+    expect(file?.note).toBe("");
+  });
+
+  test("die Ablage ist keine Datei, die selbst gelistet oder ausgeliefert wird", async () => {
+    await storeFile(datei("blatt.pdf"), { replace: false });
+    await setNote("blatt.pdf", "steht hier");
+
+    expect(await readdir(dir)).toContain(".notes");
+    expect((await listFiles()).map((f) => f.name)).toEqual(["blatt.pdf"]);
   });
 });

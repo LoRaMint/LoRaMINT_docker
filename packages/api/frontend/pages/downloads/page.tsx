@@ -5,6 +5,7 @@ import TableFrame, { EmptyRow } from "../../components/TableFrame";
 import { DownloadIcon } from "../../components/icons";
 import { PAGES } from "../../../lib";
 import { formatBytes } from "../../../lib/uploads";
+import { renderInlineMarkdown } from "../../../lib/markdown";
 import type { StoredFile } from "../../../services/uploads";
 
 /**
@@ -15,6 +16,13 @@ import type { StoredFile } from "../../../services/uploads";
  * something to fetch - and because the files were unreachable through any page
  * while the workshop text was empty, although they were being served the whole
  * time.
+ *
+ * Each row may carry a note - where the file came from, which library the
+ * sketch needs, why there are two versions of it. A file name says almost
+ * nothing on its own, and the workshop text is not where somebody looking for a
+ * download is standing. `innerHTML` is safe for the same reason it is on the
+ * workshop page: the text is escaped first and only the inline subset is put
+ * back, and only an editor can write one.
  *
  * The rows are `listVisibleFiles()`, so a hidden file does not appear here.
  * That is a decision about the listing and **not** about access: a hidden file
@@ -63,7 +71,15 @@ const DownloadsPage = (props: { files: StoredFile[] }) => {
               const size = formatBytes(file.bytes);
               return (
                 <tr>
-                  <td class="font-mono text-sm">{file.name}</td>
+                  <td>
+                    <div class="font-mono text-sm">{file.name}</div>
+                    {file.note && (
+                      <div
+                        class="text-sm text-base-content/70 mt-1 max-w-[55ch]"
+                        innerHTML={renderInlineMarkdown(file.note)}
+                      />
+                    )}
+                  </td>
                   <td class="text-right tabular-nums">{size.wert}</td>
                   <td class="text-base-content/70">{size.einheit}</td>
                   <td class="text-sm">

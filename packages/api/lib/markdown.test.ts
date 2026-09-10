@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { renderMarkdown } from "./markdown";
+import { renderInlineMarkdown, renderMarkdown } from "./markdown";
 
 describe("nichts Fremdes kommt durch", () => {
   /**
@@ -395,5 +395,34 @@ describe("Links, die keine internen sind", () => {
     const html = renderMarkdown("[x](//fremd.example/x)");
     expect(html).not.toContain("<a ");
     expect(html).toContain("[x]");
+  });
+});
+
+describe("renderInlineMarkdown", () => {
+  test("macht einen Link, aber keinen Absatz", () => {
+    const html = renderInlineMarkdown("Quelle: [Adafruit](https://adafruit.com)");
+    expect(html).toContain('href="https://adafruit.com"');
+    expect(html).toContain('rel="noopener noreferrer"');
+    expect(html).not.toContain("<p>");
+  });
+
+  test("escapt, was hineingeschrieben wurde", () => {
+    expect(renderInlineMarkdown("<script>alert(1)</script>")).not.toContain("<script>");
+  });
+
+  test("ein Schema, das kein Link sein darf, bleibt Text", () => {
+    const html = renderInlineMarkdown("[klick](javascript:alert(1))");
+    expect(html).not.toContain("<a ");
+  });
+
+  test("eine Überschrift ist hier keine, denn es gibt keine Blöcke", () => {
+    // Der Unterschied zu renderMarkdown, und der Grund für die zweite Funktion:
+    // in einer Tabellenzelle ist eine Überschrift kein Hinweis mehr.
+    expect(renderInlineMarkdown("# kein Titel")).toBe("# kein Titel");
+    expect(renderMarkdown("# kein Titel")).toContain("<h2");
+  });
+
+  test("ein Umbruch wird zum Leerzeichen statt zum Zeilenende", () => {
+    expect(renderInlineMarkdown("erste\nzweite")).toBe("erste zweite");
   });
 });

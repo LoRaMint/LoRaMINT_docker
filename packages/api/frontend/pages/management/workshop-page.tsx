@@ -6,7 +6,12 @@ import LocalTime from "../../components/LocalTime";
 import TableFrame, { EmptyRow } from "../../components/TableFrame";
 import { DownloadIcon, EyeIcon, EyeOffIcon, TrashIcon } from "../../components/icons";
 import { PAGES } from "../../../lib";
-import { ALLOWED_EXTENSIONS, formatBytes, typeOf } from "../../../lib/uploads";
+import {
+  ALLOWED_EXTENSIONS,
+  formatBytes,
+  MAX_NOTE_LENGTH,
+  typeOf,
+} from "../../../lib/uploads";
 import { renderMarkdown } from "../../../lib/markdown";
 import type { StoredFile } from "../../../services/uploads";
 
@@ -35,6 +40,8 @@ const MESSAGES: Record<string, { tone: "success" | "error"; text: string }> = {
   deleted: { tone: "success", text: "Die Datei wurde gelöscht." },
   hidden: { tone: "success", text: "Die Datei erscheint nicht mehr in der Liste." },
   shown: { tone: "success", text: "Die Datei erscheint wieder in der Liste." },
+  noted: { tone: "success", text: "Der Hinweis wurde gespeichert." },
+  unnoted: { tone: "success", text: "Der Hinweis wurde entfernt." },
 };
 
 /**
@@ -194,6 +201,12 @@ const WorkshopManagePage = (props: {
         lässt sich eine Datei trotzdem im Text verlinken.
       </p>
       <p class="text-sm text-base-content/70 mb-2 max-w-[65ch]">
+        Der <strong>Hinweis</strong> unter jeder Datei steht auf der
+        Downloads-Seite dabei — die Quelle eines Programms etwa, die nötige
+        Bibliothek oder wofür die Vorlage gedacht ist. Ein Link wird wie im Text
+        geschrieben: <code>[Quelle](https://…)</code>. Leer lassen entfernt ihn.
+      </p>
+      <p class="text-sm text-base-content/70 mb-2 max-w-[65ch]">
         <strong>Ausgeblendet</strong> heisst: erscheint nicht in der Liste auf der
         öffentlichen Seite. Erreichbar bleibt die Datei — das ist für Bilder
         gedacht, die im Text stehen und darunter nicht noch einmal als Download
@@ -224,7 +237,7 @@ const WorkshopManagePage = (props: {
           ) : (
             props.files.map((file) => {
               const size = formatBytes(file.bytes);
-              return (
+              return [
                 <tr>
                   <td class="font-mono text-sm">{file.name}</td>
                   <td class="text-right tabular-nums">{size.wert}</td>
@@ -284,8 +297,44 @@ const WorkshopManagePage = (props: {
                       </form>
                     </div>
                   </td>
-                </tr>
-              );
+                </tr>,
+                /*
+                  * The note gets a row of its own rather than an eighth column.
+                  * A text field wide enough to read what is in it would squeeze
+                  * every other column; under the row it has the whole width and
+                  * still belongs visibly to the file above it.
+                  */
+                <tr>
+                  <td colspan={7} class="pt-0">
+                    <form
+                      method="post"
+                      action={`${PATH}/note`}
+                      class="flex flex-wrap gap-2 items-center"
+                    >
+                      <input type="hidden" name="name" value={file.name} />
+                      <label
+                        class="text-sm text-base-content/70"
+                        for={`note-${file.name}`}
+                      >
+                        Hinweis
+                      </label>
+                      <input
+                        id={`note-${file.name}`}
+                        type="text"
+                        name="note"
+                        value={file.note}
+                        maxlength={MAX_NOTE_LENGTH}
+                        placeholder="z. B. Quelle: [Adafruit](https://…)"
+                        autocomplete="off"
+                        class="input input-sm flex-1 min-w-64"
+                      />
+                      <button type="submit" class="btn btn-sm btn-outline">
+                        merken
+                      </button>
+                    </form>
+                  </td>
+                </tr>,
+              ];
             })
           )}
         </tbody>

@@ -1,5 +1,5 @@
 /**
- * The files offered on the workshop page: listing, storing, hiding, removing.
+ * The files offered for download: listing, storing, hiding, annotating, removing.
  *
  * **The directory is the truth.** There is no table of file metadata, and that
  * is a decision rather than an omission. Name, size and date come from `readdir`
@@ -8,10 +8,10 @@
  * the two drifting apart would not be a rare race but the expected result of the
  * first restore.
  *
- * The same reasoning puts the one piece of state that is not in the files
- * themselves - which of them are hidden - into a file beside them rather than
- * into the database. `.hidden` travels with the volume, so it cannot describe a
- * set of files that is no longer there.
+ * The same reasoning puts the state that is not in the files themselves - which
+ * of them are hidden, and the note beside each - into files beside them rather
+ * than into the database. `.hidden` and `.notes` travel with the volume, so
+ * neither can describe a set of files that is no longer there.
  *
  * **Hidden means unlisted, not unreachable.** A picture embedded in the page
  * should not also appear as a row in the download table, but its URL has to keep
@@ -31,6 +31,7 @@ import { uploads } from "../config";
 import {
   isSafeStoredName,
   sanitizeFileName,
+  sanitizeNote,
   typeOf,
   uniqueName,
 } from "../lib/uploads";
@@ -41,6 +42,8 @@ export type StoredFile = {
   changed: Date;
   /** Not listed on the public page. Still reachable under its address. */
   hidden: boolean;
+  /** One line beside the download - where it came from, what to know. */
+  note: string;
 };
 
 export type UploadResult =
@@ -49,6 +52,14 @@ export type UploadResult =
 
 /** Where the bookkeeping of hidden names lives. Never listed, never served. */
 const HIDDEN_FILE = ".hidden";
+
+/**
+ * Where the notes live. Beside the files for the same reason `.hidden` is: a
+ * note describes a file, and a note kept in the database would survive a
+ * restore that the file did not - leaving a sentence about a source next to
+ * nothing, or worse, next to a different file uploaded later under that name.
+ */
+const NOTES_FILE = ".notes";
 
 /** Prefix of a half-written upload. Cannot collide with a stored name. */
 const TEMP_PREFIX = ".tmp-";
@@ -87,6 +98,40 @@ const writeHidden = async (names: Set<string>): Promise<void> => {
 };
 
 /**
+ * The notes, by file name.
+ *
+ * A JSON object rather than lines, because a note contains spaces and may
+ * contain almost anything else; the name is the key and cannot be confused
+ * with the text. A file that cannot be parsed is treated as no notes at all -
+ * the alternative is a listing that fails entirely because one sentence in a
+ * side file is malformed.
+ */
+const readNotes = async (): Promise<Map<string, string>> => {
+  try {
+    const text = await readFile(join(uploads.dir, NOTES_FILE), "utf8");
+    const parsed: unknown = JSON.parse(text);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return new Map();
+    return new Map(
+      Object.entries(parsed as Record<string, unknown>).filter(
+        (entry): entry is [string, string] => typeof entry[1] === "string",
+      ),
+    );
+  } catch {
+    // No file yet, or one nobody can read. Neither is worth failing over.
+    return new Map();
+  }
+};
+
+const writeNotes = async (notes: Map<string, string>): Promise<void> => {
+  await ensureDir();
+  const sorted = [...notes.entries()].sort(([a], [b]) => a.localeCompare(b));
+  await writeFile(
+    join(uploads.dir, NOTES_FILE),
+    `${JSON.stringify(Object.fromEntries(sorted), null, 2)}\n`,
+  );
+};
+
+/**
  * Every stored file, sorted by name.
  *
  * Filtered through `isSafeStoredName`, which does two jobs at once here: it
@@ -104,7 +149,7 @@ export const listFiles = async (): Promise<StoredFile[]> => {
     return [];
   }
 
-  const hidden = await readHidden();
+  const [hidden, notes] = await Promise.all([readHidden(), readNotes()]);
   const files: StoredFile[] = [];
 
   for (const name of entries.sort()) {
@@ -113,7 +158,13 @@ export const listFiles = async (): Promise<StoredFile[]> => {
     try {
       const info = await stat(join(uploads.dir, name));
       if (!info.isFile()) continue;
-      files.push({ name, bytes: info.size, changed: info.mtime, hidden: hidden.has(name) });
+      files.push({
+        name,
+        bytes: info.size,
+        changed: info.mtime,
+        hidden: hidden.has(name),
+        note: notes.get(name) ?? "",
+      });
     } catch {
       // Vanished between readdir and stat. Leaving it out is the whole fix.
     }
@@ -191,7 +242,7 @@ export const storeFile = async (
   return { ok: true, name };
 };
 
-/** Removes a file, and the note that it was hidden. */
+/** Removes a file, the mark that it was hidden, and its note. */
 export const deleteFile = async (name: string): Promise<UploadResult> => {
   if (!isSafeStoredName(name)) {
     return { ok: false, error: "Diesen Namen gibt es hier nicht." };
@@ -205,6 +256,51 @@ export const deleteFile = async (name: string): Promise<UploadResult> => {
   const hidden = await readHidden();
   if (hidden.delete(name)) await writeHidden(hidden);
 
+  // Unlike the hidden mark, the note goes. Hiding is a decision about a name
+  // and worth keeping for a file uploaded again under it; a note is about the
+  // file itself, and a sentence naming the source of something that is gone
+  // would attach itself to whatever comes next.
+  const notes = await readNotes();
+  if (notes.delete(name)) await writeNotes(notes);
+
+  return { ok: true, name };
+};
+
+/**
+ * Writes the note beside a file, or removes it when the text is empty.
+ *
+ * The file has to exist. A note for a name nobody uploaded would sit in the
+ * side file forever, invisible, and attach itself to a later upload of that
+ * name - the one case where keeping bookkeeping around, as `.hidden` does, is
+ * wrong rather than helpful.
+ */
+export const setNote = async (
+  name: string,
+  raw: string,
+): Promise<UploadResult> => {
+  if (!isSafeStoredName(name)) {
+    return { ok: false, error: "Diesen Namen gibt es hier nicht." };
+  }
+
+  const cleaned = sanitizeNote(raw);
+  if ("error" in cleaned) return { ok: false, error: cleaned.error };
+
+  try {
+    const info = await stat(join(uploads.dir, name));
+    if (!info.isFile()) throw new Error("not a file");
+  } catch {
+    return { ok: false, error: `„${name}" gibt es nicht (mehr).` };
+  }
+
+  const notes = await readNotes();
+  if (cleaned.note.length > 0) notes.set(name, cleaned.note);
+  else notes.delete(name);
+
+  try {
+    await writeNotes(notes);
+  } catch (fehler) {
+    return { ok: false, error: `Liess sich nicht merken. (${String(fehler)})` };
+  }
   return { ok: true, name };
 };
 
