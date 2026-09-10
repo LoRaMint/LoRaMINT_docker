@@ -7,6 +7,7 @@ const islands = [
   { entry: "frontend/pages/guides/esp32/client.ts", name: "guide-esp32" },
   { entry: "frontend/pages/management/client.ts", name: "manage" },
   { entry: "frontend/pages/management/config-client.ts", name: "config" },
+  { entry: "frontend/pages/management/workshop-client.ts", name: "workshop" },
 ];
 
 for (const { entry, name } of islands) {

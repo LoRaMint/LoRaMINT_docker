@@ -10,6 +10,7 @@ import {
   ALLOWED_EXTENSIONS,
   formatBytes,
   MAX_NOTE_LENGTH,
+  MAX_UPLOAD_FILES,
   typeOf,
 } from "../../../lib/uploads";
 import { renderMarkdown } from "../../../lib/markdown";
@@ -37,6 +38,7 @@ const MESSAGES: Record<string, { tone: "success" | "error"; text: string }> = {
   saved: { tone: "success", text: "Der Text wurde gespeichert." },
   nochange: { tone: "success", text: "Der Text war schon so gespeichert." },
   uploaded: { tone: "success", text: "Die Datei wurde hochgeladen." },
+  uploadedmany: { tone: "success", text: "Die Dateien wurden hochgeladen." },
   deleted: { tone: "success", text: "Die Datei wurde gelöscht." },
   hidden: { tone: "success", text: "Die Datei erscheint nicht mehr in der Liste." },
   shown: { tone: "success", text: "Die Datei erscheint wieder in der Liste." },
@@ -154,25 +156,43 @@ const WorkshopManagePage = (props: {
       )}
 
       {/* ---- Hochladen ---- */}
-      <SectionHeading>Datei hinzufügen</SectionHeading>
+      <SectionHeading>Dateien hinzufügen</SectionHeading>
       <form
         method="post"
         action={`${PATH}/upload`}
         enctype="multipart/form-data"
         class="mb-4"
       >
-        <label class="block mb-2">
-          <span class="block text-sm mb-1">
-            Datei <span class="text-base-content/70">(Pflichtfeld)</span>
-          </span>
-          <input
-            type="file"
-            name="file"
-            required
-            accept={ALLOWED_EXTENSIONS.map((e) => `.${e}`).join(",")}
-            class="file-input file-input-sm w-full max-w-md"
-          />
-        </label>
+        {/*
+          * The box is a box even without JavaScript: it holds the field, and
+          * the field takes several files on its own. The invitation to drag
+          * and the list of what was dropped are `hidden` here and revealed by
+          * the island, so the page never promises what the browser will not do.
+          */}
+        <div
+          data-dropzone
+          class="rounded-box border border-dashed border-base-300 p-4 mb-3 max-w-2xl transition-colors"
+        >
+          <label class="block">
+            <span class="block text-sm mb-1">
+              Dateien <span class="text-base-content/70">(Pflichtfeld)</span>
+            </span>
+            <input
+              type="file"
+              name="file"
+              multiple
+              required
+              accept={ALLOWED_EXTENSIONS.map((e) => `.${e}`).join(",")}
+              class="file-input file-input-sm w-full max-w-md"
+            />
+          </label>
+
+          <p data-dropzone-hint hidden class="text-sm text-base-content/70 mt-2">
+            … oder mehrere Dateien hierher ziehen.
+          </p>
+
+          <ul data-dropzone-list class="text-sm grid gap-1 mt-2" />
+        </div>
 
         <label class="flex items-center gap-2 mb-2 text-sm">
           <input type="checkbox" name="replace" value="1" class="checkbox checkbox-sm" />
@@ -180,9 +200,11 @@ const WorkshopManagePage = (props: {
         </label>
 
         <p class="text-sm text-base-content/70 mb-2 max-w-[65ch]">
-          Höchstens {maxMB} MB. Erlaubt sind: {ALLOWED_EXTENSIONS.join(", ")}.
-          Der Name wird kleingeschrieben und von Sonderzeichen befreit, weil er
-          Teil der Adresse wird.
+          Höchstens {MAX_UPLOAD_FILES} Dateien auf einmal, jede bis {maxMB} MB.
+          Erlaubt sind: {ALLOWED_EXTENSIONS.join(", ")}. Der Name wird
+          kleingeschrieben und von Sonderzeichen befreit, weil er Teil der
+          Adresse wird. Jede Datei wird für sich beurteilt – eine abgelehnte
+          hält die anderen nicht auf.
         </p>
 
         <button type="submit" class="btn btn-outline btn-primary">
@@ -339,6 +361,7 @@ const WorkshopManagePage = (props: {
           )}
         </tbody>
       </TableFrame>
+      <script type="module" src="/public/workshop.js"></script>
     </Layout>
   );
 };

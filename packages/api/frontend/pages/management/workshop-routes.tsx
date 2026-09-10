@@ -2,6 +2,7 @@ import type { Hono, MiddlewareHandler } from "hono";
 import { ssr } from "../../../config/ssr";
 import { currentUser, PAGES } from "../../../lib";
 import { content, uploads } from "../../../config";
+import { MAX_UPLOAD_FILES } from "../../../lib/uploads";
 import { saveSetting } from "../../../services/settings";
 import {
   deleteFile,
@@ -105,55 +106,90 @@ export const registerWorkshopRoutes = (
     }),
   );
 
+  /**
+   * Uploading. One file or twenty - the form allows several, and each is judged
+   * on its own: a name that is already taken does not stop the rest, it is
+   * named in the message afterwards. Anything else would make a batch of ten an
+   * all-or-nothing affair over a single duplicate.
+   */
   pages.post(`${PATH}/upload`, guards.requireEditor, guards.sameOrigin, async (c) => {
     /*
      * The size is checked before the body is parsed, because parsing buffers all
      * of it: `parseBody` on a two-gigabyte upload has already cost the memory by
      * the time anything can look at the file. Content-Length is a hint - chunked
-     * requests send none - so `storeFile` checks the real size afterwards. This
-     * is the only limit that exists: Traefik imposes none by default and Bun's
-     * own ceiling is far above anything meant here.
+     * requests send none - so `storeFile` checks the real size of each file
+     * afterwards. This is the only limit that exists: Traefik imposes none by
+     * default and Bun's own ceiling is far above anything meant here.
+     *
+     * The ceiling is the per-file limit times the number of files allowed,
+     * because several files legitimately add up past the single-file limit. It
+     * is a guard against an absurd body, not the check that decides a file.
      */
     const declared = Number(c.req.header("Content-Length") ?? "");
     const slack = 8 * 1024;
-    if (Number.isFinite(declared) && declared > uploads.maxBytes + slack) {
+    if (
+      Number.isFinite(declared) &&
+      declared > uploads.maxBytes * MAX_UPLOAD_FILES + slack
+    ) {
       const grenze = Math.round(uploads.maxBytes / 1024 / 1024);
       return c.redirect(
-        back({ error: `Die Datei ist zu gross. Erlaubt sind höchstens ${grenze} MB.` }),
+        back({
+          error:
+            `Zu viel auf einmal. Erlaubt sind höchstens ${MAX_UPLOAD_FILES} ` +
+            `Dateien mit je ${grenze} MB.`,
+        }),
         303,
       );
     }
 
-    const form = await c.req.parseBody();
-    const file = form.file;
-    if (!(file instanceof File)) {
+    // `all: true` is what turns repeated fields into an array; without it only
+    // the last file of a multiple selection would arrive.
+    const form = await c.req.parseBody({ all: true });
+    const sent = form.file;
+    const files = (Array.isArray(sent) ? sent : [sent]).filter(
+      (entry): entry is File => entry instanceof File && entry.size > 0,
+    );
+
+    if (files.length === 0) {
       return c.redirect(back({ error: "Es war keine Datei dabei." }), 303);
     }
+    if (files.length > MAX_UPLOAD_FILES) {
+      return c.redirect(
+        back({
+          error:
+            `${files.length} Dateien auf einmal sind zu viele. Erlaubt sind ` +
+            `${MAX_UPLOAD_FILES} pro Vorgang.`,
+        }),
+        303,
+      );
+    }
 
-    const result = await storeFile(file, { replace: text(form, "replace") === "1" });
-    return c.redirect(
-      result.ok ? back({ msg: "uploaded" }) : back({ error: result.error }),
-      303,
-    );
+    const replace = text(form, "replace") === "1";
+    const refused: string[] = [];
+    let stored = 0;
+
+    // In order and one after another, not in parallel: two uploads of the same
+    // name would otherwise both find it free and the second would win silently,
+    // and `uniqueName` counts against a listing that must not move underneath.
+    for (const file of files) {
+      const result = await storeFile(file, { replace });
+      if (result.ok) stored += 1;
+      else refused.push(`${file.name}: ${result.error}`);
+    }
+
+    if (refused.length === 0) {
+      return c.redirect(back({ msg: stored > 1 ? "uploadedmany" : "uploaded" }), 303);
+    }
+
+    const prefix =
+      stored > 0
+        ? `${stored} von ${files.length} Dateien hochgeladen. Nicht hochgeladen: `
+        : refused.length > 1
+          ? "Keine der Dateien wurde hochgeladen. "
+          : "";
+    return c.redirect(back({ error: prefix + refused.join(" – ") }), 303);
   });
 
-  pages.post(`${PATH}/visibility`, guards.requireEditor, guards.sameOrigin, async (c) => {
-    const form = await c.req.parseBody();
-    const hidden = text(form, "hidden") === "1";
-    const result = await setHidden(text(form, "name"), hidden);
-    return c.redirect(
-      result.ok
-        ? back({ msg: hidden ? "hidden" : "shown" })
-        : back({ error: result.error }),
-      303,
-    );
-  });
-
-  /**
-   * The note beside a download. An empty field removes it, which is why the
-   * outcome is two different codes: "gespeichert" for a sentence nobody typed
-   * would be a lie, and silence would leave somebody wondering.
-   */
   pages.post(`${PATH}/note`, guards.requireEditor, guards.sameOrigin, async (c) => {
     const form = await c.req.parseBody();
     const note = text(form, "note").trim();

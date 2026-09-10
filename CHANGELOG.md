@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Das Hochladen nahm nur eine Datei, obwohl mehrere ausgewählt werden
+  konnten.** Ein Ordner voll Arbeitsblätter bedeutete zehnmal denselben Weg.
+  Das Feld nimmt jetzt bis zu 20 Dateien pro Vorgang, und **jede wird für sich
+  beurteilt**: ein schon vergebener Name hält die übrigen nicht auf, und die
+  Rückmeldung nennt danach, wie viele ankamen und welche nicht, mit dem Grund je
+  Datei. Alles-oder-nichts über einen einzigen Namen wäre bei zehn Dateien die
+  falsche Antwort.
+
+  Die Grössengrenze je Datei bleibt unverändert. Die Vorprüfung am
+  `Content-Length` rechnet jetzt mit der Zahl erlaubter Dateien mal dieser
+  Grenze: mehrere Dateien summieren sich zu Recht darüber hinaus, und die
+  Prüfung ist ein Schutz gegen einen absurden Rumpf, nicht die Entscheidung über
+  eine Datei.
+
+### Added
+- **Ein Feld, auf das sich Dateien ziehen lassen.** Das Auswahlfeld liegt jetzt
+  in einem Kasten, der Dateien auch entgegennimmt, wenn man sie darauf fallen
+  lässt. Was abgelegt wurde, steht namentlich darunter — ein Ablegen ändert am
+  Feld sonst nichts Sichtbares, und dann bliebe nur der Knopf, um es
+  herauszufinden. Ein zweiter Zug legt dazu, statt den ersten zu verwerfen.
+
+  Das Ziehen ist eine Zugabe, kein Ersatz: ohne JavaScript bleibt der Kasten ein
+  Kasten mit dem gewohnten Feld darin, das mehrere Dateien ebenfalls annimmt.
+  Deshalb steht die Einladung „… oder mehrere Dateien hierher ziehen" im Markup
+  auf `hidden` und wird erst von der Insel eingeblendet — eine Seite, die etwas
+  anbietet, was der Browser nicht tut, ist schlechter als eine, die schweigt.
+
 ## [1.15.1] - 2026-09-10
 
 ### Added

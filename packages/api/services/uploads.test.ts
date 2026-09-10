@@ -251,3 +251,30 @@ describe("Hinweise", () => {
     expect((await listFiles()).map((f) => f.name)).toEqual(["blatt.pdf"]);
   });
 });
+
+describe("mehrere auf einmal", () => {
+  test("nacheinander gespeichert landen alle, jede unter ihrem Namen", async () => {
+    for (const name of ["eins.py", "zwei.py", "drei.py"]) {
+      expect((await storeFile(datei(name), { replace: false })).ok).toBe(true);
+    }
+    expect((await listFiles()).map((f) => f.name)).toEqual([
+      "drei.py",
+      "eins.py",
+      "zwei.py",
+    ]);
+  });
+
+  test("eine abgelehnte hält die folgenden nicht auf", async () => {
+    // Was die Route zusagt: jede Datei wird für sich beurteilt. Ein einziger
+    // schon vergebener Name darf einen Stapel von zehn nicht scheitern lassen.
+    await storeFile(datei("eins.py"), { replace: false });
+
+    const results = [];
+    for (const name of ["eins.py", "zwei.py"]) {
+      results.push(await storeFile(datei(name), { replace: false }));
+    }
+
+    expect(results.map((r) => r.ok)).toEqual([false, true]);
+    expect((await listFiles()).map((f) => f.name)).toEqual(["eins.py", "zwei.py"]);
+  });
+});

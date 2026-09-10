@@ -161,6 +161,17 @@ export const sanitizeFileName = (raw: string): { name: string } | { error: strin
 };
 
 /**
+ * How many files one upload may carry.
+ *
+ * Not a matter of taste: the request body is buffered whole before anything can
+ * look at it, so the only cheap guard against an enormous upload is a ceiling on
+ * what the body may declare - and that ceiling is this number times the size
+ * limit. Twenty is well above a workshop's worth of material and still leaves
+ * the guard meaningful.
+ */
+export const MAX_UPLOAD_FILES = 20;
+
+/**
  * How long a note beside a download may be.
  *
  * Two lines in the table, roughly. The field is for where a file came from and
