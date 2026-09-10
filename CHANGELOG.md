@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **„Ausblenden" und „Einblenden" antworteten mit 404.** Beim Umbau des
+  Hochladens in 1.15.2 hat eine grossflächige Änderung die daneben stehende
+  Route `POST /management/workshop/visibility` mit verschluckt. Der Knopf blieb
+  auf der Seite, die Gegenstelle war weg — betroffen ist ausschliesslich
+  1.15.2. Die Route ist wieder da; an ihrem Verhalten ändert sich nichts.
+
+  **Damit das nicht noch einmal unbemerkt passiert**, prüft ein Test jetzt, dass
+  jede Zieladresse eines Formulars auf der Seite auch als Route angemeldet ist.
+  Weder der Typecheck noch die übrigen Tests konnten das sehen: eine
+  Formularadresse ist eine Zeichenkette, keine Referenz, und die Seite rendert
+  ohne die Gegenstelle tadellos. Gefunden wurde es dadurch, dass jemand in der
+  Produktion auf den Knopf gedrückt hat.
+
 ## [1.15.2] - 2026-09-10
 
 ### Fixed

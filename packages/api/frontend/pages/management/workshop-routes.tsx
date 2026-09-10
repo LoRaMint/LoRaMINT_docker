@@ -190,6 +190,24 @@ export const registerWorkshopRoutes = (
     return c.redirect(back({ error: prefix + refused.join(" – ") }), 303);
   });
 
+  /** Hides a file from the public list, or puts it back. */
+  pages.post(`${PATH}/visibility`, guards.requireEditor, guards.sameOrigin, async (c) => {
+    const form = await c.req.parseBody();
+    const hidden = text(form, "hidden") === "1";
+    const result = await setHidden(text(form, "name"), hidden);
+    return c.redirect(
+      result.ok
+        ? back({ msg: hidden ? "hidden" : "shown" })
+        : back({ error: result.error }),
+      303,
+    );
+  });
+
+  /**
+   * The note beside a download. An empty field removes it, which is why the
+   * outcome is two different codes: "gespeichert" for a sentence nobody typed
+   * would be a lie, and silence would leave somebody wondering.
+   */
   pages.post(`${PATH}/note`, guards.requireEditor, guards.sameOrigin, async (c) => {
     const form = await c.req.parseBody();
     const note = text(form, "note").trim();
