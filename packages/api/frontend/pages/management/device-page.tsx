@@ -29,6 +29,8 @@ export default function DevicePage(props: {
   writable: boolean;
   /** Whether this visitor may reveal the AppKey at all. */
   maySeeKey: boolean;
+  /** Whether this visitor may remove the device. Administrators, like the key. */
+  mayDelete?: boolean;
   /** Present only in the response to the reveal button. */
   appKey?: string | null;
   keyError?: string | null;
@@ -243,6 +245,56 @@ export default function DevicePage(props: {
           Zum Umbenennen fehlt die Verbindung, über die der Vorgang protokolliert
           wird (<code>DATABASE_URL_MANAGE</code>).
         </p>
+      )}
+
+      {props.mayDelete && props.writable && (
+        <>
+          <SectionHeading>Gerät entfernen</SectionHeading>
+          <p class="text-base-content/70 max-w-[65ch]">
+            Entfernt das Gerät aus allen vier Registern von The Things Network.
+            Der AppKey lässt sich danach nicht wiederherstellen – LoRaMINT
+            speichert ihn nicht, er steht nur im Join Server. Ein versehentlich
+            entferntes Gerät wird also nicht zurückgeholt, sondern neu angelegt,
+            mit neuem Schlüssel im Modul.
+          </p>
+          <p class="text-base-content/70 max-w-[65ch] mt-2">
+            Die Messwerte bleiben. Sie hängen an der DevEUI, nicht am Eintrag in
+            TTN, und stehen danach in der Übersicht als <strong>verwaist</strong>.
+          </p>
+          <form
+            method="post"
+            action={`${path}/delete`}
+            class="max-w-2xl grid gap-2 mt-4"
+          >
+            <Field
+              label="Geräte-ID"
+              hint={`Zur Bestätigung abtippen: ${device.deviceId}`}
+            >
+              <input
+                type="text"
+                name="device_id"
+                autocomplete="off"
+                class="input w-full"
+              />
+            </Field>
+            <Field
+              label="Grund"
+              hint="Steht im Geräteprotokoll, auch wenn nur ein Teil entfernt werden konnte."
+            >
+              <input
+                type="text"
+                name="reason"
+                autocomplete="off"
+                class="input w-full"
+              />
+            </Field>
+            <div>
+              <button type="submit" class="btn btn-error">
+                Gerät entfernen
+              </button>
+            </div>
+          </form>
+        </>
       )}
     </Layout>
   );

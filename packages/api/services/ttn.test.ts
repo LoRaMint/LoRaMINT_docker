@@ -398,3 +398,99 @@ describe("getDevice", () => {
     expect(result.data.frequencyPlan).toBeNull();
   });
 });
+
+describe("deleteDevice", () => {
+  /**
+   * The order is the safety rule, so it is asserted rather than assumed: the
+   * Identity Server goes last, because while its entry stands the device is
+   * still addressable and a second attempt is possible.
+   */
+  test("removes the four servers backwards, Identity Server last", async () => {
+    const result = await devices.deleteDevice("device-1");
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.data.failed).toBeNull();
+    expect(result.data.done).toEqual(["as", "ns", "js", "is"]);
+    expect(calls.map((call) => `${call.method} ${call.url}`)).toEqual([
+      `DELETE ${APP}/as/applications/loramint-test/devices/device-1`,
+      `DELETE ${APP}/ns/applications/loramint-test/devices/device-1`,
+      `DELETE ${APP}/js/applications/loramint-test/devices/device-1`,
+      `DELETE ${APP}/applications/loramint-test/devices/device-1`,
+    ]);
+  });
+
+  /**
+   * The line the whole design rests on. Without it a second run would stop at
+   * the first register the first run already removed, and the device could
+   * never be finished off.
+   */
+  test("counts a 404 as removed, so a repeat run finishes the job", async () => {
+    // As if a previous attempt had already taken the Application and Network
+    // Server, then died.
+    respond = (call) =>
+      call.url.includes("/as/") || call.url.includes("/ns/")
+        ? json({ message: "error:pkg/webui: device not found" }, 404)
+        : json({});
+
+    const result = await devices.deleteDevice("device-1");
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.data.failed).toBeNull();
+    expect(result.data.done).toEqual(["as", "ns", "js", "is"]);
+  });
+
+  /**
+   * The abort rule: a refusal stops the run, and the Identity Server is never
+   * touched - so the device stays reachable for another try.
+   */
+  test("stops at a refusal and leaves the Identity Server alone", async () => {
+    respond = (call) =>
+      call.url.includes("/js/")
+        ? json({ message: "service unavailable" }, 503)
+        : json({});
+
+    const result = await devices.deleteDevice("device-4");
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.data.done).toEqual(["as", "ns"]);
+    expect(result.data.failed).toEqual({ step: "js", error: "503: service unavailable" });
+    // The one assertion that matters: no DELETE reached the registry. Compared
+    // in full, because the Identity Server's path is the others' minus their
+    // segment - an `endsWith` would match `/as/...` just as happily.
+    expect(calls.map((call) => call.url)).not.toContain(
+      `${APP}/applications/loramint-test/devices/device-4`,
+    );
+  });
+
+  test("a failure on the first server touches nothing else", async () => {
+    respond = () => json({ message: "nope" }, 500);
+
+    const result = await devices.deleteDevice("device-1");
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.data.done).toEqual([]);
+    expect(result.data.failed?.step).toBe("as");
+    expect(calls).toHaveLength(1);
+  });
+
+  /**
+   * A timeout carries no status, and "no answer" must never be read as
+   * "already gone" - that would walk on and take the registry with it.
+   */
+  test("an unreachable server is a refusal, not a 404", async () => {
+    globalThis.fetch = (async () => {
+      throw new Error("connect ECONNREFUSED");
+    }) as unknown as typeof fetch;
+
+    const result = await devices.deleteDevice("device-1");
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.data.done).toEqual([]);
+    expect(result.data.failed?.step).toBe("as");
+  });
+});

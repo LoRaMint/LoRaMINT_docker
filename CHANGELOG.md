@@ -7,7 +7,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Geräte lassen sich entfernen, nicht nur anlegen und umbenennen.** Bisher
+  endete die Geräteverwaltung beim Umbenennen; wer ein falsch angelegtes Gerät
+  loswerden wollte, musste in die TTN-Console. Jetzt tut es dieselbe Seite, auf
+  der es angelegt wurde.
+
+  Entfernt wird **rückwärts** durch die vier Register: Application Server,
+  Network Server, Join Server, und der Identity Server zuletzt. Er kommt beim
+  Anlegen zuerst, weil die anderen drei ein Gerät ablehnen, das die Registrierung
+  nicht kennt — nähme man ihn zuerst heraus, wären die Reste nicht mehr
+  ansprechbar. Schlägt einer der ersten drei fehl, hört der Vorgang auf und der
+  Registrierungseintrag bleibt stehen. Damit gibt es keinen Zustand, aus dem man
+  nicht mehr herauskommt.
+
+  Zurückgenommen wird nichts, denn der AppKey liegt im Join Server und LoRaMINT
+  speichert ihn nie — ein einmal entferntes Gerät ist nicht wiederherstellbar,
+  nur neu anlegbar. Stattdessen ist der Vorgang **wiederholbar**: ein Register,
+  das schon weg ist, antwortet mit 404, und das zählt als erledigt. Der zweite
+  Versuch überspringt die erledigten Schritte deshalb von selbst, ohne dass
+  irgendwo ein Zwischenstand gespeichert werden müsste. Die Ergebnisseite nennt
+  alle vier Schritte einzeln und bietet im Fehlerfall genau diesen zweiten
+  Versuch an.
+
+  Vor dem Entfernen ist die Geräte-ID abzutippen und ein Grund anzugeben, wie
+  beim Umbenennen. Der Vorgang steht in jedem Fall im Geräteprotokoll, auch bei
+  halbem Erfolg, mit der Liste der entfernten Register.
+
+  **Berechtigung:** `admin`, nicht `management` — dieselbe Linie wie beim
+  Anzeigen des AppKeys, weil Anlegen und Umbenennen korrigierbar sind und
+  Entfernen nicht. Ohne `DATABASE_URL_MANAGE` wird nichts entfernt, weil sich
+  sonst nichts protokollieren liesse.
+
+  Die **Messwerte bleiben**. Sie hängen an der DevEUI, nicht am Eintrag in TTN,
+  und stehen danach in der Übersicht als „verwaist". Geräte-IDs zählen weiter
+  hoch und füllen keine Lücken: ist `device-3` entfernt, schlägt die Seite als
+  nächstes `device-5` vor.
+
 ### Changed
+- **Der Vorschlag für die nächste Geräte-ID sieht jetzt auch ins
+  Geräteprotokoll.** Er wurde bisher allein aus der TTN-Liste gezählt, und die
+  weiss nur, was *jetzt* existiert. Wird das höchste Gerät entfernt, vergisst
+  TTN seinen Namen — die nächste Registrierung hätte ihn wieder bekommen. Die
+  Messwerte hätte das nicht gestört, sie hängen an der DevEUI; das
+  Geräteprotokoll aber führte dann zwei verschiedene Geräte unter einem Namen,
+  wobei einer der Einträge vom Entfernen des anderen berichtet.
+
+  Gezählt wird jetzt aus beiden Listen: was in TTN steht und was im Protokoll je
+  vorkam, auch aus fehlgeschlagenen Versuchen. Lässt sich das Protokoll nicht
+  lesen, gibt es trotzdem einen Vorschlag — es kostet dann nur die Erinnerung an
+  entfernte Namen, und das Feld ist ohnehin frei überschreibbar.
+
 - **Workshop und Downloads sind zwei Seiten, beide unter „Anleitungen".** Die
   Workshop-Seite führte zweierlei zugleich: einen geschriebenen Text und darunter
   die Tabelle der hochgeladenen Dateien. Dazu trug sie einen eigenen Reiter, der

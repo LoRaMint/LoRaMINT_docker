@@ -15,6 +15,7 @@ import ManageDevicesPage, { type DeviceRow } from "./devices-page";
 import DeviceNewPage from "./device-new-page";
 import DeviceCreatedPage from "./device-created-page";
 import DevicePage from "./device-page";
+import DeviceDeletedPage from "./device-deleted-page";
 import DeviceLogPage from "./device-log-page";
 
 /**
@@ -184,19 +185,36 @@ export const registerDeviceRoutes = (
   //====================================
 
   /**
-   * The next id in the `device-N` series, asked of TTN rather than remembered.
+   * The next id in the `device-N` series, counted from two lists at once.
    *
-   * TTN is the only place that knows which ids are taken - this application
-   * keeps no device table - and somebody may well have registered one through
-   * the console since the last look. An empty string when the list cannot be
-   * fetched: a proposal counted from an incomplete list is worse than none,
-   * because it would suggest a name that is already in use.
+   * TTN says which ids exist right now - this application keeps no device table,
+   * and somebody may well have registered one through the console since the last
+   * look. An empty string when that list cannot be fetched: a proposal counted
+   * from an incomplete list is worse than none, because it would suggest a name
+   * that is already in use.
+   *
+   * The device log says which ids once existed. Without it the count would
+   * repeat itself the moment the *highest* device is removed: TTN forgets the
+   * name, and the next registration would be handed it again. The measurements
+   * would not mind - they hang on the DevEUI - but the log above would then
+   * carry two different devices under one name, one of the entries saying the
+   * other was removed.
+   *
+   * A log that cannot be read does not block the proposal. It only costs the
+   * memory of removed names, and the field stays editable either way.
    */
   const proposedId = async () => {
     const listed = await devices.listDevices();
-    return listed.ok
-      ? nextDeviceId(listed.data.map((device) => device.deviceId))
-      : "";
+    if (!listed.ok) return "";
+
+    let used: string[] = [];
+    try {
+      used = await deviceLog.usedDeviceIds();
+    } catch (error) {
+      console.error("devices: could not read the log for the id proposal:", error);
+    }
+
+    return nextDeviceId([...listed.data.map((device) => device.deviceId), ...used]);
   };
 
   pages.get(
@@ -382,6 +400,7 @@ export const registerDeviceRoutes = (
           // The button is only offered to administrators; the route behind it
           // checks again, which is what makes this line merely cosmetic.
           maySeeKey={hasRole(currentUser(), "admin", auth)}
+          mayDelete={hasRole(currentUser(), "admin", auth)}
           message={c.req.query("msg") ?? null}
         />
       );
@@ -496,8 +515,69 @@ export const registerDeviceRoutes = (
           groups={loaded.groups}
           writable={manage.writable}
           maySeeKey
+          mayDelete
           appKey={key.ok ? key.data : null}
           keyError={key.ok ? null : key.error}
+        />
+      );
+    }),
+  );
+  /**
+   * Removing a device. Administrators only, on the same line as revealing the
+   * AppKey: registering and renaming can be corrected afterwards, this cannot.
+   *
+   * The four calls run backwards through the registration order, so the
+   * Identity Server goes last. It comes first when registering because the
+   * other three refuse a device the registry does not know - remove it first
+   * and the remnants are no longer addressable. If one of the first three
+   * refuses, the run stops and the registry entry stays: that leaves no state
+   * one cannot get out of, because the button on the result page runs the same
+   * route again and a register that is already gone answers 404.
+   *
+   * The typed-out device ID is the confirmation. It is checked here rather than
+   * in the browser, and it is the only field besides the reason.
+   */
+  pages.post(
+    `${PATH}/:deviceId/delete`,
+    guards.requireAdmin,
+    guards.sameOrigin,
+    ...ssr(async (c) => {
+      const deviceId = c.req.param("deviceId");
+      const back = (msg: string) =>
+        c.redirect(`${PATH}/${encodeURIComponent(deviceId)}?msg=${msg}`, 303);
+
+      if (!ttn.enabled) return c.redirect(PATH, 303);
+      if (!manage.writable) return back("nowrite");
+
+      const body = await c.req.parseBody();
+      const reason = parseReason(body);
+      if (!reason) return back("noreason");
+
+      const typed = typeof body.device_id === "string" ? body.device_id.trim() : "";
+      if (typed !== deviceId) return back("badconfirm");
+
+      // Read before the removal, because afterwards there is nothing to read it
+      // from - and the DevEUI is what ties the log entry to the measurements
+      // that stay behind. A device the registry no longer knows is not an
+      // error here: the run below will find every register gone and say so.
+      const current = await devices.getDevice(deviceId);
+
+      const result = await devices.deleteDevice(deviceId);
+      if (!result.ok) return back("deletefailed");
+
+      const logged = await deviceLog.recordDelete(
+        result.data,
+        current.ok ? current.data.devEui : null,
+        actorFrom(reason),
+      );
+
+      c.get("page").title =
+        result.data.failed === null ? "Gerät entfernt" : "Gerät nicht entfernt";
+      return (
+        <DeviceDeletedPage
+          outcome={result.data}
+          reason={reason}
+          logError={logged.ok ? null : logged.error}
         />
       );
     }),

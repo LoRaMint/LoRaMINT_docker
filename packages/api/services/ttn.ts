@@ -4,7 +4,7 @@ import type { MutationResult } from "../types";
 
 /**
  * The Things Stack, as far as this application needs it: list the devices of the
- * application, look one up, register one, rename one.
+ * application, look one up, register one, rename one, remove one.
  *
  * Registering a device is four calls to four servers, and they are not one
  * transaction. The Identity Server learns that the device exists, the Join
@@ -15,9 +15,15 @@ import type { MutationResult } from "../types";
  * says so rather than reporting a plain failure and leaving a ruin nobody knows
  * about.
  *
+ * Removing one is the same four calls the other way round, and it is not a
+ * mirror image: a creation that fails can be undone, a removal cannot. The
+ * AppKey lives in the Join Server and is never stored here, so once it is gone
+ * the device is gone. `deleteDevice` therefore leans on repetition instead of
+ * rollback - see the note there.
+ *
  * Reading is deliberately not cached. A dozen devices cost one request, and a
  * cache would be a second truth that goes stale the moment somebody uses the TTN
- * console - which they may, and for deleting a device they still have to.
+ * console - which they still may.
  */
 
 //====================================
@@ -73,6 +79,38 @@ export type CreateOutcome = {
   leftovers: RegistrationStep[];
 };
 
+/**
+ * Removing a device walks the same four servers the other way round.
+ *
+ * Derived from `STEPS` rather than written out again: the create order is
+ * load-bearing, and a delete order that could drift from it would be a bug
+ * nobody notices until a device is half gone.
+ */
+const DELETE_ORDER: RegistrationStep[] = [...STEPS].reverse();
+
+/** The same four servers, in the words a removal needs. */
+export const DELETE_STEP_LABELS: Record<RegistrationStep, string> = {
+  as: "Anwendungsseite entfernt (Application Server)",
+  ns: "Funkeinstellungen entfernt (Network Server)",
+  js: "Schlüssel entfernt (Join Server)",
+  is: "Gerät entfernt (Identity Server)",
+};
+
+export type DeviceDeleteOutcome = {
+  deviceId: string;
+  /** The registers that are gone, in the order they were removed. */
+  done: RegistrationStep[];
+  /**
+   * Where it stopped, and what TTN said. Null when all four are gone.
+   *
+   * There is no `leftovers` counterpart to the one on `CreateOutcome`, and its
+   * absence is the point: nothing is rolled back here, so nothing can be left
+   * behind by a rollback. What a failure leaves is simply the registers that
+   * were not reached yet.
+   */
+  failed: { step: RegistrationStep; error: string } | null;
+};
+
 //====================================
 // REQUESTS
 //====================================
@@ -122,6 +160,25 @@ type Answer = {
 };
 
 /**
+ * A failure that still knows which status produced it.
+ *
+ * `error` is for reading, `status` is for deciding, and deleting needs the
+ * second: a 404 means the entry is already gone, which is the outcome the
+ * caller wanted, while every other code means it is still there. Reading that
+ * out of the text would work right up until The Things Stack words an unrelated
+ * failure with a 404 somewhere in it.
+ *
+ * `null` covers what never reached a server at all - a timeout, a broken
+ * connection. Those are emphatically not "already gone".
+ *
+ * The extra field makes this assignable to `MutationResult`'s failure branch,
+ * so every caller that does not care keeps working unchanged.
+ */
+type CallFailure = { ok: false; error: string; status: number | null };
+
+type CallResult<T> = { ok: true; data: T } | CallFailure;
+
+/**
  * One call to TTN. Returns the parsed body, or a sentence about why not.
  *
  * Network failures and timeouts are turned into the same shape as an HTTP error,
@@ -130,7 +187,7 @@ type Answer = {
 const call = async (
   url: string,
   init: { method: string; body?: unknown },
-): Promise<MutationResult<Answer>> => {
+): Promise<CallResult<Answer>> => {
   try {
     const response = await fetch(url, {
       method: init.method,
@@ -143,7 +200,9 @@ const call = async (
       signal: AbortSignal.timeout(ttn.timeoutMs),
     });
 
-    if (!response.ok) return { ok: false, error: await failureText(response) };
+    if (!response.ok) {
+      return { ok: false, error: await failureText(response), status: response.status };
+    }
 
     const header = response.headers.get("x-total-count");
     const parsed = header === null ? Number.NaN : Number.parseInt(header, 10);
@@ -166,6 +225,9 @@ const call = async (
         err instanceof Error && err.name === "TimeoutError"
           ? `The Things Network hat nicht innerhalb von ${ttn.timeoutMs} ms geantwortet.`
           : `The Things Network war nicht erreichbar: ${message}`,
+      // Nothing was answered, so there is no status to go by - and a request
+      // that never arrived says nothing about whether the entry still exists.
+      status: null,
     };
   }
 };
@@ -174,7 +236,7 @@ const call = async (
 const request = async (
   url: string,
   init: { method: string; body?: unknown },
-): Promise<MutationResult<Record<string, unknown>>> => {
+): Promise<CallResult<Record<string, unknown>>> => {
   const result = await call(url, init);
   return result.ok ? { ok: true, data: result.data.body } : result;
 };
@@ -434,6 +496,50 @@ const undoStep = (step: RegistrationStep, deviceId: string) =>
   request(`${base(step)}/${encodeURIComponent(deviceId)}`, { method: "DELETE" });
 
 /**
+ * Removes a device from all four servers, Identity Server last.
+ *
+ * **The order carries the safety.** As long as the entry in the Identity Server
+ * stands, the device is addressable and a second attempt is possible; the other
+ * three refuse a device the registry does not know. So the registry goes last,
+ * and because the loop returns on the first failure, a refusal anywhere in
+ * `as → ns → js` leaves `is` untouched by construction. There is no state to
+ * get stuck in: a failure leaves a device that is still fully reachable, just
+ * with a register or two fewer.
+ *
+ * **Repeating, not rolling back.** Undoing a removal is not possible - the
+ * AppKey lives in the Join Server and LoRaMINT never stores it, so once it is
+ * gone the device cannot be recreated. What takes the place of a rollback is
+ * that running this again is safe: a DELETE against something already removed
+ * answers 404, and the line below counts that as done. A second run therefore
+ * skips what the first one managed and finishes the rest, with no record of
+ * where it stopped needing to be kept anywhere.
+ */
+const deleteDevice = async (
+  deviceId: string,
+): Promise<MutationResult<DeviceDeleteOutcome>> => {
+  if (!ttn.enabled) return { ok: false, error: NOT_CONFIGURED };
+
+  const done: RegistrationStep[] = [];
+
+  for (const step of DELETE_ORDER) {
+    const result = await call(`${base(step)}/${encodeURIComponent(deviceId)}`, {
+      method: "DELETE",
+    });
+
+    // Already gone is the outcome we wanted, so a 404 is a success. This is
+    // what makes a repeat run harmless - see the note above.
+    const removed = result.ok || result.status === 404;
+    if (!removed) {
+      return { ok: true, data: { deviceId, done, failed: { step, error: result.error } } };
+    }
+
+    done.push(step);
+  }
+
+  return { ok: true, data: { deviceId, done, failed: null } };
+};
+
+/**
  * Registers an OTAA device across all four servers, and undoes its own work when
  * one of them refuses.
  *
@@ -512,4 +618,5 @@ export const devices = {
   appKeyOf,
   createDevice,
   renameDevice,
+  deleteDevice,
 };

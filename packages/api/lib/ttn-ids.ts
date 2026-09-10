@@ -67,6 +67,11 @@ const NUMBERED = /^device-(\d+)$/;
  * removed, and handing its number to a different piece of hardware makes two
  * things share a name in everyone's notes and in the measurement history.
  *
+ * Which is why the caller passes more than what exists: the ids in the device
+ * log go in as well, so that removing the *highest* device does not free its
+ * number either. This function does not know where the ids came from - it only
+ * promises to be one past the highest it was shown.
+ *
  * Ids that do not fit the scheme are ignored, so a `klasse-8b-fenster` next to
  * the numbered ones does not disturb the count - the field stays editable, and
  * such a name says far more at a glance.

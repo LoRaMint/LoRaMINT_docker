@@ -110,6 +110,16 @@ describe("nextDeviceId", () => {
     expect(nextDeviceId(["device-1", "device-3"])).toBe("device-4");
   });
 
+  test("counts past a name that only the log still knows", () => {
+    // The case the log exists for: device-3 was the highest and was removed, so
+    // TTN no longer lists it. Counted from TTN alone the answer would be
+    // device-3 a second time.
+    const inTtn = ["device-1", "device-2"];
+    const inLog = ["device-1", "device-2", "device-3"];
+    expect(nextDeviceId(inTtn)).toBe("device-3");
+    expect(nextDeviceId([...inTtn, ...inLog])).toBe("device-4");
+  });
+
   test("ignores ids that are not part of the scheme", () => {
     expect(nextDeviceId(["klasse-8b-fenster", "eui-a84041d6c184db82"])).toBe(
       "device-1",

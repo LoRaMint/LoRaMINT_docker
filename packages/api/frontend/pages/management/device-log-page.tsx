@@ -20,6 +20,7 @@ const PATH = "/management/devices/log";
 const ACTIONS: Record<string, string> = {
   create: "angelegt",
   rename: "umbenannt",
+  delete: "entfernt",
 };
 
 const OUTCOMES: Record<string, { label: string; badge: string; title: string }> = {
@@ -27,14 +28,14 @@ const OUTCOMES: Record<string, { label: string; badge: string; title: string }> 
   failed: {
     label: "fehlgeschlagen",
     badge: "badge-ghost",
-    title: "Nichts geändert – in TTN ist von dem Versuch nichts zurückgeblieben.",
+    title: "Nichts geändert – in TTN ist alles so wie vorher.",
   },
   partial: {
     label: "halb",
     badge: "badge-error",
     title:
-      "Ein Schritt schlug fehl und liess sich nicht zurücknehmen – in TTN ist " +
-      "etwas zurückgeblieben.",
+      "Nur ein Teil ist durchgelaufen – in TTN steht etwas, das so nicht " +
+      "stehen bleiben sollte.",
   },
 };
 
@@ -43,6 +44,18 @@ const detailOf = (entry: DeviceLogEntry): string => {
   if (entry.action === "rename") {
     const name = entry.details.name as { from?: string; to?: string } | undefined;
     if (name) return `„${name.from ?? "ohne Namen"}“ → „${name.to ?? ""}“`;
+  }
+  if (entry.action === "delete") {
+    // Which registers are gone. On a partial removal this is the list a second
+    // attempt does not have to repeat - it is here to be read, not to be fed
+    // back in: the repeat works out the rest itself.
+    const removed = entry.details.removed;
+    const stopped = entry.details.failed as { error?: string } | null | undefined;
+    if (Array.isArray(removed)) {
+      const list =
+        removed.length > 0 ? `Entfernt: ${removed.join(", ")}` : "Nichts entfernt";
+      return stopped?.error ? `${list} – ${stopped.error}` : list;
+    }
   }
   const leftovers = entry.details.leftovers;
   if (Array.isArray(leftovers) && leftovers.length > 0) {
@@ -68,8 +81,8 @@ export default function DeviceLogPage(props: {
         back={PAGES.devices}
         intro={
           <>
-            Wer wann welches Gerät in The Things Network angelegt oder umbenannt
-            hat. Zurücknehmen lässt sich hier nichts: das Änderungsprotokoll kann
+            Wer wann welches Gerät in The Things Network angelegt, umbenannt
+            oder entfernt hat. Zurücknehmen lässt sich hier nichts: das Änderungsprotokoll kann
             das, weil es Datenbankzeilen führt und eine Zeile zurückschreiben
             kann – ein Gerät in TTN ist keine.
           </>

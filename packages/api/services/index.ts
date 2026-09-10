@@ -9,11 +9,12 @@ export type { AuditFilter } from "./audit";
 export { devices } from "./ttn";
 export type {
   CreateOutcome,
+  DeviceDeleteOutcome,
   RegistrationStep,
   TtnDevice,
   TtnDeviceDetail,
 } from "./ttn";
-export { STEP_LABELS } from "./ttn";
+export { DELETE_STEP_LABELS, STEP_LABELS } from "./ttn";
 export { deviceLog } from "./device-log";
 export type { DeviceAction, DeviceLogEntry, DeviceOutcome } from "./device-log";
 export { rememberSignIn, savePreferences, userRecord } from "./users";

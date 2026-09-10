@@ -61,6 +61,18 @@ export const DEVICE_MESSAGES: Record<
       "Einzige, was den Vorgang dort erklärt. Es wurde nichts geändert.",
     tone: "error",
   },
+  badconfirm: {
+    text:
+      "Die abgetippte Geräte-ID stimmt nicht mit diesem Gerät überein. Es wurde " +
+      "nichts entfernt.",
+    tone: "error",
+  },
+  deletefailed: {
+    text:
+      "Das Entfernen wurde gar nicht erst versucht: die Verbindung zu The Things " +
+      "Network fehlt. Das Gerät ist unverändert.",
+    tone: "error",
+  },
   badrequest: { text: "Die Anfrage war nicht eindeutig.", tone: "error" },
   nochange: { text: "Der Name war schon so.", tone: "success" },
 };
@@ -131,9 +143,9 @@ export default function ManageDevicesPage(props: {
           title="Geräte verwalten"
           intro={
             <>
-              Geräte hier anlegen und umbenennen, statt dafür in die TTN-Console
-              zu wechseln. Die Seite spricht dazu die REST-API von The Things
-              Network an; die Geräte selbst bleiben in TTN registriert, diese
+              Geräte hier anlegen, umbenennen und entfernen, statt dafür in die
+              TTN-Console zu wechseln. Die Seite spricht dazu die REST-API von
+              The Things Network an; die Geräte selbst bleiben in TTN registriert, diese
               Anwendung sieht sie nur.
             </>
           }
@@ -158,8 +170,9 @@ export default function ManageDevicesPage(props: {
             {
               label: "Gerät entfernen",
               description:
-                "Noch nicht hier: Löschen sind vier Aufrufe an vier Server und " +
-                "bleibt vorerst der TTN-Console vorbehalten.",
+                "Ein Gerät aus allen vier Registern nehmen – nach abgetippter " +
+                "Geräte-ID, und nur durch die Administration. Die Messwerte " +
+                "bleiben und stehen danach als verwaist.",
             },
           ]}
           note={
@@ -183,7 +196,8 @@ export default function ManageDevicesPage(props: {
           <>
             Was in The Things Network registriert ist, neben dem, was tatsächlich
             sendet. Die Geräte bleiben in TTN; diese Seite legt sie dort an,
-            benennt sie um und zeigt sie – gelöscht wird weiterhin in der Console.
+            benennt sie um, zeigt sie und entfernt sie wieder. Die Messwerte
+            eines entfernten Geräts bleiben und stehen danach als verwaist.
           </>
         }
       />
@@ -198,8 +212,8 @@ export default function ManageDevicesPage(props: {
 
       {!props.writable && !props.error && (
         <Notice tone="warning">
-          Diese Seite zeigt nur an. Zum Anlegen und Umbenennen fehlt die
-          Verbindung, über die der Vorgang protokolliert wird
+          Diese Seite zeigt nur an. Zum Anlegen, Umbenennen und Entfernen fehlt
+          die Verbindung, über die der Vorgang protokolliert wird
           (<code>DATABASE_URL_MANAGE</code>) – und was nicht protokolliert werden
           kann, wird hier nicht ausgeführt.
         </Notice>

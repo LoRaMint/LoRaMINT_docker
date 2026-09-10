@@ -8,6 +8,7 @@ import { up as measurementGroups } from "./migrations/007-measurement-groups"
 import { up as dashboardEntries } from "./migrations/008-dashboard-entries"
 import { up as apiTokens } from "./migrations/009-api-tokens"
 import { up as apiTokenAnnouncements } from "./migrations/010-api-token-announcements"
+import { up as deviceLogDelete } from "./migrations/011-device-log-delete"
 
 // There is no migrations table: every migration runs on every start, so each
 // one has to be idempotent (CREATE ... IF NOT EXISTS). A new file is added here
@@ -23,5 +24,6 @@ await measurementGroups()
 await dashboardEntries()
 await apiTokens()
 await apiTokenAnnouncements()
+await deviceLogDelete()
 console.log("Migrations complete.")
 process.exit(0)

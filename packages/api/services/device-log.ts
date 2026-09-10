@@ -3,7 +3,7 @@ import { reading } from "./connections";
 import { manage } from "../config";
 import type { PaginationParams } from "../lib/pagination";
 import type { Actor } from "./manage";
-import type { CreateOutcome } from "./ttn";
+import type { CreateOutcome, DeviceDeleteOutcome } from "./ttn";
 import type { MutationResult } from "../types";
 
 /**
@@ -23,7 +23,7 @@ import type { MutationResult } from "../types";
 // TYPES
 //====================================
 
-export type DeviceAction = "create" | "rename";
+export type DeviceAction = "create" | "rename" | "delete";
 
 /** Whether the operation went through, went half through, or did not. */
 export type DeviceOutcome = "ok" | "partial" | "failed";
@@ -70,6 +70,24 @@ const list = async (pagination: PaginationParams) => {
 
   const total = (counted as unknown as { count: number }[])[0]?.count ?? 0;
   return { rows: entries, total };
+};
+
+/**
+ * Every device id that appears in this log, whatever became of the operation.
+ *
+ * Used for the proposal on the registration form. TTN alone cannot answer the
+ * question, because it only knows what exists *now*: remove the highest device
+ * and the count would hand its number to the next one. The log is the only
+ * place that remembers a name was once taken - and a name that two devices
+ * shared makes every entry above ambiguous, including the one that says the
+ * first was removed.
+ *
+ * Failed attempts count too. If the log says "device-5 anlegen fehlgeschlagen",
+ * a later, different device-5 turns that line into a statement about itself.
+ */
+const usedDeviceIds = async (): Promise<string[]> => {
+  const rows = await reading()`SELECT DISTINCT device_id FROM device_log`;
+  return (rows as unknown as { device_id: string }[]).map((row) => row.device_id);
 };
 
 //====================================
@@ -186,12 +204,45 @@ const recordRename = (
     actor,
   );
 
+/**
+ * A removal, whether it got all the way or not.
+ *
+ * Written in every case, and a run that stopped halfway is the case it is
+ * written for: the entry then names the registers that are gone, which is the
+ * only account of what a repeat run still has to finish. `failed` is null on a
+ * clean removal and carries the server and its answer otherwise.
+ *
+ * "partial" needs no leftovers list the way a creation does - nothing is rolled
+ * back here, so what is not in `removed` was simply never reached.
+ */
+const recordDelete = (
+  outcome: DeviceDeleteOutcome,
+  devEui: string | null,
+  actor: Actor,
+): Promise<MutationResult<null>> =>
+  append(
+    {
+      action: "delete",
+      deviceId: outcome.deviceId,
+      devEui,
+      outcome:
+        outcome.failed === null ? "ok" : outcome.done.length > 0 ? "partial" : "failed",
+      details:
+        outcome.failed === null
+          ? { removed: outcome.done }
+          : { removed: outcome.done, failed: outcome.failed },
+    },
+    actor,
+  );
+
 //====================================
 // PUBLIC API
 //====================================
 
 export const deviceLog = {
   list,
+  usedDeviceIds,
   recordCreate,
   recordRename,
+  recordDelete,
 };

@@ -32,7 +32,7 @@ export const up = async () => {
       occurred_at TIMESTAMPTZ NOT NULL DEFAULT now(),
       username VARCHAR(100) NOT NULL,
       display_name VARCHAR(200),
-      action VARCHAR(10) NOT NULL CHECK (action IN ('create', 'rename')),
+      action VARCHAR(10) NOT NULL CHECK (action IN ('create', 'rename', 'delete')),
       device_id VARCHAR(36) NOT NULL,
       device_eui VARCHAR(16),
       outcome VARCHAR(10) NOT NULL CHECK (outcome IN ('ok', 'partial', 'failed')),
