@@ -42,6 +42,18 @@ const MESSAGES: Record<string, { tone: "success" | "error"; text: string }> = {
   deleted: { tone: "success", text: "Die Datei wurde gelöscht." },
   hidden: { tone: "success", text: "Die Datei erscheint nicht mehr in der Liste." },
   shown: { tone: "success", text: "Die Datei erscheint wieder in der Liste." },
+  renamed: {
+    tone: "success",
+    text:
+      "Die Datei wurde umbenannt. Links auf den alten Namen gehen jetzt ins " +
+      "Leere – auch ausserhalb dieser Seite.",
+  },
+  renamedlinked: {
+    tone: "error",
+    text:
+      "Die Datei wurde umbenannt – und der Workshop-Text verweist noch auf den " +
+      "alten Namen. Dieser Link ist jetzt tot und muss oben angepasst werden.",
+  },
   noted: { tone: "success", text: "Der Hinweis wurde gespeichert." },
   unnoted: { tone: "success", text: "Der Hinweis wurde entfernt." },
 };
@@ -223,6 +235,12 @@ const WorkshopManagePage = (props: {
         lässt sich eine Datei trotzdem im Text verlinken.
       </p>
       <p class="text-sm text-base-content/70 mb-2 max-w-[65ch]">
+        <strong>Umbenennen</strong> ändert die Adresse der Datei. Jeder Link auf
+        den alten Namen geht danach ins Leere – im Workshop-Text, in einer schon
+        verschickten Mail, auf einem gedruckten Blatt. Die Endung bleibt, weil
+        sie entscheidet, wie der Server die Datei ausliefert.
+      </p>
+      <p class="text-sm text-base-content/70 mb-2 max-w-[65ch]">
         Der <strong>Hinweis</strong> unter jeder Datei steht auf der
         Downloads-Seite dabei — die Quelle eines Programms etwa, die nötige
         Bibliothek oder wofür die Vorlage gedacht ist. Ein Link wird wie im Text
@@ -328,32 +346,59 @@ const WorkshopManagePage = (props: {
                   */
                 <tr>
                   <td colspan={7} class="pt-0">
-                    <form
-                      method="post"
-                      action={`${PATH}/note`}
-                      class="flex flex-wrap gap-2 items-center"
-                    >
-                      <input type="hidden" name="name" value={file.name} />
-                      <label
-                        class="text-sm text-base-content/70"
-                        for={`note-${file.name}`}
+                    <div class="flex flex-wrap gap-x-6 gap-y-2">
+                      <form
+                        method="post"
+                        action={`${PATH}/rename`}
+                        class="flex flex-wrap gap-2 items-center"
                       >
-                        Hinweis
-                      </label>
-                      <input
-                        id={`note-${file.name}`}
-                        type="text"
-                        name="note"
-                        value={file.note}
-                        maxlength={MAX_NOTE_LENGTH}
-                        placeholder="z. B. Quelle: [Adafruit](https://…)"
-                        autocomplete="off"
-                        class="input input-sm flex-1 min-w-64"
-                      />
-                      <button type="submit" class="btn btn-sm btn-outline">
-                        merken
-                      </button>
-                    </form>
+                        <input type="hidden" name="name" value={file.name} />
+                        <label
+                          class="text-sm text-base-content/70"
+                          for={`rename-${file.name}`}
+                        >
+                          Name
+                        </label>
+                        <input
+                          id={`rename-${file.name}`}
+                          type="text"
+                          name="to"
+                          value={file.name}
+                          autocomplete="off"
+                          class="input input-sm font-mono w-64"
+                        />
+                        <button type="submit" class="btn btn-sm btn-outline">
+                          umbenennen
+                        </button>
+                      </form>
+
+                      <form
+                        method="post"
+                        action={`${PATH}/note`}
+                        class="flex flex-wrap gap-2 items-center flex-1"
+                      >
+                        <input type="hidden" name="name" value={file.name} />
+                        <label
+                          class="text-sm text-base-content/70"
+                          for={`note-${file.name}`}
+                        >
+                          Hinweis
+                        </label>
+                        <input
+                          id={`note-${file.name}`}
+                          type="text"
+                          name="note"
+                          value={file.note}
+                          maxlength={MAX_NOTE_LENGTH}
+                          placeholder="z. B. Quelle: [Adafruit](https://…)"
+                          autocomplete="off"
+                          class="input input-sm flex-1 min-w-64"
+                        />
+                        <button type="submit" class="btn btn-sm btn-outline">
+                          merken
+                        </button>
+                      </form>
+                    </div>
                   </td>
                 </tr>,
               ];

@@ -8,8 +8,15 @@ import { join } from "node:path";
 // which is why the import below is dynamic. A static one would be hoisted above
 // this line and the assignment would come too late.
 process.env.TTN_APP_KEY ??= "integration-test";
-const { listFiles, listVisibleFiles, storeFile, deleteFile, setHidden, setNote } =
-  await import("./uploads");
+const {
+  listFiles,
+  listVisibleFiles,
+  storeFile,
+  deleteFile,
+  renameFile,
+  setHidden,
+  setNote,
+} = await import("./uploads");
 
 /*
  * A real directory, because that is the thing under test: the point of
@@ -276,5 +283,72 @@ describe("mehrere auf einmal", () => {
 
     expect(results.map((r) => r.ok)).toEqual([false, true]);
     expect((await listFiles()).map((f) => f.name)).toEqual(["eins.py", "zwei.py"]);
+  });
+});
+
+describe("umbenennen", () => {
+  test("die Datei liegt danach unter dem neuen Namen und nur unter dem", async () => {
+    await storeFile(datei("blatt.pdf", "inhalt"), { replace: false });
+    const result = await renameFile("blatt.pdf", "arbeitsblatt-3.pdf");
+
+    expect(result).toEqual({ ok: true, name: "arbeitsblatt-3.pdf" });
+    expect((await listFiles()).map((f) => f.name)).toEqual(["arbeitsblatt-3.pdf"]);
+    expect(await Bun.file(join(dir, "arbeitsblatt-3.pdf")).text()).toBe("inhalt");
+  });
+
+  test("eine vorhandene Datei wird nicht überschrieben", async () => {
+    await storeFile(datei("eins.pdf", "eins"), { replace: false });
+    await storeFile(datei("zwei.pdf", "zwei"), { replace: false });
+
+    const result = await renameFile("eins.pdf", "zwei.pdf");
+
+    expect(result.ok).toBe(false);
+    // Und zwar wirklich nicht: der Inhalt der anderen Datei steht noch.
+    expect(await Bun.file(join(dir, "zwei.pdf")).text()).toBe("zwei");
+    expect((await listFiles()).map((f) => f.name)).toEqual(["eins.pdf", "zwei.pdf"]);
+  });
+
+  test("die Absage nennt einen freien Namen", async () => {
+    await storeFile(datei("eins.pdf"), { replace: false });
+    await storeFile(datei("zwei.pdf"), { replace: false });
+
+    const result = await renameFile("eins.pdf", "zwei.pdf");
+    expect(result.ok === false && result.error).toContain("zwei-2.pdf");
+  });
+
+  test("Hinweis und Ausgeblendet ziehen mit um", async () => {
+    await storeFile(datei("bild.png"), { replace: false });
+    await setNote("bild.png", "Quelle: irgendwo");
+    await setHidden("bild.png", true);
+
+    await renameFile("bild.png", "aufbau.png");
+
+    const [file] = await listFiles();
+    expect(file?.name).toBe("aufbau.png");
+    expect(file?.note).toBe("Quelle: irgendwo");
+    expect(file?.hidden).toBe(true);
+    // Sonst erschiene das Bild beim Umbenennen plötzlich in der Liste.
+    expect(await listVisibleFiles()).toEqual([]);
+  });
+
+  test("eine Datei, die es nicht gibt, lässt sich nicht umbenennen", async () => {
+    expect((await renameFile("gibtsnicht.pdf", "egal.pdf")).ok).toBe(false);
+  });
+
+  test("derselbe Name ist keine Umbenennung", async () => {
+    await storeFile(datei("blatt.pdf"), { replace: false });
+    expect((await renameFile("blatt.pdf", "blatt.pdf")).ok).toBe(false);
+  });
+
+  test("aus dem Verzeichnis heraus führt kein Name", async () => {
+    // Ein Pfad wird nicht abgelehnt, sondern auf sein letztes Segment
+    // eingedampft – genau wie beim Hochladen. Die Datei bleibt also im
+    // Verzeichnis, sie heisst nur anders als getippt.
+    await storeFile(datei("blatt.pdf"), { replace: false });
+    const result = await renameFile("blatt.pdf", "../entwischt.pdf");
+
+    expect(result).toEqual({ ok: true, name: "entwischt.pdf" });
+    expect((await listFiles()).map((f) => f.name)).toEqual(["entwischt.pdf"]);
+    expect(await readdir(dir)).toEqual(["entwischt.pdf"]);
   });
 });

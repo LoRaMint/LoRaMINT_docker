@@ -21,6 +21,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ohne die Gegenstelle tadellos. Gefunden wurde es dadurch, dass jemand in der
   Produktion auf den Knopf gedrückt hat.
 
+### Added
+- **Hochgeladene Dateien lassen sich umbenennen.** Bisher blieb nur löschen und
+  neu hochladen — was den Hinweis und die Markierung „ausgeblendet" mitnahm und
+  das Änderungsdatum zurücksetzte. Das Feld steht unter jeder Datei neben dem
+  Hinweisfeld.
+
+  **Der Name ist die öffentliche Adresse**, deshalb bricht ein Umbenennen jeden
+  Link auf den alten Namen — im Workshop-Text, in einer schon verschickten Mail,
+  auf einem gedruckten Blatt. Das kann nichts reparieren, also steht es vor dem
+  Knopf. Verweist der Workshop-Text danach noch auf den alten Namen, sagt die
+  Rückmeldung das ausdrücklich: dieser Link ist jetzt tot, und wer gerade
+  umbenannt hat, ist die einzige Person, die ihn anpassen kann.
+
+  **Die Endung bleibt.** Sie allein entscheidet, mit welchem Content-Type der
+  Server ausliefert; aus `skript.py` ein `bild.png` zu machen hiesse, eine Datei
+  als etwas anzukündigen, was sie nicht ist — der Inhalt ändert sich beim
+  Umbenennen ja nicht. Wer gar keine Endung tippt, bekommt die alte angehängt,
+  weil das der häufige Fall ist: ein Tippfehler im Namen.
+
+  **Überschrieben wird nie.** Ist der Zielname vergeben, wird abgelehnt und ein
+  freier vorgeschlagen. Das erledigt der Kernel und nicht eine Prüfung, die
+  einen Augenblick vorher nachgesehen hat: die Datei wird unter dem neuen Namen
+  verlinkt (`link` scheitert, wenn es ihn schon gibt) und danach der alte
+  entfernt. Hinweis und „ausgeblendet" ziehen mit um — sonst erschiene ein
+  verstecktes Bild beim Umbenennen plötzlich in der Liste.
+
 ## [1.15.2] - 2026-09-10
 
 ### Fixed

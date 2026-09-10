@@ -7,6 +7,7 @@ import { saveSetting } from "../../../services/settings";
 import {
   deleteFile,
   listFiles,
+  renameFile,
   setHidden,
   setNote,
   storeFile,
@@ -216,6 +217,28 @@ export const registerWorkshopRoutes = (
       result.ok
         ? back({ msg: note.length > 0 ? "noted" : "unnoted" })
         : back({ error: result.error }),
+      303,
+    );
+  });
+
+  /**
+   * Renaming. The name is the public address, so this breaks every link that
+   * points at the old one and nothing here can repair that.
+   *
+   * What it can do is say where the damage is closest: if the workshop text
+   * still mentions the old name, the link in it is now dead, and whoever just
+   * renamed the file is the one person in a position to fix it. Checked here
+   * rather than left to be discovered.
+   */
+  pages.post(`${PATH}/rename`, guards.requireEditor, guards.sameOrigin, async (c) => {
+    const form = await c.req.parseBody();
+    const from = text(form, "name");
+    const result = await renameFile(from, text(form, "to"));
+    if (!result.ok) return c.redirect(back({ error: result.error }), 303);
+
+    const stillReferenced = (content.workshop ?? "").includes(from);
+    return c.redirect(
+      back({ msg: stillReferenced ? "renamedlinked" : "renamed" }),
       303,
     );
   });

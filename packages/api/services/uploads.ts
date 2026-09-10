@@ -1,5 +1,6 @@
 /**
- * The files offered for download: listing, storing, hiding, annotating, removing.
+ * The files offered for download: listing, storing, hiding, annotating,
+ * renaming, removing.
  *
  * **The directory is the truth.** There is no table of file metadata, and that
  * is a decision rather than an omission. Name, size and date come from `readdir`
@@ -25,13 +26,23 @@
  * this does not, and would need to be the next thing looked at.
  */
 
-import { mkdir, readdir, readFile, rename, stat, unlink, writeFile } from "node:fs/promises";
+import {
+  link,
+  mkdir,
+  readdir,
+  readFile,
+  rename,
+  stat,
+  unlink,
+  writeFile,
+} from "node:fs/promises";
 import { join } from "node:path";
 import { uploads } from "../config";
 import {
   isSafeStoredName,
   sanitizeFileName,
   sanitizeNote,
+  sanitizeRename,
   typeOf,
   uniqueName,
 } from "../lib/uploads";
@@ -240,6 +251,88 @@ export const storeFile = async (
   }
 
   return { ok: true, name };
+};
+
+/**
+ * Gives a stored file a different name, and takes its bookkeeping along.
+ *
+ * **The name is the public address.** A rename therefore breaks every link that
+ * points at the old one - in the workshop text, in a mail sent last week, on a
+ * printed worksheet. Nothing here can repair that, so the page says it before
+ * the button and the route says afterwards whether the workshop text still
+ * mentions the old name.
+ *
+ * Never overwrites. `rename` would replace an existing file silently, which for
+ * a name that is a public address is the worst possible outcome; `link` refuses
+ * when the target exists, and it is the kernel refusing rather than a check that
+ * looked a moment earlier. The file is under both names for the instant between
+ * the two calls, which is the harmless half of the exchange: a request arriving
+ * exactly then gets the file either way.
+ */
+export const renameFile = async (
+  from: string,
+  typed: string,
+): Promise<UploadResult> => {
+  if (!isSafeStoredName(from)) {
+    return { ok: false, error: "Diesen Namen gibt es hier nicht." };
+  }
+
+  const target = sanitizeRename(from, typed);
+  if ("error" in target) return { ok: false, error: target.error };
+  const to = target.name;
+
+  if (to === from) return { ok: false, error: "Der Name war schon so." };
+
+  const taken = new Set((await listFiles()).map((file) => file.name));
+  if (!taken.has(from)) {
+    return { ok: false, error: `„${from}" gibt es nicht (mehr).` };
+  }
+  if (taken.has(to)) {
+    return {
+      ok: false,
+      error:
+        `„${to}" gibt es schon. Frei wäre „${uniqueName(to, taken)}" – ` +
+        `überschrieben wird hier nichts.`,
+    };
+  }
+
+  try {
+    await link(join(uploads.dir, from), join(uploads.dir, to));
+  } catch (fehler) {
+    return { ok: false, error: `Umbenennen ging nicht. (${String(fehler)})` };
+  }
+  try {
+    await unlink(join(uploads.dir, from));
+  } catch (fehler) {
+    // The new name exists and works; the old one refused to go. Reported
+    // rather than swallowed, because the file is now listed twice and only
+    // somebody looking at the directory can say why.
+    return {
+      ok: false,
+      error:
+        `„${to}" ist angelegt, aber „${from}" liess sich nicht entfernen – ` +
+        `die Datei steht jetzt unter beiden Namen. (${String(fehler)})`,
+    };
+  }
+
+  // Hidden mark and note follow the file. Leaving them behind would show a
+  // hidden picture the moment it is renamed, and hand its note to whatever is
+  // uploaded under the old name next.
+  const hidden = await readHidden();
+  if (hidden.delete(from)) {
+    hidden.add(to);
+    await writeHidden(hidden);
+  }
+
+  const notes = await readNotes();
+  const note = notes.get(from);
+  if (note !== undefined) {
+    notes.delete(from);
+    notes.set(to, note);
+    await writeNotes(notes);
+  }
+
+  return { ok: true, name: to };
 };
 
 /** Removes a file, the mark that it was hidden, and its note. */

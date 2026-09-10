@@ -7,6 +7,7 @@ import {
   MAX_NOTE_LENGTH,
   sanitizeFileName,
   sanitizeNote,
+  sanitizeRename,
   typeOf,
   uniqueName,
 } from "./uploads";
@@ -225,5 +226,48 @@ describe("sanitizeNote", () => {
     const result = sanitizeNote("x".repeat(400));
     expect("error" in result && result.error).toContain("400");
     expect("error" in result && result.error).toContain(String(MAX_NOTE_LENGTH));
+  });
+});
+
+describe("sanitizeRename", () => {
+  /** Convenience: the new name, or null when it was refused. */
+  const to = (current: string, typed: string) => {
+    const result = sanitizeRename(current, typed);
+    return "error" in result ? null : result.name;
+  };
+
+  test("nimmt dieselben Regeln wie beim Hochladen", () => {
+    expect(to("blatt.pdf", "Arbeitsblatt Größe 3.pdf")).toBe(
+      "arbeitsblatt-groesse-3.pdf",
+    );
+  });
+
+  test("ohne Endung getippt bleibt die alte erhalten", () => {
+    expect(to("blatt.pdf", "arbeitsblatt-3")).toBe("arbeitsblatt-3.pdf");
+  });
+
+  test("die Endung lässt sich nicht ändern", () => {
+    // Sie allein entscheidet den Content-Type. Aus einem Python-Skript ein Bild
+    // zu machen hiesse, den Server etwas anderes ankündigen zu lassen, als in
+    // der Datei steht.
+    expect(to("skript.py", "bild.png")).toBeNull();
+    expect(to("skript.py", "anderes-skript.py")).toBe("anderes-skript.py");
+  });
+
+  test("ein leerer Name ändert nichts", () => {
+    expect(to("blatt.pdf", "   ")).toBeNull();
+  });
+
+  test("was übrig bliebe und nichts taugt, wird abgelehnt", () => {
+    expect(to("blatt.pdf", "../../etc/passwd")).toBeNull();
+    expect(to("blatt.pdf", "...pdf")).toBeNull();
+  });
+
+  test("was durchkommt, könnte auch ausgeliefert werden", () => {
+    // Dieselbe Zusage wie bei sanitizeFileName: kein zweiter, laxerer Weg in
+    // das Verzeichnis.
+    const name = to("blatt.pdf", "  Neues BLATT.pdf ");
+    expect(name).not.toBeNull();
+    expect(isSafeStoredName(name!)).toBe(true);
   });
 });

@@ -212,6 +212,51 @@ export const sanitizeNote = (raw: string): { note: string } | { error: string } 
 };
 
 /**
+ * A new name for a file that already exists, as it will be stored.
+ *
+ * Runs through `sanitizeFileName`, so a renamed file obeys exactly the rules an
+ * uploaded one does - there is no second, laxer way into the directory.
+ *
+ * **The extension may not change**, and that is the one rule this function adds.
+ * It is not tidiness: the extension alone decides the content type a file is
+ * served with, so turning `skript.py` into `bild.png` would have the server
+ * announce a Python file as an image. The file on disk is unchanged by a rename;
+ * only its label would lie.
+ *
+ * Typing the name without any extension is not an error but the common case -
+ * somebody correcting a typo in the base. The current extension is appended.
+ */
+export const sanitizeRename = (
+  current: string,
+  typed: string,
+): { name: string } | { error: string } => {
+  const currentExtension = extensionOf(current);
+  const trimmed = typed.trim();
+
+  if (trimmed.length === 0) {
+    return { error: "Ohne neuen Namen bleibt alles, wie es ist." };
+  }
+
+  const withExtension = trimmed.includes(".")
+    ? trimmed
+    : `${trimmed}.${currentExtension}`;
+
+  const sanitized = sanitizeFileName(withExtension);
+  if ("error" in sanitized) return sanitized;
+
+  if (extensionOf(sanitized.name) !== currentExtension) {
+    return {
+      error:
+        `Die Endung lässt sich nicht ändern: „${current}" bleibt eine ` +
+        `.${currentExtension}-Datei. Sie entscheidet, wie der Server die Datei ` +
+        `ausliefert – der Inhalt ändert sich durch das Umbenennen ja nicht.`,
+    };
+  }
+
+  return sanitized;
+};
+
+/**
  * The first free name of the form `bild.png`, `bild-2.png`, `bild-3.png`.
  *
  * Used to *suggest* a name, not to pick one behind somebody's back: the file
