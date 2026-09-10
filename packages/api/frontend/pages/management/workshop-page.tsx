@@ -186,6 +186,14 @@ const WorkshopManagePage = (props: {
       {/* ---- Die Dateien ---- */}
       <SectionHeading>Dateien zum Download</SectionHeading>
       <p class="text-sm text-base-content/70 mb-2 max-w-[65ch]">
+        Diese Dateien erscheinen auf der Seite{" "}
+        <a href={PAGES.downloads.href} class="link">
+          {PAGES.downloads.label}
+        </a>{" "}
+        — nicht mehr unter dem Workshop-Text. Über die Spalte <em>Im Text</em>{" "}
+        lässt sich eine Datei trotzdem im Text verlinken.
+      </p>
+      <p class="text-sm text-base-content/70 mb-2 max-w-[65ch]">
         <strong>Ausgeblendet</strong> heisst: erscheint nicht in der Liste auf der
         öffentlichen Seite. Erreichbar bleibt die Datei — das ist für Bilder
         gedacht, die im Text stehen und darunter nicht noch einmal als Download

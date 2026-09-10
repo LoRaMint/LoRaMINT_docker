@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Workshop und Downloads sind zwei Seiten, beide unter „Anleitungen".** Die
+  Workshop-Seite führte zweierlei zugleich: einen geschriebenen Text und darunter
+  die Tabelle der hochgeladenen Dateien. Dazu trug sie einen eigenen Reiter, der
+  „Downloads" hiess und den Workshop enthielt — Name und Inhalt passten nicht
+  zueinander.
+
+  Jetzt bleibt **Workshop** der Text und **Downloads** ist die Liste der Dateien;
+  beide stehen neben der ESP32-Anleitung unter „Anleitungen", und der eigene
+  Reiter entfällt. Am Fuss des Workshop-Textes steht ein fester Verweis auf die
+  Downloads, damit niemand dort endet, wo vorher die Tabelle stand.
+
+  **Nebenbei behoben:** Die Dateien waren über eine Seite nur erreichbar, solange
+  ein Workshop-Text hinterlegt war — ohne Text nahm dessen 404 die Liste mit,
+  obwohl die Dateien die ganze Zeit ausgeliefert wurden. `/downloads` hängt jetzt
+  an nichts weiter als an sich selbst.
+
+  An der Auslieferung unter `/downloads/<name>` ändert sich nichts, ebenso wenig
+  an den Regeln für Namen, Grössen und Dateitypen. Dass „ausgeblendet" eine
+  Anzeige- und keine Zugriffsentscheidung ist, gilt unverändert: eine
+  ausgeblendete Datei fehlt in der Liste und bleibt unter ihrer Adresse abrufbar.
+
+  Die Pflegeseite bleibt **eine** Seite: „Workshop verwalten" bearbeitet weiterhin
+  Text und Dateien zusammen, weil sie je Datei ein Schnipsel zum Einfügen in den
+  Text anbietet — getrennt bräuchte das zwei offene Seiten. Sie sagt jetzt dazu,
+  wo die Dateien erscheinen.
+
 ## [1.14.0] - 2026-09-08
 
 ### Beim Aktualisieren

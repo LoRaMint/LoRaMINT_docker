@@ -65,6 +65,7 @@ import { registerTokenRoutes } from "./management/token-routes";
 import { dataGroupsOf, listDataGroups } from "../../services/data-groups";
 import ImpressumPage from "./impressum/page";
 import WorkshopPage from "./workshop/page";
+import DownloadsPage from "./downloads/page";
 import { registerWorkshopRoutes } from "./management/workshop-routes";
 import { listVisibleFiles } from "../../services/uploads";
 import DatenschutzPage from "./datenschutz/page";
@@ -622,13 +623,33 @@ pages.get(
  */
 pages.get(
   "/workshop",
-  ...ssr(async (c) => {
+  ...ssr((c) => {
     if (!content.workshop) return c.notFound();
     c.get("page").title = PAGES.workshop.label;
+    return <WorkshopPage />;
+  }),
+);
+
+/**
+ * The uploaded files, listed.
+ *
+ * Deliberately **not** bound to `content.workshop` the way the page above is:
+ * files stand on their own, and until this page existed they were reachable
+ * only by knowing an address, because the listing lived at the foot of a page
+ * that a missing workshop text took down with it.
+ *
+ * `/downloads/<name>` serves one file and is registered on the root app
+ * (index.ts). It matches only with a segment after the slash, so this bare path
+ * reaches the pages instead of being swallowed by it.
+ */
+pages.get(
+  "/downloads",
+  ...ssr(async (c) => {
+    c.get("page").title = PAGES.downloads.label;
     // Awaited before the element, not inside a prop: Solid's SSR transform turns
     // every dynamic prop into a getter, and a getter cannot be awaited in.
     const files = await listVisibleFiles();
-    return <WorkshopPage files={files} />;
+    return <DownloadsPage files={files} />;
   }),
 );
 

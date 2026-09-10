@@ -44,17 +44,27 @@ export const PAGES = {
   boardManage: { href: "/management/board", label: "Dashboard verwalten" },
   tokens: { href: "/management/tokens", label: "API-Token verwalten" },
   tokenLog: { href: "/management/tokens/history", label: "Token-Protokoll" },
+  /** Text *and* files in one place - see frontend/pages/management/workshop-page.tsx. */
+  workshopManage: { href: "/management/workshop", label: "Workshop verwalten" },
 
   //---- System: der Server selbst ----
   groups: { href: "/management/groups", label: "Datengruppen verwalten" },
   config: { href: "/management/config", label: "Konfiguration" },
 
-  //---- Downloads ----
-  workshop: { href: "/workshop", label: "Workshop" },
-  workshopManage: { href: "/management/workshop", label: "Workshop verwalten" },
-
-  //---- Anleitungen und Entwicklung ----
+  //---- Anleitungen ----
   guideEsp32: { href: "/guides/esp32", label: "ESP32" },
+  workshop: { href: "/workshop", label: "Workshop" },
+  /**
+   * The listing, one level above the files themselves.
+   *
+   * `/downloads/<name>` serves a single file (index.ts, services/downloads.ts)
+   * and needs exactly one segment after the slash, so this bare path falls
+   * through to the pages and the two do not collide. The address reads as what
+   * it is: the directory to what lies beneath it.
+   */
+  downloads: { href: "/downloads", label: "Downloads" },
+
+  //---- Entwicklung ----
   apiDocs: { href: "/api/v1/docs", label: "API-Dokumentation" },
   github: {
     href: "https://github.com/LoRaMint/LoRaMINT_docker",

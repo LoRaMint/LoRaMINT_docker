@@ -235,15 +235,24 @@ export default function Layout(props: { children: JSX.Element }) {
     ...(adminUser
       ? [{ label: "System", items: [PAGES.groups, PAGES.config] }]
       : []),
-    // Its own tab, at the request of whoever runs the workshops - and unlike
-    // the dashboard above it is meant to grow: further material gets further
-    // entries here rather than a second section. Bound to the content the way
-    // the legal links in the footer are, so a deployment that runs no workshop
-    // shows no empty tab.
-    ...(content.workshop
-      ? [{ label: "Downloads", items: [PAGES.workshop] }]
-      : []),
-    { label: "Anleitungen", items: [PAGES.guideEsp32] },
+    // Everything somebody reads to learn how this works, in one section: the
+    // guide, the workshop text, and the files that go with them. The workshop
+    // used to have a tab of its own called "Downloads" while holding the
+    // *workshop* page - a name and a content that did not match.
+    //
+    // "Workshop" is bound to its text the way the legal links in the footer
+    // are, so a deployment that runs no workshop shows no entry. "Downloads"
+    // always stands: the navigation renders synchronously and cannot ask the
+    // filesystem how many files there are without a readdir on every page, so
+    // the page itself says when the shelf is empty.
+    {
+      label: "Anleitungen",
+      items: [
+        PAGES.guideEsp32,
+        ...(content.workshop ? [PAGES.workshop] : []),
+        PAGES.downloads,
+      ],
+    },
     {
       label: "Entwicklung",
       items: [PAGES.apiDocs, PAGES.github],

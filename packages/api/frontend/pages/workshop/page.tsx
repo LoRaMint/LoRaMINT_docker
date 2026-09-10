@@ -1,17 +1,16 @@
 import Layout from "../../components/layout/Layout";
 import PageHeading from "../../components/PageHeading";
-import LocalTime from "../../components/LocalTime";
-import TableFrame from "../../components/TableFrame";
-import SectionHeading from "../../components/SectionHeading";
-import { DownloadIcon } from "../../components/icons";
 import { content } from "../../../config";
 import { PAGES } from "../../../lib";
-import { formatBytes } from "../../../lib/uploads";
 import { renderMarkdown } from "../../../lib/markdown";
-import type { StoredFile } from "../../../services/uploads";
 
 /**
- * The workshop page: a written text, and the files that go with it.
+ * The workshop page: the written text, and nothing else.
+ *
+ * The files used to sit in a table underneath. They have their own page now
+ * (`frontend/pages/downloads/page.tsx`), because a page that is both an article
+ * and a file listing is neither - and because the files are worth reaching
+ * without a workshop text existing at all.
  *
  * `innerHTML` is safe here for the same reason it is on the Impressum:
  * `renderMarkdown` escapes the source before it produces any markup, so nothing
@@ -32,7 +31,7 @@ const PROSE_WIDTH =
   "[&>p]:max-w-[65ch] [&>ul]:max-w-[65ch] [&>ol]:max-w-[65ch] " +
   "[&>h2]:max-w-[65ch] [&>h3]:max-w-[65ch] [&>h4]:max-w-[65ch]";
 
-const WorkshopPage = (props: { files: StoredFile[] }) => {
+const WorkshopPage = () => {
   return (
     <Layout>
       <PageHeading title={PAGES.workshop.label} />
@@ -40,59 +39,18 @@ const WorkshopPage = (props: { files: StoredFile[] }) => {
       <div class={`text-base ${PROSE_WIDTH}`} innerHTML={renderMarkdown(content.workshop ?? "")} />
 
       {/*
-        * No files, no section. An empty table under a text that never mentioned
-        * files would be furniture; the page is complete without it.
+        * The way on, since the files no longer follow underneath. A fixed line
+        * rather than a sentence the editor has to remember to write: whoever
+        * read to the end here was one scroll away from the downloads before,
+        * and should not now be at a dead end.
         */}
-      {props.files.length > 0 && (
-        <>
-          <SectionHeading>Dateien zum Download</SectionHeading>
-          <TableFrame class="mb-8">
-            <thead>
-              <tr>
-                <th>Datei</th>
-                {/*
-                  * Number and unit in two columns: the digits line up on the
-                  * right, the unit sits left-aligned beside them. Right-aligning
-                  * "1,2 MB" against "980 kB" as one string aligns the unit and
-                  * leaves the decimal point wandering.
-                  */}
-                <th class="text-right" colspan={2}>
-                  Grösse
-                </th>
-                <th>Geändert</th>
-                <th>
-                  <span class="sr-only">Herunterladen</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {props.files.map((file) => {
-                const size = formatBytes(file.bytes);
-                return (
-                  <tr>
-                    <td class="font-mono text-sm">{file.name}</td>
-                    <td class="text-right tabular-nums">{size.wert}</td>
-                    <td class="text-base-content/70">{size.einheit}</td>
-                    <td class="text-sm">
-                      <LocalTime at={file.changed} />
-                    </td>
-                    <td class="text-right">
-                      <a
-                        href={`/downloads/${file.name}`}
-                        download=""
-                        class="btn btn-sm btn-outline btn-primary gap-2"
-                      >
-                        <DownloadIcon />
-                        Herunterladen
-                      </a>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </TableFrame>
-        </>
-      )}
+      <p class="mt-8 max-w-[65ch] text-base-content/70">
+        Die Dateien zum Workshop liegen unter{" "}
+        <a href={PAGES.downloads.href} class="link">
+          {PAGES.downloads.label}
+        </a>
+        .
+      </p>
     </Layout>
   );
 };
