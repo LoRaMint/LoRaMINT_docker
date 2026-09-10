@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.15.2] - 2026-09-10
+
 ### Fixed
 - **Das Hochladen nahm nur eine Datei, obwohl mehrere ausgewählt werden
   konnten.** Ein Ordner voll Arbeitsblätter bedeutete zehnmal denselben Weg.
@@ -1600,7 +1602,8 @@ reach its own configuration, and the ones the security model rests on.
 
 Releases up to and including [0.1.8] (2026-05-12) predate this changelog.
 
-[Unreleased]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.15.1...HEAD
+[Unreleased]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.15.2...HEAD
+[1.15.2]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.15.1...v1.15.2
 [1.15.1]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.15.0...v1.15.1
 [1.15.0]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.14.0...v1.15.0
 [1.14.0]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.13.3...v1.14.0
