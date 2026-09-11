@@ -27,6 +27,7 @@ import {
   PAGES,
 } from "../../../lib";
 import type { PaginationParams } from "../../../lib/pagination";
+import { deviceLabel } from "../../../lib/ttn-ids";
 import { NO_GROUP } from "../../../types";
 import type { Datatype, MeasurementFilter } from "../../../types";
 import type { FilterOption, ResourceSpec } from "../../components/manage/spec";
@@ -691,6 +692,14 @@ const groupOptions = (names: string[]) => [
 ];
 
 /**
+ * The device dropdown: named, with the EUI behind the name. The option's value
+ * stays the bare EUI, because that is what the filter travels as in the address
+ * and what `measurementFilterFrom` below checks against its hex pattern.
+ */
+const deviceOptions = (euis: string[], names: Record<string, string>) =>
+  euis.map((eui) => ({ value: eui, label: deviceLabel(eui, names[eui] ?? null) }));
+
+/**
  * Read field by field rather than through a schema, so one malformed value does
  * not silently discard the rest of the filter - which would show far more rows
  * than were asked for, right next to a delete button. Every value stays a
@@ -735,7 +744,7 @@ export const measurementBackend: ResourceBackend<MeasurementFilter> = {
     // that device has actually sent.
     const meta = await measurements.metadata({ device_eui: filter.device_eui });
     return {
-      device_eui: meta.devices,
+      device_eui: deviceOptions(meta.devices, meta.deviceNames),
       sensor: meta.sensors,
       measurand: meta.measurands,
       location: meta.locations,
@@ -759,7 +768,7 @@ export const logEntryBackend: ResourceBackend<LogEntryFilter> = {
   options: async () => {
     const meta = await logEntries.metadata();
     return {
-      device_eui: meta.devices,
+      device_eui: deviceOptions(meta.devices, meta.deviceNames),
       group_name: groupOptions(meta.groups),
       public_read: PUBLIC_OPTIONS,
     };

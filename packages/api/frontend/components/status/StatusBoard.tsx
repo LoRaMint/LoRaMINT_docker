@@ -2,6 +2,9 @@ import type { SensorStatus, LogStatus } from "../../../types";
 import TableFrame, { EmptyRow } from "../TableFrame";
 import { localTimeText } from "../LocalTime";
 import SectionHeading from "../SectionHeading";
+import DeviceLabel from "../DeviceLabel";
+import DeviceStateBadge from "../DeviceStateBadge";
+import type { DeviceState } from "../../../lib/device-state";
 
 /** Human-readable "vor X min/Std/Tagen" relative to now (German). */
 function relativeTime(date: Date): string {
@@ -31,7 +34,17 @@ const absoluteTime = (date: Date): string => localTimeText(date);
 export default function StatusBoard(props: {
   sensors: SensorStatus[];
   logs: LogStatus[];
+  /**
+   * aktiv/stumm/verwaist per upper-case DevEUI. Null when this server cannot
+   * tell - no TTN key, or a device list that never arrived - in which case no
+   * badge is shown at all rather than every device being declared verwaist.
+   */
+  states: Record<string, DeviceState> | null;
 }) {
+  /** The badge for one row's device, or nothing when the state is unknown. */
+  const stateOf = (deviceEui: string) =>
+    props.states?.[deviceEui.toUpperCase()] ?? null;
+
   return (
     <>
       {/* Measurements */}
@@ -54,7 +67,14 @@ export default function StatusBoard(props: {
             ) : (
               props.sensors.map((s) => (
                 <tr>
-                  <td class="font-mono text-sm">{s.deviceEui}</td>
+                  <td>
+                    <DeviceLabel eui={s.deviceEui} name={s.deviceName} />
+                    {stateOf(s.deviceEui) && (
+                      <div class="mt-0.5">
+                        <DeviceStateBadge state={stateOf(s.deviceEui)!} />
+                      </div>
+                    )}
+                  </td>
                   <td>{s.sensor}</td>
                   <td>{s.location}</td>
                   <td>{s.measurand}</td>
@@ -90,7 +110,14 @@ export default function StatusBoard(props: {
             ) : (
               props.logs.map((l) => (
                 <tr>
-                  <td class="font-mono text-sm">{l.deviceEui}</td>
+                  <td>
+                    <DeviceLabel eui={l.deviceEui} name={l.deviceName} />
+                    {stateOf(l.deviceEui) && (
+                      <div class="mt-0.5">
+                        <DeviceStateBadge state={stateOf(l.deviceEui)!} />
+                      </div>
+                    )}
+                  </td>
                   <td>{l.message}</td>
                   <td>
                     <span title={absoluteTime(l.lastSeen)}>

@@ -9,7 +9,7 @@ import { Scalar } from "@scalar/hono-api-reference";
 import { createMarkdownFromOpenApi } from "@scalar/openapi-to-markdown";
 import { z } from "zod";
 import { getCookie } from "hono/cookie";
-import { config, auth, setupAccount, uploads, validateConfig, verifyAppKey } from "./config";
+import { config, auth, setupAccount, ttn, uploads, validateConfig, verifyAppKey } from "./config";
 import { downloadHandler } from "./services/downloads";
 import { loadSettings, refreshSettingsIfStale } from "./services/settings";
 import {
@@ -30,6 +30,8 @@ import { measurements, logEntries } from "./services";
 import * as apiTokens from "./services/api-tokens";
 import type { Scope } from "./services/connections";
 import { declaredNames } from "./services/data-groups";
+import * as deviceNames from "./services/device-names";
+import { devices as ttnDevices } from "./services/ttn";
 import {
   TtnPayloadSchema,
   MeasurementSchema,
@@ -255,7 +257,8 @@ app.get(
     tags: ["Measurements"],
     summary: "List available filter values",
     description:
-      "Returns the distinct device_euis, measurands, sensors, locations and groups present in the " +
+      "Returns the distinct device_euis, their names as far as they are known, the measurands, " +
+      "sensors, locations and groups present in the " +
       "stored measurements, for populating the filter dropdowns on the /plots page, plus the " +
       "combinations that actually occurred together - the flat lists alone are a cross product " +
       "and would offer pairings no row ever carried. " +
@@ -403,6 +406,31 @@ root.route("/api/v1", app);
  */
 await loadSettings();
 validateConfig();
+
+/*
+ * The device names, pulled out of TTN once at startup.
+ *
+ * /status, /plots, /export and /board show a device by its EUI and are public,
+ * server-rendered and in /status's case reloading every thirty seconds - none of
+ * them can afford a TTN request, so they read the local copy
+ * (services/device-names.ts). Without this line a fresh deployment shows bare
+ * EUIs everywhere until an administrator happens to open the device overview,
+ * which is the other place the copy is brought up to date.
+ *
+ * Deliberately not awaited: TTN being slow or unreachable must not hold the port
+ * closed, and a missing name is a page that looks like it did before, not a
+ * broken one. Which is also why the failure is logged and nothing more.
+ */
+if (ttn.enabled) {
+  void ttnDevices
+    .listDevices()
+    .then((result) =>
+      result.ok
+        ? deviceNames.syncFrom(result.data)
+        : console.warn("device-names: startup sync skipped -", result.error),
+    )
+    .catch((err) => console.warn("device-names: startup sync failed -", err));
+}
 
 const pages = (await import("./frontend/pages")).default;
 root.route("/", pages);

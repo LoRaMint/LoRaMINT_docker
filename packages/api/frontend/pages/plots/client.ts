@@ -7,6 +7,7 @@
 
 import { COMMON_ZONES, otherZones, wallClockIn } from "../../../lib/time-zone";
 import { facetOptions, NO_GROUP, type Combination } from "../../../lib/facets";
+import { deviceLabel } from "../../../lib/ttn-ids";
 
 // Plotly is provided globally by /public/vendor/plotly.min.js (classic script).
 declare const Plotly: any;
@@ -120,6 +121,8 @@ type FilterOption = string | { value: string; label: string };
 
 type Metadata = {
   devices: string[];
+  /** The name per device, keyed by the same string `devices` holds. */
+  deviceNames: Record<string, string>;
   measurands: string[];
   sensors: string[];
   locations: string[];
@@ -351,15 +354,37 @@ function rangeWithPadding(values: number[]): [number, number] {
   return [lo - pad, hi + pad];
 }
 
-/** Builds Plotly traces + layout for the given per-measurand series groups. */
-function buildFigure(groups: Map<string, Series[]>, mode: "overlay" | "stacked") {
+/**
+ * Builds Plotly traces + layout for the given per-measurand series groups.
+ *
+ * `device` is handed in rather than read off the select, so this stays a function
+ * of its arguments - it is the only part of the island that does not touch the
+ * DOM, and that is worth keeping.
+ */
+function buildFigure(
+  groups: Map<string, Series[]>,
+  mode: "overlay" | "stacked",
+  device: string,
+) {
   const measurands = Array.from(groups.keys());
   const n = measurands.length;
   const traces: any[] = [];
   const layout: any = {
+    /**
+     * Which device this is, above everything else.
+     *
+     * For the same reason the time zone is always named on the x axis: a plot is
+     * the one thing here that leaves the site, and "temperature over three days"
+     * without the sensor it came from is a picture, not a measurement. The name
+     * carries the EUI with it (lib/ttn-ids.ts), so the chart still says which
+     * piece of hardware even after somebody renames it in TTN.
+     */
+    title: { text: device, x: 0, xanchor: "left", y: 0.98, yanchor: "top" },
     // Bottom margin sized for what actually stands there: two lines of tick
-    // label (Plotly puts the date under the time) plus the axis title.
-    margin: { l: 60, r: 60, t: 60, b: 80 },
+    // label (Plotly puts the date under the time) plus the axis title. The top
+    // now holds two things instead of one - the title and the legend beneath it
+    // (see `legend` below) - so it grew by one line's worth.
+    margin: { l: 60, r: 60, t: 90, b: 80 },
     showlegend: true,
     /**
      * Above the plot, not below it.
@@ -372,7 +397,7 @@ function buildFigure(groups: Map<string, Series[]>, mode: "overlay" | "stacked")
      * measurands. Moving it to the top removes the collision by construction
      * rather than by a number that happens to work at one size.
      */
-    legend: { orientation: "h", y: 1.02, yanchor: "bottom", x: 0, xanchor: "left" },
+    legend: { orientation: "h", y: 1.04, yanchor: "bottom", x: 0, xanchor: "left" },
     hovermode: "x unified",
     // The zone is always named here, even when it is the user's own, because a
     // plot is the one thing on this site that leaves it: downloaded as a PNG,
@@ -474,7 +499,11 @@ async function plot() {
       return setStatus("Keine numerischen Datenpunkte für die Auswahl gefunden.");
     }
 
-    const { traces, layout } = buildFigure(groups, mode);
+    const { traces, layout } = buildFigure(
+      groups,
+      mode,
+      deviceLabel(deviceEui, current?.deviceNames[deviceEui] ?? null),
+    );
     await Plotly.react("chart", traces, layout, { responsive: true, displaylogo: false });
     const total = traces.reduce((sum: number, t: any) => sum + t.x.length, 0);
     // Naming what stayed empty rather than quietly drawing fewer curves than
@@ -565,7 +594,15 @@ function narrowLists() {
 async function populateForDevice(deviceEui?: string, isInitial = false) {
   current = await fetchMetadata(deviceEui);
   if (isInitial) {
-    fillOptions(deviceSel(), current.devices);
+    // Named, with the EUI behind the name; the value stays the bare EUI, which
+    // is what goes back as device_eui.
+    fillOptions(
+      deviceSel(),
+      current.devices.map((eui) => ({
+        value: eui,
+        label: deviceLabel(eui, current!.deviceNames[eui] ?? null),
+      })),
+    );
     // The select has no "– alle –" entry, so the browser has just selected the
     // first device on its own - without firing `change`. Fetching again for it
     // is what keeps the lists from showing every device's values underneath a

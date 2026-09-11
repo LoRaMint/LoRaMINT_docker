@@ -140,6 +140,10 @@ const SPECS: RoleSpec[] = [
       { privileges: "SELECT, INSERT, UPDATE, DELETE", on: "device_groups" },
       // The board pages curate which measurements the public /board page shows.
       { privileges: "SELECT, INSERT, UPDATE, DELETE", on: "dashboard_entries" },
+      // The copy of the device names, kept in step with TTN by the device pages
+      // and by the sync at startup. Written here rather than by the webhook,
+      // because TTN's Identity Server is where a name is actually set.
+      { privileges: "SELECT, INSERT, UPDATE, DELETE", on: "device_names" },
       // API tokens and the permissions data groups grant them.
       { privileges: "SELECT, INSERT, UPDATE, DELETE", on: "api_tokens" },
       { privileges: "SELECT, INSERT, UPDATE, DELETE", on: "api_token_grants" },

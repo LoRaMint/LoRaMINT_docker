@@ -2,6 +2,7 @@ import Layout from "../../components/layout/Layout";
 import PageHeading from "../../components/PageHeading";
 import StatusBoard from "../../components/status/StatusBoard";
 import type { SensorStatus, LogStatus } from "../../../types";
+import type { DeviceState } from "../../../lib/device-state";
 
 /** Auto-refresh interval for the status board, in seconds. */
 const REFRESH_SECONDS = 30;
@@ -15,6 +16,8 @@ const REFRESH_SECONDS = 30;
 export default function StatusPage(props: {
   sensors: SensorStatus[];
   logs: LogStatus[];
+  /** aktiv/stumm/verwaist per upper-case DevEUI, or null when TTN is unknown here. */
+  states: Record<string, DeviceState> | null;
 }) {
   return (
     <Layout>
@@ -29,7 +32,7 @@ export default function StatusPage(props: {
         }
       />
 
-      <StatusBoard sensors={props.sensors} logs={props.logs} />
+      <StatusBoard sensors={props.sensors} logs={props.logs} states={props.states} />
 
       {/* Auto-refresh: reload the whole (server-rendered) page periodically. */}
       <script>{`setTimeout(function () { location.reload(); }, ${REFRESH_SECONDS * 1000});`}</script>

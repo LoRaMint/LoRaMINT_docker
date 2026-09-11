@@ -62,10 +62,11 @@ eingerichtet ist, existiert nicht — statt halb da zu sein und zu scheitern.
 ### 1. Die Übersicht (Vorgabe 1)
 
 ```
-Name          Geräte-ID    DevEUI                    Letzter Messwert   Messwerte  Zustand
-Fenster 8b    device-1     A8 40 41 D6 C1 84 DB 82   05.08.2026 09:14      12.480   [aktiv]
-Flur EG       device-4     A8 40 41 D6 C1 84 DB 90   —                          0   [stumm]
-nicht in TTN  —            A8 40 41 D6 C1 84 AA 01   02.08.2026 17:02         840   [verwaist]
+Name          Geräte-ID    DevEUI                    Zuletzt gehört     Messwerte  Logs  Zustand
+Fenster 8b    device-1     A8 40 41 D6 C1 84 DB 82   05.08.2026 09:14      12.480     3  [aktiv]
+Flur EG       device-4     A8 40 41 D6 C1 84 DB 90   —                          0     0  [stumm]
+Werkbank 2    device-7     A8 40 41 D6 C1 84 DB 95   06.08.2026 11:40           0    17  [aktiv]
+nicht in TTN  —            A8 40 41 D6 C1 84 AA 01   02.08.2026 17:02         840     0  [verwaist]
 ```
 
 Drei Zustände, und die letzten beiden sind der eigentliche Zweck der Seite:
@@ -74,7 +75,15 @@ Drei Zustände, und die letzten beiden sind der eigentliche Zweck der Seite:
 |---|---|
 | **aktiv** | In TTN registriert, in den letzten 24 Stunden kam etwas an. |
 | **stumm** | In TTN registriert, aber nichts (mehr) empfangen. Der Aufbau steht noch im Schrank — oder er ist defekt. |
-| **verwaist** | Messwerte unter einer DevEUI, die TTN nicht (mehr) kennt. Die Werte bleiben; konfigurieren kann das Gerät dort niemand mehr. |
+| **verwaist** | Messwerte oder Logs unter einer DevEUI, die TTN nicht (mehr) kennt. Die Daten bleiben; konfigurieren kann das Gerät dort niemand mehr. |
+
+**„Etwas" ist ein Messwert oder eine Log-Nachricht**, und die dritte Zeile oben
+ist der Grund: ein Aufbau, der noch geflasht wird oder dessen Sensor noch nicht
+angelötet ist, sendet nur Meldungen. Er redet — ihn „stumm" zu nennen würde
+jemanden nach einem Fehler suchen lassen, den es nicht gibt. Deshalb heisst die
+Zeitspalte **Zuletzt gehört** und nicht „Letzter Messwert", und deshalb stehen
+Messwerte und Logs getrennt daneben: der Zustand zählt beides, die Zahlen sagen
+welches davon. Beide Zahlen führen auf die Datenseite des jeweiligen Geräts.
 
 Beides ist von einer Seite allein unsichtbar: die TTN-Console kennt keine
 Messwerte, die Datenseiten kennen keine Registrierung. Deshalb steht die
@@ -206,6 +215,57 @@ liegt etwas). Kein Zurücknehmen-Knopf, und ein Satz oben, der sagt warum:
 
 ---
 
+## Der Name wird mitgeschrieben
+
+Die Seiten, die Messwerte zeigen — Status, Plots, Export, Dashboard und die
+Datenverwaltung — benennen ein Gerät mit seinem Namen und der DevEUI darunter.
+Den Namen kennt aber nur TTN, und keine dieser Seiten kann dort nachfragen: sie
+sind öffentlich, werden auf dem Server gerendert, und die Statusseite lädt sich
+alle dreissig Sekunden selbst neu. Eine TTN-Anfrage pro Aufruf würde den
+ruhigsten Pfad der Anwendung an ein fremdes System hängen.
+
+Deshalb liegt eine Kopie in `device_names` (Migration 012) — der Name, und ein
+Schalter `registered`, der sagt, ob TTN das Gerät beim letzten Abgleich noch
+kannte. Der Schalter ist nötig, weil die Statusseite dieselben drei Zustände
+zeigt wie diese Übersicht, und „verwaist" eine Frage nach Anwesenheit ist, nicht
+nach Namen. Diese Seite ist einer der beiden Orte, an denen die Kopie entsteht:
+
+- **Beim Start** holt der Server die Geräteliste einmal und schreibt die Namen
+  mit — ohne darauf zu warten. Ist TTN nicht erreichbar, stehen weiterhin nur die
+  EUIs da; das ist das Bild von vorher, kein Fehler.
+- **Bei jedem Blick auf die Übersicht**, weil die die ganze TTN-Liste ohnehin in
+  der Hand hat. Auch das nebenher: ein Name, der sich nicht speichern lässt, ist
+  kein Grund, die Seite zurückzuhalten.
+- **Beim Anlegen und beim Umbenennen** für das einzelne Gerät, damit der Name
+  nicht erst beim nächsten Aufruf der Übersicht auf den öffentlichen Seiten
+  ankommt.
+
+Das widerspricht dem „Kein Zwischenspeichern" oben nicht, sondern zieht die
+Grenze: **gelesen wird nie aus der Kopie, wenn es um ein Gerät geht.** Die
+Übersicht, das einzelne Gerät und jeder Vorgang fragen TTN. Die Kopie trägt nur
+das Etikett, und sie entscheidet nichts.
+
+**Ein Gerät, das TTN nicht mehr kennt, behält seinen Namen** und verliert nur
+den Schalter. Die Messwerte überleben die Registrierung — die Übersicht hat dafür
+das Wort „verwaist" — und genau auf diesen Zeilen ist ein zuletzt bekannter Name
+am meisten wert. Eine EUI gehört zur Hardware, ein erneutes Registrieren schaltet
+sie also wieder ein. Eine Zeile wirklich loszuwerden bleibt der SQL-Konsole
+vorbehalten.
+
+Der Abgleich setzt dafür in **einer** Transaktion erst alle Schalter aus und
+dann für jedes Gerät der Liste wieder ein. Dazwischen sähe jedes Gerät verwaist
+aus, und diesen Zustand darf keine Seite lesen. Aus demselben Grund weigert sich
+`listDevices()`, eine halbe Liste zurückzugeben: sie würde die andere Hälfte für
+verwaist erklären.
+
+**Diese Seite liest die Kopie nie.** Sie fragt TTN, und zwar bei jedem Aufruf —
+die Seite, auf der jemand ein Gerät anfasst, ist immer aktuell. Die Kopie ist
+für die Seiten da, die nur anzeigen; dort ist der Zustand so frisch wie der
+letzte Abgleich, und ein in der TTN-Console gelöschtes Gerät gilt bis zum
+nächsten Neustart oder dem nächsten Blick hierher als registriert.
+
+---
+
 ## Routen und Dateien
 
 ```
@@ -231,14 +291,20 @@ frontend/pages/management/
 └─ device-log-page.tsx          das Protokoll
 
 services/
+├─ measurement.ts               deviceActivity: Anzahl und letzter Messwert je EUI
+├─ log-entry.ts                 deviceActivity: dasselbe für die Logs
+├─ device-names.ts              Name und registered, aus TTN nachgezogen
 ├─ ttn.ts                       der Client: listDevices, getDevice, appKeyOf,
 │                               createDevice (mit Rückrollpfad), renameDevice
 └─ device-log.ts                lesen auf der eigenen Verbindung, anhängen über
                                 DATABASE_URL_MANAGE
 
 lib/ttn-ids.ts                  normalisieren und prüfen — rein, ohne Netz
+lib/device-state.ts             aktiv/stumm/verwaist — eine Regel für beide Seiten
+components/DeviceStateBadge.tsx das Abzeichen samt Erklärung, hier und im Status
 components/manage/Notice.tsx    der Meldungskasten, vorher viermal abgeschrieben
 migrations/004-device-log.ts    die Tabelle
+migrations/012-device-names.ts  die Kopie der Gerätenamen
 ```
 
 ---

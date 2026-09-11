@@ -46,6 +46,8 @@ import ExportPage from "./export/page";
 import StatusPage from "./status/page";
 import BoardPage from "./board/page";
 import * as dashboard from "../../services/dashboard";
+import * as deviceNames from "../../services/device-names";
+import { deviceStates } from "../../lib/device-state";
 import Esp32GuidePage from "./guides/esp32/page";
 import LoginPage from "./login/page";
 import SqlPage from "./sql/page";
@@ -125,11 +127,32 @@ pages.get(
   "/status",
   ...ssr(async (c) => {
     c.get("page").title = PAGES.status.label;
-    const [sensors, logs] = await Promise.all([
+    const [sensors, logs, registered] = await Promise.all([
       measurements.status(),
       logEntries.status(),
+      deviceNames.registeredEuis(),
     ]);
-    return <StatusPage sensors={sensors} logs={logs} />;
+    /*
+     * aktiv, stumm or verwaist per device - the same three the device overview
+     * shows, decided by the same rule (lib/device-state.ts).
+     *
+     * Two differences to over there, both forced by this page being public. The
+     * registration comes from the local copy rather than from TTN
+     * (services/device-names.ts), so the label is as fresh as the last sync. And
+     * a device that is registered but has never sent anything has no row here at
+     * all - this table is built from what arrived, not from what exists - so
+     * "stumm" on this page means "nothing in the last 24 hours".
+     *
+     * Knowing nothing is not the same as knowing a device is unregistered: with
+     * an empty registry (no TTN key configured, or a list that never arrived)
+     * every row would read verwaist, which is worse than silence. So in that case
+     * the badges stay away entirely.
+     */
+    const states =
+      registered.size === 0
+        ? null
+        : deviceStates([...sensors, ...logs], registered);
+    return <StatusPage sensors={sensors} logs={logs} states={states} />;
   }),
 );
 

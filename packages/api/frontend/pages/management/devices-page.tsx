@@ -5,6 +5,8 @@ import PageHeading from "../../components/PageHeading";
 import Notice from "../../components/Notice";
 import Planned from "../../components/Planned";
 import { formatEui } from "../../../lib/ttn-ids";
+import type { DeviceState } from "../../../lib/device-state";
+import DeviceStateBadge from "../../components/DeviceStateBadge";
 
 /**
  * The devices, from both sides at once.
@@ -82,42 +84,20 @@ export const DEVICE_MESSAGES: Record<
 //====================================
 
 /**
- * What a device looks like once both sides have been consulted.
- *
- *   active   registered in TTN and something arrived recently.
- *   silent   registered in TTN, but nothing arrived, or nothing for a long time.
- *   orphan   measurements under an EUI TTN does not know - no `deviceId`.
+ * What a device looks like once both sides have been consulted. The three states
+ * and the rule behind them live in lib/device-state.ts, shared with the status
+ * board; the badge and its tooltip in components/DeviceStateBadge.tsx.
  */
-export type DeviceState = "active" | "silent" | "orphan";
-
 export type DeviceRow = {
   deviceId: string | null;
   name: string | null;
   devEui: string | null;
   state: DeviceState;
   count: number;
+  /** Log messages, counted apart from the readings - the two say different things. */
+  logCount: number;
+  /** The last time anything arrived, whichever of the two it was. */
   lastSeen: Date | null;
-};
-
-const STATE: Record<DeviceState, { label: string; badge: string; title: string }> = {
-  active: {
-    label: "aktiv",
-    badge: "badge-success",
-    title: "In TTN registriert, und es kommen Messwerte an.",
-  },
-  silent: {
-    label: "stumm",
-    badge: "badge-warning",
-    title:
-      "In TTN registriert, aber es kommt nichts (mehr) an – der Aufbau steht " +
-      "noch im Schrank, oder er ist defekt.",
-  },
-  orphan: {
-    label: "verwaist",
-    badge: "badge-error",
-    title:
-      "Messwerte unter einer DevEUI, die in TTN nicht (mehr) registriert ist.",
-  },
 };
 
 //====================================
@@ -236,15 +216,18 @@ export default function ManageDevicesPage(props: {
               <th>Name</th>
               <th>Geräte-ID</th>
               <th>DevEUI</th>
-              <th>Letzter Messwert</th>
+              {/* Not „Letzter Messwert": a device that only sends messages is
+                  heard from too, and that is what decides its state. */}
+              <th>Zuletzt gehört</th>
               <th class="text-right">Messwerte</th>
+              <th class="text-right">Logs</th>
               <th>Zustand</th>
             </tr>
           </thead>
           <tbody>
             {props.rows.length === 0 && (
-              <EmptyRow columns={6}>In dieser Application ist noch kein Gerät registriert, und
-                  Messwerte sind auch keine da.</EmptyRow>
+              <EmptyRow columns={7}>In dieser Application ist noch kein Gerät registriert, und
+                  Messwerte oder Logs sind auch keine da.</EmptyRow>
             )}
             {props.rows.map((row) => (
               <tr>
@@ -279,14 +262,36 @@ export default function ManageDevicesPage(props: {
                 <td class="whitespace-nowrap">
                   {row.lastSeen ? <LocalTime at={row.lastSeen} /> : "–"}
                 </td>
-                <td class="text-right">{row.count}</td>
+                <td class="text-right">
+                  {row.devEui && row.count > 0 ? (
+                    <a
+                      href={`/management/data/measurements?device_eui=${row.devEui}`}
+                      class="link no-underline"
+                      title="Messwerte dieses Geräts"
+                    >
+                      {row.count}
+                    </a>
+                  ) : (
+                    row.count
+                  )}
+                </td>
+                {/* Its own way in, because a device can have messages and no
+                    readings at all - the EUI above leads to the readings. */}
+                <td class="text-right">
+                  {row.devEui && row.logCount > 0 ? (
+                    <a
+                      href={`/management/data/log-entries?device_eui=${row.devEui}`}
+                      class="link no-underline"
+                      title="Logs dieses Geräts"
+                    >
+                      {row.logCount}
+                    </a>
+                  ) : (
+                    row.logCount
+                  )}
+                </td>
                 <td>
-                  <span
-                    class={`badge badge-sm ${STATE[row.state].badge}`}
-                    title={STATE[row.state].title}
-                  >
-                    {STATE[row.state].label}
-                  </span>
+                  <DeviceStateBadge state={row.state} />
                 </td>
               </tr>
             ))}
@@ -295,9 +300,10 @@ export default function ManageDevicesPage(props: {
 
       <p class="text-sm text-base-content/70 mt-3 max-w-[65ch]">
         „stumm" heisst: in TTN registriert, aber in den letzten 24 Stunden kam
-        nichts an. „verwaist" heisst: es kommen Messwerte unter einer DevEUI an,
-        die in TTN nicht registriert ist – die Werte bleiben erhalten, aber
-        niemand kann das Gerät dort noch konfigurieren.
+        nichts an – weder ein Messwert noch ein Log. „verwaist" heisst: es kommen
+        Messwerte oder Logs unter einer DevEUI an, die in TTN nicht registriert
+        ist – die Daten bleiben erhalten, aber niemand kann das Gerät dort noch
+        konfigurieren.
       </p>
     </Layout>
   );

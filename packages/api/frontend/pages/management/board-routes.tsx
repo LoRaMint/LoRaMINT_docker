@@ -9,6 +9,7 @@ import {
   updateEntry,
   type RangeMode,
 } from "../../../services/dashboard";
+import * as deviceNames from "../../../services/device-names";
 import BoardManagePage from "./board-page";
 
 /**
@@ -51,11 +52,19 @@ export const registerBoardRoutes = (
     guards.requireRole,
     ...ssr(async (c) => {
       c.get("page").title = PAGES.boardManage.label;
-      const [entries, triples] = await Promise.all([listEntries(), knownTriples()]);
+      // The names travel as one map rather than on every triple: a device occurs
+      // once per sensor and measurand in that list, and the page needs the same
+      // lookup for the table above as for the dropdown below.
+      const [entries, triples, names] = await Promise.all([
+        listEntries(),
+        knownTriples(),
+        deviceNames.all(),
+      ]);
       return (
         <BoardManagePage
           entries={entries}
           triples={triples}
+          names={Object.fromEntries(names)}
           {...(c.req.query("saved") ? { saved: c.req.query("saved")! } : {})}
           {...(c.req.query("error") ? { error: c.req.query("error")! } : {})}
         />

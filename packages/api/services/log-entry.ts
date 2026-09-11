@@ -76,12 +76,42 @@ const list = async (pagination: PaginationParams) => {
 };
 
 /**
+ * How many log entries have arrived per device, and when the last one did.
+ *
+ * The twin of `measurements.deviceActivity()`, and the device overview adds the
+ * two together: a device that only ever sends messages - one still being
+ * flashed, one whose sensor is not wired up yet - is talking, and a page that
+ * called it "stumm" would send somebody looking for a fault that is not there.
+ *
+ * Keyed by the upper-case EUI for the same reason as over there: the rows hold
+ * whatever the webhook was sent, TTN writes them upper case, and a device that
+ * matched only in case would appear twice.
+ */
+const deviceActivity = async (): Promise<
+  Map<string, { count: number; lastSeen: Date | null }>
+> => {
+  const rows = await q((tx) => tx`
+    SELECT upper(device_eui) AS eui,
+           count(*)::int AS n,
+           max(created_at) AS last_seen
+      FROM log_entries
+     GROUP BY upper(device_eui)
+  `);
+  return new Map(
+    (rows as Record<string, unknown>[]).map((r) => [
+      r.eui as string,
+      { count: Number(r.n), lastSeen: (r.last_seen as Date | null) ?? null },
+    ]),
+  );
+};
+
+/**
  * Status board data: the latest log entry per device_eui, plus how many log
  * entries that device has sent, ordered by most recent activity first.
  */
 const status = async (): Promise<LogStatus[]> => {
   const rows = await q((tx) => tx`
-    SELECT device_eui, message, last_seen, n
+    SELECT t.device_eui, t.message, t.last_seen, t.n, dn.name AS device_name
     FROM (
       SELECT device_eui, message, created_at AS last_seen,
              count(*) OVER (PARTITION BY device_eui) AS n,
@@ -91,11 +121,15 @@ const status = async (): Promise<LogStatus[]> => {
              ) AS rn
       FROM log_entries
     ) t
+    -- Outside the window scan, and upper-cased: see the same join in
+    -- services/measurement.ts.
+    LEFT JOIN device_names dn ON dn.device_eui = upper(t.device_eui)
     WHERE rn = 1
     ORDER BY last_seen DESC
   `);
   return (rows as Record<string, unknown>[]).map((r) => ({
     deviceEui: r.device_eui as string,
+    deviceName: (r.device_name as string | null) ?? null,
     message: r.message as string,
     lastSeen: r.last_seen as Date,
     count: Number(r.n),
@@ -246,7 +280,15 @@ const byIds = async (ids: string[]) => {
 const metadata = async () => {
   const [devices, groups] = await q((tx) =>
     Promise.all([
-      tx`SELECT DISTINCT device_eui AS v FROM log_entries ORDER BY v`,
+      // The name comes along with the EUI rather than from a second lookup, so
+      // the keys match the dropdown's values whatever case the rows hold - the
+      // same reasoning as in services/measurement.ts.
+      tx`
+        SELECT DISTINCT l.device_eui AS v, dn.name
+        FROM log_entries l
+        LEFT JOIN device_names dn ON dn.device_eui = upper(l.device_eui)
+        ORDER BY v
+      `,
       tx`SELECT DISTINCT group_name AS v FROM log_entries ORDER BY v`,
     ]),
   );
@@ -254,7 +296,12 @@ const metadata = async () => {
   // sentinel rather than taken from this list.
   const values = (rows: unknown) =>
     (rows as { v: string }[]).map((row) => row.v).filter((value) => value != null);
-  return { devices: values(devices), groups: values(groups) };
+  const deviceNames = Object.fromEntries(
+    (devices as unknown as { v: string | null; name: string | null }[])
+      .filter((row) => row.v != null && row.name != null)
+      .map((row) => [row.v as string, row.name as string]),
+  );
+  return { devices: values(devices), deviceNames, groups: values(groups) };
 };
 
 /**
@@ -305,6 +352,7 @@ export const logEntries = {
   store,
   ingest,
   list,
+  deviceActivity,
   status,
   count,
   filterClause,

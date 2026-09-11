@@ -38,6 +38,8 @@ export type LogEntry = {
 /** One row of the status board: the latest measurement per device + sensor. */
 export type SensorStatus = {
   deviceEui: string;
+  /** The name TTN knows the device by, null for one that has none. */
+  deviceName: string | null;
   sensor: string;
   location: string;
   measurand: string;
@@ -50,6 +52,8 @@ export type SensorStatus = {
 /** One row of the log status board: the latest log entry per device. */
 export type LogStatus = {
   deviceEui: string;
+  /** The name TTN knows the device by, null for one that has none. */
+  deviceName: string | null;
   message: string;
   lastSeen: Date;
   count: number;
@@ -178,6 +182,14 @@ export const MeasurementMetadataQuerySchema = MeasurementFilterSchema.pick({
 /** Response schema for `GET /measurements/metadata`: distinct values for dropdowns. */
 export const MeasurementMetadataSchema = z.object({
   devices: z.array(z.string()),
+  /**
+   * The name of each device, keyed by exactly the strings in `devices`.
+   *
+   * Additive, and `devices` stays a flat list of EUIs: that list is what a filter
+   * is built from, and a client that has never heard of names keeps working. A
+   * device without a name simply has no key here.
+   */
+  deviceNames: z.record(z.string(), z.string()),
   measurands: z.array(z.string()),
   sensors: z.array(z.string()),
   locations: z.array(z.string()),

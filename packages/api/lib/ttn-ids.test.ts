@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+  deviceLabel,
   deviceProblems,
   formatEui,
   MAX_NAME_LENGTH,
@@ -149,6 +150,28 @@ describe("formatEui", () => {
 
   test("round-trips with normaliseEui", () => {
     expect(normaliseEui(formatEui("A84041D6C184DB82"))).toBe("A84041D6C184DB82");
+  });
+});
+
+describe("deviceLabel", () => {
+  test("names the device and keeps the EUI behind it", () => {
+    expect(deviceLabel("A84041D6C184DB82", "Fenster 8b")).toBe(
+      `Fenster 8b (${DEV_EUI})`,
+    );
+  });
+
+  test("a device without a name is its EUI, not empty brackets", () => {
+    expect(deviceLabel("A84041D6C184DB82", null)).toBe(DEV_EUI);
+  });
+
+  test("a blank name counts as none", () => {
+    expect(deviceLabel("A84041D6C184DB82", "   ")).toBe(DEV_EUI);
+  });
+
+  test("the EUI is shown upper case, whatever the row held", () => {
+    expect(deviceLabel("a84041d6c184db82", "Fenster 8b")).toBe(
+      `Fenster 8b (${DEV_EUI})`,
+    );
   });
 });
 

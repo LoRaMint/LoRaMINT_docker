@@ -7,6 +7,8 @@ import Field from "../../components/Field";
 import SectionHeading from "../../components/SectionHeading";
 import type { DashboardEntry, Triple } from "../../../services/dashboard";
 import { PAGES } from "../../../lib";
+import { deviceLabel } from "../../../lib/ttn-ids";
+import DeviceLabel from "../../components/DeviceLabel";
 
 const PATH = "/management/board";
 
@@ -23,6 +25,8 @@ export default function BoardManagePage(props: {
   entries: DashboardEntry[];
   /** (device_eui, sensor, measurand) triples actually present in the measurements table. */
   triples: Triple[];
+  /** What TTN calls each device, by upper-case DevEUI - absent for one without a name. */
+  names: Record<string, string>;
   saved?: string;
   error?: string;
 }) {
@@ -65,7 +69,12 @@ export default function BoardManagePage(props: {
           ) : (
             props.entries.map((entry) => (
               <tr>
-                <td class="font-mono text-sm">{entry.deviceEui}</td>
+                <td>
+                  <DeviceLabel
+                    eui={entry.deviceEui}
+                    name={props.names[entry.deviceEui.toUpperCase()] ?? null}
+                  />
+                </td>
                 <td>{entry.sensor}</td>
                 <td>{entry.measurand}</td>
                 <td colspan={4}>
@@ -147,12 +156,16 @@ export default function BoardManagePage(props: {
         </Field>
 
         <Field label="Device-EUI" required class="max-w-md">
-          <select id="board-device" name="device_eui" required class="select w-full font-mono">
+          {/* The label names the device, the value stays the bare EUI - that is
+              what `createEntry` stores and validates against. */}
+          <select id="board-device" name="device_eui" required class="select w-full">
             <option value="" disabled selected>
               – auswählen –
             </option>
             {distinct(props.triples.map((t) => t.deviceEui)).map((eui) => (
-              <option value={eui}>{eui}</option>
+              <option value={eui}>
+                {deviceLabel(eui, props.names[eui.toUpperCase()] ?? null)}
+              </option>
             ))}
           </select>
         </Field>

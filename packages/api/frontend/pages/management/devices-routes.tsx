@@ -1,10 +1,12 @@
 import type { Hono, MiddlewareHandler } from "hono";
 import { ssr } from "../../../config/ssr";
 import { auth, manage, ttn } from "../../../config";
-import { deviceLog, devices, measurements } from "../../../services";
+import { deviceLog, devices, logEntries, measurements } from "../../../services";
 import { assignDevice, assignmentFor } from "../../../services/device-groups";
+import * as deviceNames from "../../../services/device-names";
 import { listDataGroups } from "../../../services/data-groups";
 import { currentScope, currentUser, hasRole, PAGES, parsePage, parseReason } from "../../../lib";
+import { deviceState, laterOf } from "../../../lib/device-state";
 import {
   deviceProblems,
   nextDeviceId,
@@ -37,14 +39,6 @@ const PATH = "/management/devices";
 
 /** Rows per page in the log. */
 const PER_PAGE = 25;
-
-/**
- * How long a registered device may stay quiet before the overview calls it
- * stumm. A day, because these are classroom sensors that report every few
- * minutes: anything that has said nothing since yesterday is worth a look, and
- * anything shorter would flag a device over a single missed uplink.
- */
-const ACTIVE_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 //====================================
 // HELPERS
@@ -110,9 +104,12 @@ export const registerDeviceRoutes = (
         );
       }
 
-      const [listed, activity] = await Promise.all([
+      // Both kinds of traffic, because both mean the device is alive: a board
+      // still being flashed sends messages long before it sends a reading.
+      const [listed, activity, logActivity] = await Promise.all([
         devices.listDevices(),
         measurements.deviceActivity(),
+        logEntries.deviceActivity(),
       ]);
 
       if (!listed.ok) {
@@ -127,37 +124,55 @@ export const registerDeviceRoutes = (
         );
       }
 
+      // The overview is the one page that has the whole TTN list in hand, so it
+      // is where the local copy of the names gets brought up to date - the public
+      // pages read that copy and cannot ask TTN themselves (see
+      // services/device-names.ts). Fire and forget: a name that fails to save is
+      // no reason to withhold the page somebody asked for.
+      void deviceNames
+        .syncFrom(listed.data)
+        .catch((err) => console.warn("device-names: sync failed -", err));
+
+      // One instant for the whole table, so two rows cannot be judged against
+      // clocks a millisecond apart.
       const now = Date.now();
       const seen = new Set<string>();
+
       const rows: DeviceRow[] = listed.data.map((device) => {
         const eui = device.devEui?.toUpperCase() ?? null;
         if (eui) seen.add(eui);
         const stats = eui ? activity.get(eui) : undefined;
-        const lastSeen = stats?.lastSeen ?? null;
+        const logStats = eui ? logActivity.get(eui) : undefined;
+        const lastSeen = laterOf(stats?.lastSeen ?? null, logStats?.lastSeen ?? null);
         return {
           deviceId: device.deviceId,
           name: device.name,
           devEui: eui,
-          state:
-            lastSeen && now - lastSeen.getTime() <= ACTIVE_WINDOW_MS
-              ? "active"
-              : "silent",
+          // Registered, because this row came out of the TTN list itself.
+          state: deviceState(true, lastSeen, now),
           count: stats?.count ?? 0,
+          logCount: logStats?.count ?? 0,
           lastSeen,
         };
       });
 
-      // Measurements arriving under an EUI TTN does not know. Invisible from
-      // either side on its own, which is the whole reason for this page.
-      for (const [eui, stats] of activity) {
+      // Traffic arriving under an EUI TTN does not know. Invisible from either
+      // side on its own, which is the whole reason for this page - and a device
+      // that only ever sent messages is just as invisible, so the log activity
+      // is part of this union rather than of the rows above alone.
+      const euis = new Set([...activity.keys(), ...logActivity.keys()]);
+      for (const eui of euis) {
         if (seen.has(eui)) continue;
+        const stats = activity.get(eui);
+        const logStats = logActivity.get(eui);
         rows.push({
           deviceId: null,
           name: null,
           devEui: eui,
           state: "orphan",
-          count: stats.count,
-          lastSeen: stats.lastSeen,
+          count: stats?.count ?? 0,
+          logCount: logStats?.count ?? 0,
+          lastSeen: laterOf(stats?.lastSeen ?? null, logStats?.lastSeen ?? null),
         });
       }
 
@@ -305,6 +320,15 @@ export const registerDeviceRoutes = (
         normalised.devEui,
         actorFrom(reason),
       );
+
+      // So the new device is named on the public pages before anybody opens the
+      // overview again. A run that got through only part of the four servers is
+      // cleaned up and has no device to name.
+      if (result.data.failed === null) {
+        await deviceNames
+          .rememberName(normalised.devEui, normalised.name)
+          .catch((err) => console.warn("device-names: could not store name -", err));
+      }
 
       c.get("page").title =
         result.data.failed === null ? "Gerät angelegt" : "Gerät nicht angelegt";
@@ -474,6 +498,13 @@ export const registerDeviceRoutes = (
       if (current.data.name === name) return back("nochange");
 
       const renamed = await devices.renameDevice(deviceId, name);
+      // The copy follows the rename immediately; TTN has already accepted it, and
+      // the next look at the overview would only confirm what is known here.
+      if (renamed.ok && current.data.devEui) {
+        await deviceNames
+          .rememberName(current.data.devEui, name)
+          .catch((err) => console.warn("device-names: could not store name -", err));
+      }
       await deviceLog.recordRename(
         deviceId,
         current.data.devEui,

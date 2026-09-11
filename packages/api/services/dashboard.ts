@@ -43,6 +43,8 @@ export type EntryInput = {
 /** One tile on the board: an entry, its latest value, and its resolved range. */
 export type BoardTile = {
   entry: DashboardEntry;
+  /** What TTN calls the device, null for one it has no name for. */
+  deviceName: string | null;
   unit: string | null;
   value: number | null;
   /** When the latest value was recorded, or null with no matching measurement yet. */
@@ -191,7 +193,8 @@ export const boardTiles = async (): Promise<BoardTile[]> => {
            e.range_mode, e.min_value, e.max_value, e.created_at, e.created_by,
            latest.value AS latest_value, latest.unit AS latest_unit,
            latest.seen_at AS latest_seen_at,
-           agg.min_value AS hist_min, agg.max_value AS hist_max
+           agg.min_value AS hist_min, agg.max_value AS hist_max,
+           dn.name AS device_name
     FROM dashboard_entries e
     LEFT JOIN LATERAL (
       SELECT value, unit, COALESCE(recorded_at, created_at) AS seen_at
@@ -207,11 +210,17 @@ export const boardTiles = async (): Promise<BoardTile[]> => {
         AND m.datatype IN ('float', 'integer')
         AND e.range_mode = 'dynamic'
     ) agg ON true
+    -- A tile carries its own name, which is what the board is curated for; this
+    -- is the device behind it, beside the EUI the tile already shows. Upper-cased
+    -- on both sides, because an entry written straight through the SQL console
+    -- need not be.
+    LEFT JOIN device_names dn ON dn.device_eui = upper(e.device_eui)
     ORDER BY e.name
   `;
 
   return (rows as Record<string, unknown>[]).map((row) => {
     const entry = mapEntry(row);
+    const deviceName = (row.device_name as string | null) ?? null;
     const rawValue = row.latest_value as string | null;
     const parsed = rawValue === null ? NaN : Number(rawValue);
     const value = Number.isFinite(parsed) ? parsed : null;
@@ -221,6 +230,7 @@ export const boardTiles = async (): Promise<BoardTile[]> => {
     if (entry.rangeMode === "fixed") {
       return {
         entry,
+        deviceName,
         unit,
         value,
         lastSeen,
@@ -235,6 +245,7 @@ export const boardTiles = async (): Promise<BoardTile[]> => {
     const hasRange = histMin !== null && histMax !== null && histMin < histMax;
     return {
       entry,
+      deviceName,
       unit,
       value,
       lastSeen,

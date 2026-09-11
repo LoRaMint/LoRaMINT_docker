@@ -100,6 +100,23 @@ export const formatHex = (value: string): string =>
 /** An EUI in byte pairs. */
 export const formatEui = (eui: string): string => formatHex(eui);
 
+/**
+ * How a device is named in one line: its name, with the EUI in brackets behind
+ * it. For the places where only one line fits - a dropdown option, a chart title.
+ *
+ * The EUI never drops out, even when there is a name. It is what the database,
+ * the webhook and every API filter hold, so somebody comparing a selection
+ * against a URL or a CSV column needs to see it; the name is the part that says
+ * which window in which room, and it comes first for that reason.
+ *
+ * A device without a name - one TTN does not know, or has never been given one -
+ * is just its EUI, not an empty pair of brackets.
+ */
+export const deviceLabel = (eui: string, name: string | null): string =>
+  name && name.trim().length > 0
+    ? `${name.trim()} (${formatEui(eui)})`
+    : formatEui(eui);
+
 //====================================
 // THE FORM
 //====================================

@@ -247,7 +247,22 @@ const metadata = async (filter: MeasurementFilter = {}) => {
   // more than the public rows.
   const [devices, measurands, sensors, locations, groups, combinations] = await q((tx) =>
     Promise.all([
-      tx`SELECT DISTINCT device_eui AS v FROM measurements ${where} ORDER BY v`,
+      // The name travels with the EUI rather than being looked up separately,
+      // and that is what keeps the two in step: the keys of `deviceNames` are
+      // then exactly the strings in `devices` by construction. Built apart, a
+      // row holding a lower-case EUI would produce an option whose name is
+      // filed under a key nobody looks up, and the label would silently fall
+      // back to the bare EUI.
+      //
+      // The filter stays inside the subquery, because it names `device_eui`
+      // unqualified and both tables have that column - joined at this level,
+      // the shared clause would be ambiguous.
+      tx`
+        SELECT m.v, dn.name
+        FROM (SELECT DISTINCT device_eui AS v FROM measurements ${where}) m
+        LEFT JOIN device_names dn ON dn.device_eui = upper(m.v)
+        ORDER BY m.v
+      `,
       tx`SELECT DISTINCT measurand  AS v FROM measurements ${where} ORDER BY v`,
       tx`SELECT DISTINCT sensor     AS v FROM measurements ${where} ORDER BY v`,
       tx`SELECT DISTINCT location   AS v FROM measurements ${where} ORDER BY v`,
@@ -268,8 +283,16 @@ const metadata = async (filter: MeasurementFilter = {}) => {
   // sentinel rather than taken from this list.
   const values = (rows: Record<string, unknown>[]) =>
     rows.map((r) => r.v as string).filter((v) => v != null);
+  /** The device names, keyed by the same string the dropdown carries as a value. */
+  const names = (rows: Record<string, unknown>[]) =>
+    Object.fromEntries(
+      rows
+        .filter((r) => r.v != null && r.name != null)
+        .map((r) => [r.v as string, r.name as string]),
+    );
   return {
     devices: values(devices),
+    deviceNames: names(devices),
     measurands: values(measurands),
     sensors: values(sensors),
     locations: values(locations),
@@ -325,7 +348,8 @@ const deviceActivity = async (): Promise<
  */
 const status = async (): Promise<SensorStatus[]> => {
   const rows = await q((tx) => tx`
-    SELECT device_eui, sensor, location, measurand, unit, value, last_seen, n
+    SELECT t.device_eui, t.sensor, t.location, t.measurand, t.unit, t.value,
+           t.last_seen, t.n, dn.name AS device_name
     FROM (
       SELECT device_eui, sensor, location, measurand, unit, value,
              COALESCE(recorded_at, created_at) AS last_seen,
@@ -336,11 +360,17 @@ const status = async (): Promise<SensorStatus[]> => {
              ) AS rn
       FROM measurements
     ) t
+    -- The name is joined outside the window scan, so the part that does the work
+    -- is untouched. Upper-cased because these rows hold whatever the webhook was
+    -- sent, while the copy of the names is keyed the way TTN writes an EUI - a
+    -- bare equality would quietly leave a device nameless.
+    LEFT JOIN device_names dn ON dn.device_eui = upper(t.device_eui)
     WHERE rn = 1
     ORDER BY last_seen DESC
   `);
   return (rows as Record<string, unknown>[]).map((r) => ({
     deviceEui: r.device_eui as string,
+    deviceName: (r.device_name as string | null) ?? null,
     sensor: r.sensor as string,
     location: r.location as string,
     measurand: r.measurand as string,

@@ -7,6 +7,7 @@
  */
 
 import { NO_GROUP } from "../../../lib/facets";
+import { deviceLabel } from "../../../lib/ttn-ids";
 
 const API = "/api/v1";
 
@@ -14,6 +15,8 @@ type FilterOption = string | { value: string; label: string };
 
 type Metadata = {
   devices: string[];
+  /** The name per device, keyed by the same string `devices` holds. */
+  deviceNames: Record<string, string>;
   measurands: string[];
   sensors: string[];
   locations: string[];
@@ -127,7 +130,18 @@ function downloadCsv() {
 // ---- Wiring ---------------------------------------------------------------
 async function populateForDevice(deviceEui?: string, isInitial = false) {
   const meta = await fetchMetadata(deviceEui);
-  if (isInitial) fillOptions(deviceSel(), meta.devices);
+  // Named, with the EUI behind the name - the option's value stays the bare EUI,
+  // which is what currentParams() sends as device_eui. Filled once, on the first
+  // load: the device list is the one dropdown the cascade does not narrow.
+  if (isInitial) {
+    fillOptions(
+      deviceSel(),
+      meta.devices.map((eui) => ({
+        value: eui,
+        label: deviceLabel(eui, meta.deviceNames[eui] ?? null),
+      })),
+    );
+  }
   fillOptions(measurandSel(), meta.measurands);
   fillOptions(sensorSel(), meta.sensors);
   fillOptions(locationSel(), meta.locations);
