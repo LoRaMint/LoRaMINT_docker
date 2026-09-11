@@ -7,6 +7,87 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.15.4] - 2026-09-11
+
+### Added
+- **Der Gerätename steht jetzt überall dort, wo bisher nur die Device-EUI
+  stand.** Betroffen sind die Statusseite (Messwerte und Logs), die Geräteauswahl
+  auf Plots und Export, die Gerätefilter der Datenverwaltung sowie das Dashboard
+  und seine Verwaltung. Der Name ist die erste Zeile, die EUI steht klein
+  darunter; in den Auswahlfeldern heisst es „Fenster 8b (A8 40 41 …)".
+
+  **Die EUI verschwindet nicht**, und das ist keine Platzverschwendung: sie ist
+  es, was in der Datenbank, im Webhook und in jedem Filter der API steht. Wer
+  eine Auswahl gegen eine Adresse, eine CSV-Spalte oder einen Aufkleber hält,
+  braucht sie. Der Name sagt dafür, welches Fenster in welchem Raum — deshalb
+  steht er vorn. Ein Gerät ohne Namen sieht aus wie vorher: nur die EUI.
+
+  **Die Namen liegen jetzt lokal, nicht bei jedem Seitenaufruf in TTN.** Eine
+  neue Tabelle hält eine Kopie, gefüllt beim Start des Servers und immer dann,
+  wenn die Geräteseiten ohnehin mit TTN sprechen — beim Blick auf die Übersicht,
+  beim Anlegen, beim Umbenennen. Status, Plots, Export und Dashboard sind
+  öffentlich und werden auf dem Server gerendert, die Statusseite lädt sich alle
+  dreissig Sekunden selbst neu: eine TTN-Anfrage pro Aufruf würde den ruhigsten
+  Pfad der Anwendung an ein fremdes System und dessen Ratenbegrenzung hängen.
+  Gelesen wird über ein Gerät weiterhin nie aus der Kopie — die Geräteseiten
+  fragen TTN, die Kopie trägt nur das Etikett.
+
+  **Ein Gerät, das TTN nicht mehr kennt, behält seinen Namen.** Die Messwerte
+  überleben die Registrierung, und auf genau diesen Zeilen — die Übersicht nennt
+  sie „verwaist" — ist ein zuletzt bekannter Name am meisten wert.
+
+  **Ohne TTN-Zugang ändert sich nichts.** Dann bleibt die Kopie leer und überall
+  stehen die EUIs, wie bisher.
+
+  **Zur Sichtbarkeit:** Status, Plots, Export und Dashboard sind ohne Anmeldung
+  erreichbar, die Namen dort also auch. „Klasse 8b, Zimmer 204" sagt mehr über
+  einen Standort als eine EUI — wer das nicht veröffentlichen will, benennt das
+  Gerät in TTN entsprechend.
+
+### Changed
+- **Die Statusseite zeigt jetzt auch aktiv/stumm/verwaist.** Dasselbe Abzeichen
+  wie die Geräteübersicht, in der Gerätespalte unter Name und EUI, und nach
+  derselben Regel — die steht jetzt an einer Stelle (`lib/device-state.ts`), damit
+  nicht zwei Seiten dasselbe Gerät unterschiedlich benennen.
+
+  **Dafür merkt sich die lokale Kopie jetzt auch, ob TTN das Gerät kennt.**
+  „Verwaist" ist eine Frage nach Anwesenheit, nicht nach Namen, und eine
+  öffentliche Seite kann TTN nicht fragen. Der Abgleich setzt deshalb in einer
+  Transaktion alle Geräte auf „nicht registriert" und die aus der TTN-Liste
+  wieder zurück; gelöscht wird nichts, ein Gerät behält seinen Namen und verliert
+  nur den Schalter.
+
+  **Zwei Einschränkungen, die zur Sache gehören.** Der Zustand ist auf der
+  Statusseite so frisch wie der letzte Abgleich — beim Serverstart und bei jedem
+  Blick auf die Geräteübersicht; die Übersicht selbst fragt weiterhin TTN und ist
+  damit immer aktuell. Und solange dieser Server TTN noch nie erreicht hat, zeigt
+  die Statusseite **gar kein** Abzeichen, statt jedes Gerät auf die Unkenntnis
+  hin für verwaist zu erklären. „Stumm" heisst dort ausserdem „seit 24 Stunden
+  nichts" — ein Gerät, das noch nie etwas gesendet hat, steht nicht in diesen
+  Tabellen.
+
+- **Ein Gerät, das nur Logs sendet, gilt jetzt als „aktiv" statt als „stumm".**
+  Die Geräteübersicht hat den Zustand bisher allein an den Messwerten entschieden:
+  ein Aufbau, der noch geflasht wird oder dessen Sensor noch nicht angelötet ist,
+  schickt nur Meldungen — und wurde dafür als stumm ausgewiesen, was jemanden
+  nach einem Fehler suchen lässt, den es nicht gibt. Gezählt wird jetzt beides.
+
+  **Eine DevEUI, unter der nur Logs ankommen, taucht überhaupt erst auf.** Sie
+  fehlte vorher ganz, auch als „verwaist" — und verwaiste Logs sind dasselbe
+  Problem wie verwaiste Messwerte: die Daten bleiben, konfigurieren kann das Gerät
+  in TTN niemand mehr.
+
+  **Die Tabelle sagt weiterhin, was wovon kam.** „Letzter Messwert" heisst jetzt
+  „Zuletzt gehört", weil dort das Neuere von beidem steht, und daneben stehen
+  Messwerte und Logs als getrennte Zahlen — beide verlinkt auf die Datenseite des
+  Geräts. Die 24-Stunden-Grenze für „stumm" ist unverändert.
+
+- **Die Plot-Grafik trägt jetzt einen Titel mit dem Gerät.** Aus demselben Grund,
+  aus dem die Zeitzone immer an der Zeitachse steht: ein Plot ist das Einzige
+  hier, was die Seite verlässt — als PNG heruntergeladen, in einen Bericht
+  geklebt. „Temperatur über drei Tage" ohne das Gerät dahinter ist ein Bild und
+  keine Messung.
+
 ## [1.15.3] - 2026-09-10
 
 ### Fixed
@@ -1644,7 +1725,8 @@ reach its own configuration, and the ones the security model rests on.
 
 Releases up to and including [0.1.8] (2026-05-12) predate this changelog.
 
-[Unreleased]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.15.3...HEAD
+[Unreleased]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.15.4...HEAD
+[1.15.4]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.15.3...v1.15.4
 [1.15.3]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.15.2...v1.15.3
 [1.15.2]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.15.1...v1.15.2
 [1.15.1]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.15.0...v1.15.1
