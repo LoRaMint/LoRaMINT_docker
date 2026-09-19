@@ -10,8 +10,9 @@ import { createMarkdownFromOpenApi } from "@scalar/openapi-to-markdown";
 import { z } from "zod";
 import { getCookie } from "hono/cookie";
 import { config, auth, setupAccount, ttn, uploads, validateConfig, verifyAppKey } from "./config";
-import { downloadHandler } from "./services/downloads";
+import { downloadHandler, packetHandler } from "./services/downloads";
 import { loadSettings, refreshSettingsIfStale } from "./services/settings";
+import { loadGuides, refreshGuidesIfStale } from "./services/guides";
 import {
   openApiMeta,
   jsonResponse,
@@ -342,6 +343,10 @@ const root = new Hono();
  */
 root.use(async (c, next) => {
   await refreshSettingsIfStale();
+  // The guide tree, for the same reason and at the same cost: the navigation
+  // is rendered synchronously out of a module cache, so something has to keep
+  // that cache close to the table. See services/guides.ts.
+  await refreshGuidesIfStale();
   await next();
 });
 
@@ -388,11 +393,29 @@ root.use(async (c, next) => {
 root.route("/_ssr", routes(ssrConfig));
 root.use("/public/*", serveStatic({ root: "./" }));
 /*
- * Files uploaded for the workshop page. Deliberately *not* served by the line
- * above: `serveStatic` types a file by its extension, which would hand out an
- * uploaded `.html` as html from this origin. See services/downloads.ts.
+ * Uploaded files. Deliberately *not* served by the line above: `serveStatic`
+ * types a file by its extension, which would hand out an uploaded `.html` as
+ * html from this origin. See services/downloads.ts.
+ *
+ * Several segments rather than one, because files live in folders now. The
+ * guarantee that used to come from the route shape - a sub-directory was not
+ * forbidden but impossible - is replaced inside the handler by three
+ * independent checks.
+ *
+ * **`{.+}` and not `*`, and that is not a spelling preference.** A bare `*`
+ * matches the empty rest as well, so `/downloads/*` also answers `/downloads` -
+ * and `/downloads` is the *listing page*, registered further down in the pages
+ * module. The result was a 404 on a page that exists, served by a route that
+ * was never meant to see it. `{.+}` needs at least one character after the
+ * slash, so the two cannot overlap however they are ordered - the same kind of
+ * argument this route used to rest on, and a better one than "remember to
+ * register these in the right order".
+ *
+ * `/paket/<ordner>` is a route of its own and not `/downloads/<ordner>.zip`:
+ * `loramint.zip` is a real uploaded file, so the two spellings would collide.
  */
-root.get("/downloads/:name", downloadHandler);
+root.get("/downloads/:pfad{.+}", downloadHandler);
+root.get("/paket/:ordner{.+}", packetHandler);
 root.route("/api/v1", app);
 /**
  * The settings table decides which routes exist at all - `auth.enabled` and
@@ -406,6 +429,22 @@ root.route("/api/v1", app);
  */
 await loadSettings();
 validateConfig();
+
+/*
+ * The guide tree, read once before the first request.
+ *
+ * Awaited, unlike the TTN sync below: the navigation of *every* page is built
+ * from this, so a server that answered before it arrived would serve a menu
+ * with no guides in it for the first few seconds after every deploy. It is one
+ * small query, and the pages module below is what needs it.
+ *
+ * A database that is not up yet is a warning rather than a failed start - the
+ * middleware above retries on the next request, and the rest of the
+ * application does not depend on guides existing.
+ */
+await loadGuides().catch((err) =>
+  console.warn("guides: startup load failed, the menu starts empty -", err),
+);
 
 /*
  * The device names, pulled out of TTN once at startup.
@@ -432,8 +471,39 @@ if (ttn.enabled) {
     .catch((err) => console.warn("device-names: startup sync failed -", err));
 }
 
-const pages = (await import("./frontend/pages")).default;
+const pagesModule = await import("./frontend/pages");
+const pages = pagesModule.default;
+const { renderNotFound } = pagesModule;
 root.route("/", pages);
+
+/**
+ * A designed page for an address that leads nowhere.
+ *
+ * **On `root`, and it has to be.** A `notFound` handler registered on the pages
+ * sub-app is silently dropped by `route()` - the routes are merged into the
+ * parent, and the parent's handler is the one that answers. Registered there it
+ * looked right, rendered nothing, and left Hono's eleven characters of plain
+ * text on every wrong address.
+ *
+ * It is worth having now. Until guides arrived every public address was a fixed
+ * route, so a 404 meant a typo or a stale bookmark; guide addresses are written
+ * by people and printed on worksheets, and a renamed page one redirect too far
+ * ends here. `c.notFound()` from a page handler arrives here too, which is what
+ * a draft and a deleted guide both need.
+ *
+ * The API keeps its JSON. A browser is not what asks /api/v1 for a path that
+ * does not exist, and handing a program a page of HTML helps nobody - the error
+ * handler for that app takes the same view.
+ *
+ * The rendering itself lives in the pages module, because this file is `.ts`
+ * and cannot hold the JSX that produces it.
+ */
+root.notFound(async (c) => {
+  if (c.req.path.startsWith("/api/")) {
+    return c.json({ ok: false, error: "Not found" }, 404);
+  }
+  return renderNotFound();
+});
 
 console.log(`LoRaMINT listening on port ${config.port}`);
 

@@ -56,7 +56,7 @@ export type Group =
   | "board"
   | "devices"
   | "legal"
-  | "workshop";
+  | "files";
 
 export type Setting = {
   key: string;
@@ -80,7 +80,7 @@ export const GROUP_LABELS: Record<Group, string> = {
   board: "Dashboard",
   devices: "Geräteverwaltung (TTN)",
   legal: "Rechtsseiten",
-  workshop: "Workshop-Seite",
+  files: "Dateien",
 };
 
 /** The order the groups appear in. */
@@ -93,7 +93,7 @@ export const GROUP_ORDER: Group[] = [
   "board",
   "devices",
   "legal",
-  "workshop",
+  "files",
 ];
 
 /**
@@ -106,7 +106,7 @@ export const GROUP_ORDER: Group[] = [
 export const GROUP_SECTIONS: { label: string; groups: Group[] }[] = [
   { label: "Zugang", groups: ["setup", "auth"] },
   { label: "Betrieb", groups: ["core", "manage", "sql", "board"] },
-  { label: "Angebundenes", groups: ["devices", "legal", "workshop"] },
+  { label: "Angebundenes", groups: ["devices", "legal", "files"] },
 ];
 
 //====================================
@@ -547,34 +547,21 @@ export const CATALOG: Setting[] = [
     tier: "movable",
   },
 
-  //---- Workshop-Seite ----
-  {
-    key: "CONTENT_WORKSHOP",
-    group: "workshop",
-    kind: "markdown",
-    meaning:
-      "Inhalt der Workshop-Seite, als Markdown. Zusätzlich zu den " +
-      "Auszeichnungen der Rechtsseiten gibt es hier Codeblöcke (```), " +
-      "Tabellen und Bilder. Ohne Inhalt gibt es die Seite und den Reiter " +
-      "„Downloads\" nicht. Bequemer zu schreiben ist sie unter " +
-      "/management/workshop, wo die Dateien danebenstehen.",
-    fallback: null,
-    tier: "movable",
-  },
+  //---- Dateien ----
   {
     key: "UPLOAD_DIR",
-    group: "workshop",
+    group: "files",
     kind: "text",
     meaning:
-      "Verzeichnis der Dateien, die auf der Workshop-Seite zum Herunterladen " +
-      "stehen. Im Container trägt dieser Pfad ein Docker-Volume; ohne eines " +
-      "sind alle Dateien beim nächsten Update weg.",
+      "Verzeichnis der hochgeladenen Dateien – der Ordnerbaum unter " +
+      "/management/dateien liegt darin. Im Container trägt dieser Pfad ein " +
+      "Docker-Volume; ohne eines sind alle Dateien beim nächsten Update weg.",
     fallback: "./uploads",
     tier: "environment",
   },
   {
     key: "UPLOAD_MAX_BYTES",
-    group: "workshop",
+    group: "files",
     kind: "number",
     meaning:
       "Grösste Datei, die hochgeladen werden darf, in Bytes. Diese Grenze ist " +

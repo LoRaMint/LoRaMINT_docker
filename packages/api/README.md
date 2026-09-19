@@ -65,12 +65,14 @@ docker compose -f compose.prod.yml --env-file .env.prod up -d
 
 | Volume | Holds | Note |
 |---|---|---|
-| `db_data` | Measurements, devices, settings — including the text of the Impressum, the privacy notice and the workshop page | `pg_dump`, or a copy of the volume |
-| `uploads` | The files offered on the workshop page: worksheets, code files, images | The only state **outside** Postgres |
+| `db_data` | Measurements, devices, settings, and every written guide — including the text of the Impressum and the privacy notice | `pg_dump`, or a copy of the volume |
+| `uploads` | The files the guides draw on, in their folders: worksheets, code files, images | The only state **outside** Postgres |
 
-A backup that covers the database alone restores the workshop page with every
-link it contains and none of the files those links point at. The links stay,
-and lead nowhere.
+A backup that covers the database alone restores every guide with every link it
+contains and none of the files those links point at. The links stay, and lead
+nowhere. The folder structure is part of the addresses, so the two volumes have
+to be restored to the same point in time - a file that came back in a folder
+that has since been renamed is a file nothing points at.
 
 ```bash
 docker compose -f compose.prod.yml --env-file .env.prod exec -T db \

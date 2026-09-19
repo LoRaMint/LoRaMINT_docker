@@ -1,6 +1,6 @@
 /**
- * The files offered for download: listing, storing, hiding, annotating,
- * renaming, removing.
+ * The files: listing, storing, releasing, annotating, renaming, moving,
+ * removing - and the folders they live in.
  *
  * **The directory is the truth.** There is no table of file metadata, and that
  * is a decision rather than an omission. Name, size and date come from `readdir`
@@ -10,15 +10,27 @@
  * first restore.
  *
  * The same reasoning puts the state that is not in the files themselves - which
- * of them are hidden, and the note beside each - into files beside them rather
- * than into the database. `.hidden` and `.notes` travel with the volume, so
- * neither can describe a set of files that is no longer there.
+ * of them are released, and the note beside each - into files beside them rather
+ * than into the database. `.released` and `.notes` travel with the volume, so
+ * neither can describe a set of files that is no longer there. Both live in the
+ * root directory and key on the **relative path**, so one pair of side files
+ * describes the whole tree; a file carries its note and its release with it when
+ * it moves, because moving it is what rewrites the key.
  *
- * **Hidden means unlisted, not unreachable.** A picture embedded in the page
- * should not also appear as a row in the download table, but its URL has to keep
- * working or the picture disappears from the text. Anyone who knows the address
- * can still fetch it. This is presentation, never access control - the edit page
- * says so in as many words, because the word "hidden" invites the other reading.
+ * **Released, not hidden - the default turned round.** Until folders arrived the
+ * question was which files to *hide* from the public list, so anything uploaded
+ * appeared there until somebody said otherwise. With a tree of working material
+ * that is the wrong way round: an intermediate picture, a draft worksheet and a
+ * photograph pasted into a guide are the common case, and a public shelf is the
+ * exception. So nothing appears on /downloads until it is released, and the ZIP
+ * of a folder contains exactly what the page lists.
+ *
+ * Reachability is a different question and has not changed: **a file that is not
+ * released is still served under its address.** It has to be, or a picture
+ * embedded in a guide would disappear from the text. Anyone who knows the
+ * address can fetch it. This is presentation, never access control - the
+ * management page says so in as many words, because "not released" invites the
+ * other reading.
  *
  * One host, one directory: the volume is not shared between replicas, so two
  * instances behind the proxy would each answer from their own set of files. The
@@ -26,70 +38,113 @@
  * this does not, and would need to be the next thing looked at.
  */
 
+import type { Dirent } from "node:fs";
 import {
   link,
   mkdir,
   readdir,
   readFile,
   rename,
+  rmdir,
   stat,
   unlink,
   writeFile,
 } from "node:fs/promises";
-import { join } from "node:path";
+import { join, resolve, sep } from "node:path";
 import { uploads } from "../config";
 import {
+  isSafePath,
   isSafeStoredName,
+  joinPath,
   sanitizeFileName,
+  sanitizeFolderName,
   sanitizeNote,
   sanitizeRename,
+  splitPath,
   typeOf,
   uniqueName,
 } from "../lib/uploads";
 
+//====================================
+// TYPES
+//====================================
+
 export type StoredFile = {
+  /** Relative to the upload root: `bilder/aufbau.png`, or `blatt.pdf`. */
+  path: string;
+  /** The last segment of the path. */
   name: string;
+  /** The folder it sits in. `""` at the root. */
+  folder: string;
   bytes: number;
   changed: Date;
-  /** Not listed on the public page. Still reachable under its address. */
-  hidden: boolean;
+  /** Listed on the public download page. Absent by default. */
+  released: boolean;
   /** One line beside the download - where it came from, what to know. */
   note: string;
 };
 
 export type UploadResult =
-  | { ok: true; name: string }
+  | { ok: true; path: string }
   | { ok: false; error: string };
 
-/** Where the bookkeeping of hidden names lives. Never listed, never served. */
-const HIDDEN_FILE = ".hidden";
+//====================================
+// THE BOOKKEEPING FILES
+//====================================
+
+/** Which paths appear on the public page. Never listed, never served. */
+const RELEASED_FILE = ".released";
 
 /**
- * Where the notes live. Beside the files for the same reason `.hidden` is: a
+ * Where the notes live. Beside the files for the same reason `.released` is: a
  * note describes a file, and a note kept in the database would survive a
  * restore that the file did not - leaving a sentence about a source next to
- * nothing, or worse, next to a different file uploaded later under that name.
+ * nothing, or worse, next to a different file uploaded later under that path.
  */
 const NOTES_FILE = ".notes";
 
 /** Prefix of a half-written upload. Cannot collide with a stored name. */
 const TEMP_PREFIX = ".tmp-";
 
-const ensureDir = async (): Promise<void> => {
-  await mkdir(uploads.dir, { recursive: true });
+const ensureDir = async (folder = ""): Promise<void> => {
+  await mkdir(folder.length === 0 ? uploads.dir : join(uploads.dir, folder), {
+    recursive: true,
+  });
 };
 
 /**
- * The names marked as hidden.
+ * An absolute path inside the upload directory, or null.
  *
- * Unknown names are kept rather than pruned: a file deleted and uploaded again
- * under the same name should come back hidden, which is what somebody who hid it
- * once would expect. They cost a line each and confuse nothing, because a name
- * that matches no file simply never meets a row.
+ * **The second of two independent bolts.** `isSafePath` decides by shape and
+ * cannot be talked out of it; this one decides by asking the path module where
+ * the string actually points and comparing that against the directory. They
+ * fail differently, which is the point of having both: a mistake in the
+ * allowlist does not open the file system, because the resolved path still has
+ * to start inside it, and a symlink or a `..` that somehow survived the first
+ * check does not survive the second.
+ *
+ * The separator is appended before the comparison. Without it `/data/uploads`
+ * would be a prefix of `/data/uploads-alt`, and a sibling directory would count
+ * as being inside.
  */
-const readHidden = async (): Promise<Set<string>> => {
+export const resolveInUploads = (relative: string): string | null => {
+  if (!isSafePath(relative)) return null;
+  const root = resolve(uploads.dir);
+  const full = resolve(root, relative);
+  return full.startsWith(root + sep) ? full : null;
+};
+
+/**
+ * The paths marked as released.
+ *
+ * Unknown paths are kept rather than pruned: a file deleted and uploaded again
+ * under the same path should come back released, which is what somebody who
+ * released it once would expect. They cost a line each and confuse nothing,
+ * because a path that matches no file simply never meets a row.
+ */
+const readReleased = async (): Promise<Set<string>> => {
   try {
-    const text = await readFile(join(uploads.dir, HIDDEN_FILE), "utf8");
+    const text = await readFile(join(uploads.dir, RELEASED_FILE), "utf8");
     return new Set(
       text
         .split("\n")
@@ -97,25 +152,28 @@ const readHidden = async (): Promise<Set<string>> => {
         .filter((line) => line.length > 0),
     );
   } catch {
-    // No file yet means nothing is hidden - not an error worth reporting.
+    // No file yet means nothing is released - not an error worth reporting.
     return new Set();
   }
 };
 
-const writeHidden = async (names: Set<string>): Promise<void> => {
+const writeReleased = async (paths: Set<string>): Promise<void> => {
   await ensureDir();
-  const text = [...names].sort().join("\n");
-  await writeFile(join(uploads.dir, HIDDEN_FILE), text.length > 0 ? `${text}\n` : "");
+  const text = [...paths].sort().join("\n");
+  await writeFile(
+    join(uploads.dir, RELEASED_FILE),
+    text.length > 0 ? `${text}\n` : "",
+  );
 };
 
 /**
- * The notes, by file name.
+ * The notes, by relative path.
  *
  * A JSON object rather than lines, because a note contains spaces and may
- * contain almost anything else; the name is the key and cannot be confused
- * with the text. A file that cannot be parsed is treated as no notes at all -
- * the alternative is a listing that fails entirely because one sentence in a
- * side file is malformed.
+ * contain almost anything else; the path is the key and cannot be confused with
+ * the text. A file that cannot be parsed is treated as no notes at all - the
+ * alternative is a listing that fails entirely because one sentence in a side
+ * file is malformed.
  */
 const readNotes = async (): Promise<Map<string, string>> => {
   try {
@@ -143,72 +201,206 @@ const writeNotes = async (notes: Map<string, string>): Promise<void> => {
 };
 
 /**
- * Every stored file, sorted by name.
+ * Moves the bookkeeping of one path onto another, or off a path that is gone.
  *
- * Filtered through `isSafeStoredName`, which does two jobs at once here: it
- * keeps the bookkeeping files out of the listing, and it means a file placed in
- * the directory by hand - an `evil.html` copied in over the volume - is invisible
- * to the page even though it exists on disk. The listing and the download route
- * apply the same rule, so neither can show what the other would refuse.
+ * One function for both side files, because they always move together and
+ * forgetting one of them is the failure that shows up as a released file
+ * quietly disappearing from the public page the moment it is renamed.
  */
-export const listFiles = async (): Promise<StoredFile[]> => {
-  let entries: string[];
-  try {
-    entries = await readdir(uploads.dir);
-  } catch {
-    // No directory yet: nothing has been uploaded. Not an error.
-    return [];
+const moveBookkeeping = async (from: string, to: string | null): Promise<void> => {
+  const released = await readReleased();
+  if (released.delete(from)) {
+    if (to !== null) released.add(to);
+    await writeReleased(released);
   }
 
-  const [hidden, notes] = await Promise.all([readHidden(), readNotes()]);
-  const files: StoredFile[] = [];
+  const notes = await readNotes();
+  const note = notes.get(from);
+  if (note !== undefined) {
+    notes.delete(from);
+    // Unlike the release mark, a note does not survive its file. A release is a
+    // decision about an address and worth keeping for a file uploaded there
+    // again; a note is about the file itself, and a sentence naming the source
+    // of something that is gone would attach itself to whatever comes next.
+    if (to !== null) notes.set(to, note);
+    await writeNotes(notes);
+  }
+};
 
-  for (const name of entries.sort()) {
-    if (!isSafeStoredName(name)) continue;
-    if (!typeOf(name)) continue;
+/** The same, for everything under a folder that was renamed or removed. */
+const moveBookkeepingUnder = async (
+  fromFolder: string,
+  toFolder: string | null,
+): Promise<void> => {
+  const prefix = `${fromFolder}/`;
+  const rekey = (path: string) =>
+    toFolder === null ? null : `${toFolder}/${path.slice(prefix.length)}`;
+
+  const released = await readReleased();
+  const affected = [...released].filter((path) => path.startsWith(prefix));
+  if (affected.length > 0) {
+    for (const path of affected) {
+      released.delete(path);
+      const to = rekey(path);
+      if (to !== null) released.add(to);
+    }
+    await writeReleased(released);
+  }
+
+  const notes = await readNotes();
+  const noted = [...notes.keys()].filter((path) => path.startsWith(prefix));
+  if (noted.length > 0) {
+    for (const path of noted) {
+      const note = notes.get(path)!;
+      notes.delete(path);
+      const to = rekey(path);
+      if (to !== null) notes.set(to, note);
+    }
+    await writeNotes(notes);
+  }
+};
+
+//====================================
+// LISTING
+//====================================
+
+/**
+ * Walks the tree, collecting files and folders.
+ *
+ * `withFileTypes` is what keeps a symlink out: `readdir` reports the type of the
+ * entry itself rather than of what it points at, so neither `isFile()` nor
+ * `isDirectory()` is true for one and it is skipped without a rule saying so. A
+ * link into `/etc` placed in the volume by hand is therefore invisible here as
+ * well as unreachable through the download route.
+ *
+ * Every segment is filtered through `isSafeStoredName`, which does two jobs at
+ * once: it keeps the bookkeeping files out of the listing, and it means a file
+ * placed in the directory by hand - an `evil.html` copied in over the volume -
+ * is invisible to the page even though it exists on disk. The listing and the
+ * download route apply the same rule, so neither can show what the other would
+ * refuse.
+ */
+const walk = async (
+  folder: string,
+): Promise<{ files: string[]; folders: string[] }> => {
+  const absolute = folder.length === 0 ? uploads.dir : join(uploads.dir, folder);
+
+  let entries: Dirent[];
+  try {
+    entries = await readdir(absolute, { withFileTypes: true });
+  } catch {
+    // No directory yet: nothing has been uploaded. Not an error.
+    return { files: [], folders: [] };
+  }
+
+  const files: string[] = [];
+  const folders: string[] = [];
+
+  for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
+    if (!isSafeStoredName(entry.name)) continue;
+    const path = joinPath(folder, entry.name);
+    if (path.length > 0 && !isSafePath(path)) continue;
+
+    if (entry.isDirectory()) {
+      folders.push(path);
+      const below = await walk(path);
+      files.push(...below.files);
+      folders.push(...below.folders);
+      continue;
+    }
+    if (entry.isFile() && typeOf(entry.name)) files.push(path);
+  }
+
+  return { files, folders };
+};
+
+/** Every stored file, sorted by path. */
+export const listFiles = async (): Promise<StoredFile[]> => {
+  const [{ files }, released, notes] = await Promise.all([
+    walk(""),
+    readReleased(),
+    readNotes(),
+  ]);
+
+  const out: StoredFile[] = [];
+  for (const path of files) {
     try {
-      const info = await stat(join(uploads.dir, name));
+      const info = await stat(join(uploads.dir, path));
       if (!info.isFile()) continue;
-      files.push({
-        name,
+      out.push({
+        path,
+        ...splitPath(path),
         bytes: info.size,
         changed: info.mtime,
-        hidden: hidden.has(name),
-        note: notes.get(name) ?? "",
+        released: released.has(path),
+        note: notes.get(path) ?? "",
       });
     } catch {
       // Vanished between readdir and stat. Leaving it out is the whole fix.
     }
   }
-  return files;
+  return out;
 };
+
+/** Every folder, deepest last, so a listing can be built by walking forward. */
+export const listFolders = async (): Promise<string[]> =>
+  (await walk("")).folders.sort();
 
 /** Only what the public page shows. */
 export const listVisibleFiles = async (): Promise<StoredFile[]> =>
-  (await listFiles()).filter((file) => !file.hidden);
+  (await listFiles()).filter((file) => file.released);
 
 /**
- * Stores an uploaded file.
+ * Everything released in this folder and below it, for the ZIP.
+ *
+ * Takes the release into account rather than packing the folder: the download
+ * page is public, and a detour through the package must not hand out what the
+ * listing withholds.
+ */
+export const releasedUnder = async (folder: string): Promise<StoredFile[]> => {
+  const prefix = folder.length === 0 ? "" : `${folder}/`;
+  return (await listVisibleFiles()).filter((file) => file.path.startsWith(prefix));
+};
+
+//====================================
+// WRITING FILES
+//====================================
+
+/**
+ * Stores an uploaded file in a folder.
  *
  * Written to a temporary name and moved into place, which is not ceremony:
  * `Bun.write` truncates and streams, so a browser that gives up halfway would
- * otherwise leave a half a PDF under a name the page already links to. A rename
+ * otherwise leave half a PDF under a path the page already links to. A rename
  * within one file system is atomic - the file is either the old one or the new
- * one, never a mixture.
+ * one, never a mixture. The temporary file is written into the target folder so
+ * that the rename never crosses a mount point.
  *
- * Refuses a name that is already taken unless `replace` says otherwise, and
+ * Refuses a path that is already taken unless `replace` says otherwise, and
  * names a free alternative when it refuses. Silently renaming would be worse
- * than it sounds: the name is the public address, typed into the page by hand,
- * so `bild-2.png` beside a text pointing at `bild.png` is a page that shows the
+ * than it sounds: the path is the public address, typed into a guide by hand, so
+ * `bild-2.png` beside a text pointing at `bild.png` is a page that shows the
  * picture it was supposed to replace.
  */
 export const storeFile = async (
   file: File,
-  options: { replace: boolean },
+  options: { replace: boolean; folder: string },
 ): Promise<UploadResult> => {
+  const folder = options.folder;
+  if (folder.length > 0 && !isSafePath(folder)) {
+    return { ok: false, error: "Diesen Ordner gibt es hier nicht." };
+  }
+
   const sanitized = sanitizeFileName(file.name);
   if ("error" in sanitized) return { ok: false, error: sanitized.error };
-  const name = sanitized.name;
+  const path = joinPath(folder, sanitized.name);
+
+  if (!isSafePath(path)) {
+    return {
+      ok: false,
+      error: "Pfad und Dateiname zusammen sind zu lang für diesen Ordner.",
+    };
+  }
 
   if (file.size === 0) {
     return { ok: false, error: "Die Datei ist leer." };
@@ -221,23 +413,34 @@ export const storeFile = async (
     };
   }
 
-  await ensureDir();
-  const vorhanden = new Set((await listFiles()).map((f) => f.name));
+  await ensureDir(folder);
+  const inFolder = new Set(
+    (await listFiles())
+      .filter((entry) => entry.folder === folder)
+      .map((entry) => entry.name),
+  );
 
-  if (vorhanden.has(name) && !options.replace) {
-    const frei = uniqueName(name, vorhanden);
+  if (inFolder.has(sanitized.name) && !options.replace) {
+    const frei = uniqueName(sanitized.name, inFolder);
     return {
       ok: false,
       error:
-        `„${name}" gibt es schon. Benenne die Datei um – „${frei}" wäre frei – ` +
-        `oder setze den Haken „vorhandene Datei ersetzen".`,
+        `„${sanitized.name}" gibt es in diesem Ordner schon. Benenne die Datei ` +
+        `um – „${frei}" wäre frei – oder setze den Haken „vorhandene Datei ` +
+        `ersetzen".`,
     };
   }
 
-  const temp = join(uploads.dir, `${TEMP_PREFIX}${crypto.randomUUID()}`);
+  const target = resolveInUploads(path);
+  if (!target) return { ok: false, error: "Diesen Pfad gibt es hier nicht." };
+
+  const temp = join(
+    folder.length === 0 ? uploads.dir : join(uploads.dir, folder),
+    `${TEMP_PREFIX}${crypto.randomUUID()}`,
+  );
   try {
     await Bun.write(temp, file);
-    await rename(temp, join(uploads.dir, name));
+    await rename(temp, target);
   } catch (fehler) {
     // A failed write leaves the temporary file behind; take it with us so the
     // directory does not slowly fill with the debris of failed uploads.
@@ -250,20 +453,20 @@ export const storeFile = async (
     };
   }
 
-  return { ok: true, name };
+  return { ok: true, path };
 };
 
 /**
- * Gives a stored file a different name, and takes its bookkeeping along.
+ * Gives a stored file a different name, in the folder it already sits in, and
+ * takes its bookkeeping along.
  *
- * **The name is the public address.** A rename therefore breaks every link that
- * points at the old one - in the workshop text, in a mail sent last week, on a
- * printed worksheet. Nothing here can repair that, so the page says it before
- * the button and the route says afterwards whether the workshop text still
- * mentions the old name.
+ * **The path is the public address.** A rename therefore breaks every link that
+ * points at the old one - in a guide, in a mail sent last week, on a printed
+ * worksheet. Nothing here can repair that, so the page says it before the
+ * button.
  *
  * Never overwrites. `rename` would replace an existing file silently, which for
- * a name that is a public address is the worst possible outcome; `link` refuses
+ * a path that is a public address is the worst possible outcome; `link` refuses
  * when the target exists, and it is the kernel refusing rather than a check that
  * looked a moment earlier. The file is under both names for the instant between
  * the two calls, which is the harmless half of the exchange: a request arriving
@@ -273,145 +476,303 @@ export const renameFile = async (
   from: string,
   typed: string,
 ): Promise<UploadResult> => {
-  if (!isSafeStoredName(from)) {
-    return { ok: false, error: "Diesen Namen gibt es hier nicht." };
-  }
+  const source = resolveInUploads(from);
+  if (!source) return { ok: false, error: "Diesen Pfad gibt es hier nicht." };
 
-  const target = sanitizeRename(from, typed);
+  const { folder, name } = splitPath(from);
+  const target = sanitizeRename(name, typed);
   if ("error" in target) return { ok: false, error: target.error };
-  const to = target.name;
 
+  const to = joinPath(folder, target.name);
   if (to === from) return { ok: false, error: "Der Name war schon so." };
 
-  const taken = new Set((await listFiles()).map((file) => file.name));
-  if (!taken.has(from)) {
-    return { ok: false, error: `„${from}" gibt es nicht (mehr).` };
-  }
+  const destination = resolveInUploads(to);
+  if (!destination) return { ok: false, error: "Dieser Name ist zu lang." };
+
+  const taken = new Set((await listFiles()).map((file) => file.path));
+  if (!taken.has(from)) return { ok: false, error: `„${from}" gibt es nicht (mehr).` };
   if (taken.has(to)) {
+    const inFolder = new Set(
+      [...taken]
+        .filter((path) => splitPath(path).folder === folder)
+        .map((path) => splitPath(path).name),
+    );
     return {
       ok: false,
       error:
-        `„${to}" gibt es schon. Frei wäre „${uniqueName(to, taken)}" – ` +
-        `überschrieben wird hier nichts.`,
+        `„${target.name}" gibt es in diesem Ordner schon. Frei wäre ` +
+        `„${uniqueName(target.name, inFolder)}" – überschrieben wird hier nichts.`,
     };
   }
 
+  const moved = await hardLinkMove(source, destination, from, to);
+  if (moved) return moved;
+
+  await moveBookkeeping(from, to);
+  return { ok: true, path: to };
+};
+
+/**
+ * Puts a file in a different folder, keeping its name.
+ *
+ * Same exchange as a rename and for the same reason - `link` then `unlink`, so
+ * the kernel refuses an existing target rather than a check that looked a
+ * moment earlier. The one addition is that the target folder has to exist:
+ * creating it here would let a typo in a hidden field produce a folder nobody
+ * asked for.
+ */
+export const moveFile = async (
+  from: string,
+  toFolder: string,
+): Promise<UploadResult> => {
+  const source = resolveInUploads(from);
+  if (!source) return { ok: false, error: "Diesen Pfad gibt es hier nicht." };
+  if (toFolder.length > 0 && !isSafePath(toFolder)) {
+    return { ok: false, error: "Diesen Ordner gibt es hier nicht." };
+  }
+
+  const { folder, name } = splitPath(from);
+  if (folder === toFolder) return { ok: false, error: "Die Datei liegt schon dort." };
+
+  const to = joinPath(toFolder, name);
+  const destination = resolveInUploads(to);
+  if (!destination) {
+    return { ok: false, error: "Pfad und Dateiname zusammen wären zu lang." };
+  }
+
+  if (toFolder.length > 0 && !(await listFolders()).includes(toFolder)) {
+    return { ok: false, error: `Den Ordner „${toFolder}" gibt es nicht.` };
+  }
+
+  const taken = new Set((await listFiles()).map((file) => file.path));
+  if (!taken.has(from)) return { ok: false, error: `„${from}" gibt es nicht (mehr).` };
+  if (taken.has(to)) {
+    return {
+      ok: false,
+      error: `Dort liegt schon eine Datei „${name}". Überschrieben wird nichts.`,
+    };
+  }
+
+  const moved = await hardLinkMove(source, destination, from, to);
+  if (moved) return moved;
+
+  await moveBookkeeping(from, to);
+  return { ok: true, path: to };
+};
+
+/**
+ * Link, then unlink. Returns the failure, or nothing when it worked.
+ *
+ * Written once because renaming and moving are the same two system calls with
+ * the same half-done state in the middle, and a second copy of it is a second
+ * place to forget the `unlink`.
+ */
+const hardLinkMove = async (
+  source: string,
+  destination: string,
+  from: string,
+  to: string,
+): Promise<{ ok: false; error: string } | null> => {
   try {
-    await link(join(uploads.dir, from), join(uploads.dir, to));
+    await link(source, destination);
   } catch (fehler) {
-    return { ok: false, error: `Umbenennen ging nicht. (${String(fehler)})` };
+    return { ok: false, error: `Verschieben ging nicht. (${String(fehler)})` };
   }
   try {
-    await unlink(join(uploads.dir, from));
+    await unlink(source);
   } catch (fehler) {
-    // The new name exists and works; the old one refused to go. Reported
-    // rather than swallowed, because the file is now listed twice and only
-    // somebody looking at the directory can say why.
+    // The new path exists and works; the old one refused to go. Reported rather
+    // than swallowed, because the file is now listed twice and only somebody
+    // looking at the directory can say why.
     return {
       ok: false,
       error:
         `„${to}" ist angelegt, aber „${from}" liess sich nicht entfernen – ` +
-        `die Datei steht jetzt unter beiden Namen. (${String(fehler)})`,
+        `die Datei steht jetzt unter beiden Pfaden. (${String(fehler)})`,
     };
   }
-
-  // Hidden mark and note follow the file. Leaving them behind would show a
-  // hidden picture the moment it is renamed, and hand its note to whatever is
-  // uploaded under the old name next.
-  const hidden = await readHidden();
-  if (hidden.delete(from)) {
-    hidden.add(to);
-    await writeHidden(hidden);
-  }
-
-  const notes = await readNotes();
-  const note = notes.get(from);
-  if (note !== undefined) {
-    notes.delete(from);
-    notes.set(to, note);
-    await writeNotes(notes);
-  }
-
-  return { ok: true, name: to };
+  return null;
 };
 
-/** Removes a file, the mark that it was hidden, and its note. */
-export const deleteFile = async (name: string): Promise<UploadResult> => {
-  if (!isSafeStoredName(name)) {
-    return { ok: false, error: "Diesen Namen gibt es hier nicht." };
-  }
+/** Removes a file, the mark that it was released, and its note. */
+export const deleteFile = async (path: string): Promise<UploadResult> => {
+  const absolute = resolveInUploads(path);
+  if (!absolute) return { ok: false, error: "Diesen Pfad gibt es hier nicht." };
+
   try {
-    await unlink(join(uploads.dir, name));
+    await unlink(absolute);
   } catch {
-    return { ok: false, error: `„${name}" gibt es nicht (mehr).` };
+    return { ok: false, error: `„${path}" gibt es nicht (mehr).` };
   }
 
-  const hidden = await readHidden();
-  if (hidden.delete(name)) await writeHidden(hidden);
-
-  // Unlike the hidden mark, the note goes. Hiding is a decision about a name
-  // and worth keeping for a file uploaded again under it; a note is about the
-  // file itself, and a sentence naming the source of something that is gone
-  // would attach itself to whatever comes next.
-  const notes = await readNotes();
-  if (notes.delete(name)) await writeNotes(notes);
-
-  return { ok: true, name };
+  await moveBookkeeping(path, null);
+  return { ok: true, path };
 };
 
 /**
  * Writes the note beside a file, or removes it when the text is empty.
  *
- * The file has to exist. A note for a name nobody uploaded would sit in the
- * side file forever, invisible, and attach itself to a later upload of that
- * name - the one case where keeping bookkeeping around, as `.hidden` does, is
- * wrong rather than helpful.
+ * The file has to exist. A note for a path nobody uploaded to would sit in the
+ * side file forever, invisible, and attach itself to a later upload there - the
+ * one case where keeping bookkeeping around, as `.released` does, is wrong
+ * rather than helpful.
  */
-export const setNote = async (
-  name: string,
-  raw: string,
-): Promise<UploadResult> => {
-  if (!isSafeStoredName(name)) {
-    return { ok: false, error: "Diesen Namen gibt es hier nicht." };
-  }
+export const setNote = async (path: string, raw: string): Promise<UploadResult> => {
+  const absolute = resolveInUploads(path);
+  if (!absolute) return { ok: false, error: "Diesen Pfad gibt es hier nicht." };
 
   const cleaned = sanitizeNote(raw);
   if ("error" in cleaned) return { ok: false, error: cleaned.error };
 
   try {
-    const info = await stat(join(uploads.dir, name));
+    const info = await stat(absolute);
     if (!info.isFile()) throw new Error("not a file");
   } catch {
-    return { ok: false, error: `„${name}" gibt es nicht (mehr).` };
+    return { ok: false, error: `„${path}" gibt es nicht (mehr).` };
   }
 
   const notes = await readNotes();
-  if (cleaned.note.length > 0) notes.set(name, cleaned.note);
-  else notes.delete(name);
+  if (cleaned.note.length > 0) notes.set(path, cleaned.note);
+  else notes.delete(path);
 
   try {
     await writeNotes(notes);
   } catch (fehler) {
     return { ok: false, error: `Liess sich nicht merken. (${String(fehler)})` };
   }
-  return { ok: true, name };
+  return { ok: true, path };
 };
 
-/** Hides or shows a file on the public page. */
-export const setHidden = async (
-  name: string,
-  hidden: boolean,
+/** Puts a file on the public download page, or takes it off again. */
+export const setReleased = async (
+  path: string,
+  released: boolean,
 ): Promise<UploadResult> => {
-  if (!isSafeStoredName(name)) {
-    return { ok: false, error: "Diesen Namen gibt es hier nicht." };
+  if (!isSafePath(path)) {
+    return { ok: false, error: "Diesen Pfad gibt es hier nicht." };
   }
-  const namen = await readHidden();
-  if (hidden) namen.add(name);
-  else namen.delete(name);
+  const paths = await readReleased();
+  if (released) paths.add(path);
+  else paths.delete(path);
   try {
-    await writeHidden(namen);
+    await writeReleased(paths);
   } catch (fehler) {
     return { ok: false, error: `Liess sich nicht merken. (${String(fehler)})` };
   }
-  return { ok: true, name };
+  return { ok: true, path };
+};
+
+//====================================
+// FOLDERS
+//====================================
+
+/** Makes a folder inside another one. The parent has to exist. */
+export const createFolder = async (
+  parent: string,
+  typed: string,
+): Promise<UploadResult> => {
+  if (parent.length > 0 && !isSafePath(parent)) {
+    return { ok: false, error: "Diesen Ordner gibt es hier nicht." };
+  }
+
+  const cleaned = sanitizeFolderName(typed);
+  if ("error" in cleaned) return { ok: false, error: cleaned.error };
+
+  const path = joinPath(parent, cleaned.name);
+  const absolute = resolveInUploads(path);
+  if (!absolute) return { ok: false, error: "Dieser Pfad wäre zu lang." };
+
+  const existing = await listFolders();
+  if (parent.length > 0 && !existing.includes(parent)) {
+    return { ok: false, error: `Den Ordner „${parent}" gibt es nicht.` };
+  }
+  if (existing.includes(path)) {
+    return { ok: false, error: `„${cleaned.name}" gibt es hier schon.` };
+  }
+
+  try {
+    await mkdir(absolute, { recursive: true });
+  } catch (fehler) {
+    return { ok: false, error: `Ordner anlegen ging nicht. (${String(fehler)})` };
+  }
+  return { ok: true, path };
+};
+
+/**
+ * Renames a folder, and re-keys the bookkeeping of everything inside it.
+ *
+ * `rename` rather than the link-then-unlink exchange the files use: a directory
+ * cannot be hard-linked. The existence check therefore has to be ours, and it is
+ * a check that looked a moment earlier - the window is narrow and the worst case
+ * is two folders merging, which is why the target is refused if it exists at all
+ * rather than only if it holds a colliding name.
+ *
+ * **Every address below the folder changes.** That is the same breakage renaming
+ * a file causes, multiplied by what is inside, so the page says so before the
+ * button rather than afterwards.
+ */
+export const renameFolder = async (
+  from: string,
+  typed: string,
+): Promise<UploadResult> => {
+  const source = resolveInUploads(from);
+  if (!source) return { ok: false, error: "Diesen Ordner gibt es hier nicht." };
+
+  const cleaned = sanitizeFolderName(typed);
+  if ("error" in cleaned) return { ok: false, error: cleaned.error };
+
+  const { folder } = splitPath(from);
+  const to = joinPath(folder, cleaned.name);
+  if (to === from) return { ok: false, error: "Der Name war schon so." };
+
+  const destination = resolveInUploads(to);
+  if (!destination) return { ok: false, error: "Dieser Name ist zu lang." };
+
+  const existing = await listFolders();
+  if (!existing.includes(from)) return { ok: false, error: `„${from}" gibt es nicht (mehr).` };
+  if (existing.includes(to)) {
+    return { ok: false, error: `„${cleaned.name}" gibt es hier schon.` };
+  }
+
+  try {
+    await rename(source, destination);
+  } catch (fehler) {
+    return { ok: false, error: `Umbenennen ging nicht. (${String(fehler)})` };
+  }
+
+  await moveBookkeepingUnder(from, to);
+  return { ok: true, path: to };
+};
+
+/**
+ * Removes a folder, and only an empty one.
+ *
+ * `rmdir` refuses a folder that is not empty, so the guarantee is the kernel's
+ * and not a listing that was taken a moment earlier. Deliberately not recursive:
+ * one click should not be able to delete a term's worth of material, and
+ * emptying a folder first makes what is being lost visible on the way.
+ */
+export const deleteFolder = async (path: string): Promise<UploadResult> => {
+  const absolute = resolveInUploads(path);
+  if (!absolute) return { ok: false, error: "Diesen Ordner gibt es hier nicht." };
+
+  try {
+    await rmdir(absolute);
+  } catch (fehler) {
+    const code = (fehler as NodeJS.ErrnoException).code;
+    if (code === "ENOTEMPTY" || code === "EEXIST") {
+      return {
+        ok: false,
+        error:
+          `„${path}" ist nicht leer. Verschiebe oder lösche erst, was darin ` +
+          "liegt – ein Ordner mit einem Klick zu leeren wäre zu viel auf einmal.",
+      };
+    }
+    return { ok: false, error: `„${path}" gibt es nicht (mehr).` };
+  }
+
+  // Nothing should be left to re-key, but a release mark survives its file on
+  // purpose, and one for a folder that is gone has nowhere to point.
+  await moveBookkeepingUnder(path, null);
+  return { ok: true, path };
 };

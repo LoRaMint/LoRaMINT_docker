@@ -426,3 +426,186 @@ describe("renderInlineMarkdown", () => {
     expect(renderInlineMarkdown("erste\nzweite")).toBe("erste zweite");
   });
 });
+
+/**
+ * The four constructs the ESP32 guide needed before it could stop being JSX.
+ *
+ * Each of them replaces a hand-written component: `Note`, `Figure`, the
+ * „Häufige Probleme" section, and the headings somebody wanted to link to.
+ */
+describe("was eine lange Anleitung braucht", () => {
+  describe("Hinweiskasten", () => {
+    test("> Text wird zum Kasten, mit Auszeichnung darin", () => {
+      const html = renderMarkdown("> Das erledigt **vorab** eure Lehrkraft.");
+      expect(html).toContain("border-l-4 border-primary");
+      expect(html).toContain("<strong>vorab</strong>");
+    });
+
+    test("mehrere Zeilen bleiben ein Kasten mit Umbruch", () => {
+      const html = renderMarkdown("> eins\n> zwei");
+      expect(html.match(/border-l-4/g)).toHaveLength(1);
+      expect(html).toContain("eins<br>zwei");
+    });
+
+    /** Kein `<blockquote>`: es ist kein Zitat, sondern ein Hinweis. */
+    test("es ist kein Zitat", () => {
+      expect(renderMarkdown("> Hinweis")).not.toContain("<blockquote");
+    });
+
+    test("und escapt wird zuerst, auch hier", () => {
+      const html = renderMarkdown("> <img src=x onerror=alert(1)>");
+      expect(html).not.toContain("<img");
+      expect(html).toContain("&lt;img");
+    });
+  });
+
+  describe("Bildunterschrift", () => {
+    test("ein Bild allein auf seiner Zeile bekommt figure und figcaption", () => {
+      const html = renderMarkdown('![Die Bauteile](/downloads/parts.jpg "Alles im Überblick")');
+      expect(html).toStartWith("<figure");
+      expect(html).toContain("<figcaption");
+      expect(html).toContain("Alles im Überblick");
+      expect(html).toContain('alt="Die Bauteile"');
+    });
+
+    test("ohne Unterschrift bleibt es ein blosses Bild", () => {
+      const html = renderMarkdown("![x](/a.png)");
+      expect(html).not.toContain("<figure");
+      expect(html).toStartWith("<img");
+    });
+
+    /**
+     * `<figure>` darf nicht in einem `<p>` stehen - der Browser schliesst den
+     * Absatz sonst still und das Dokument bekommt eine andere Form, als es
+     * gelesen wird. Im Satz bleibt die Unterschrift deshalb ein `title`.
+     */
+    test("mitten im Satz entsteht kein figure", () => {
+      const html = renderMarkdown('Ein Satz mit ![Bild](/a.png "Titel") darin.');
+      expect(html).not.toContain("<figure");
+      expect(html).toContain('title="Titel"');
+      expect(html).toStartWith("<p");
+    });
+
+    test("ein fremder Server bleibt auch mit Unterschrift Text", () => {
+      const html = renderMarkdown('![x](https://fremd.example/x.png "cap")');
+      expect(html).not.toContain("<img");
+      expect(html).not.toContain("<figure");
+    });
+
+    /** Der Haken, den die Insel sucht - siehe frontend/pages/guides/client.ts. */
+    test("jedes Bild trägt zoomable", () => {
+      expect(renderMarkdown("![x](/a.png)")).toContain("zoomable");
+      expect(renderMarkdown('![x](/a.png "y")')).toContain("zoomable");
+    });
+  });
+
+  describe("Aufklapp-Abschnitt", () => {
+    test(":::klapp Titel … ::: wird zu details mit summary", () => {
+      const html = renderMarkdown(":::klapp Häufige Probleme\nEs geht nicht.\n:::");
+      expect(html).toContain("<details");
+      expect(html).toContain("collapse");
+      expect(html).toContain("<summary");
+      expect(html).toContain("Häufige Probleme");
+      expect(html).toContain("Es geht nicht.");
+    });
+
+    /** Der eigentliche Grund für die Behandlung auf Segmentebene. */
+    test("er überlebt eine Leerzeile und einen Codeblock darin", () => {
+      const html = renderMarkdown(
+        ":::klapp Titel\nErster Absatz.\n\n```python\nprint(1)\n```\n\nZweiter.\n:::",
+      );
+      expect(html.match(/<details/g)).toHaveLength(1);
+      expect(html).toContain("<pre");
+      expect(html).toContain("Zweiter.");
+      // Nichts davon darf hinter dem Abschnitt liegen.
+      expect(html).toEndWith("</details>");
+    });
+
+    /** Ein `:::` im Code beendet den Abschnitt nicht. */
+    test("ein Trenner im Codeblock zählt nicht", () => {
+      const html = renderMarkdown(
+        ":::klapp Titel\n```python\nx = \":::\"\n```\nDanach.\n:::",
+      );
+      expect(html).toContain("Danach.");
+      expect(html.match(/<details/g)).toHaveLength(1);
+    });
+
+    /**
+     * Ein vergessenes `:::` darf nicht den Rest der Seite verschlucken - es
+     * endet sie, so wie ein offener Codeblock es tut.
+     */
+    test("ein nie geschlossener Abschnitt endet das Dokument", () => {
+      const html = renderMarkdown("Davor.\n\n:::klapp Titel\nDarin.");
+      expect(html).toContain("Davor.");
+      expect(html).toContain("Darin.");
+      expect(html).toContain("<details");
+    });
+
+    test("ohne Titel ist es kein Abschnitt", () => {
+      expect(renderMarkdown(":::klapp\ntext\n:::")).not.toContain("<details");
+    });
+
+    test("und escapt wird auch der Titel zuerst", () => {
+      const html = renderMarkdown(":::klapp <script>x</script>\ntext\n:::");
+      expect(html).not.toContain("<script>");
+      expect(html).toContain("&lt;script&gt;");
+    });
+  });
+
+  describe("Überschriften-Anker", () => {
+    test("jede Überschrift bekommt eine id aus ihrem Text", () => {
+      expect(renderMarkdown("# Materialien")).toContain('id="materialien"');
+      expect(renderMarkdown("## Aufbau")).toContain('id="aufbau"');
+      expect(renderMarkdown("### Verdrahtung")).toContain('id="verdrahtung"');
+    });
+
+    test("Umlaute werden zu Digraphen, nicht zu Bindestrichen", () => {
+      expect(renderMarkdown("## Übung für später")).toContain('id="uebung-fuer-spaeter"');
+    });
+
+    /** Die Entities, die escapeHtml erzeugt hat, dürfen nicht im Anker landen. */
+    test("aus „Strom & Spannung\" wird kein „amp\"", () => {
+      const id = /id="([^"]+)"/.exec(renderMarkdown("## Strom & Spannung"))![1];
+      expect(id).toBe("strom-spannung");
+    });
+
+    test("zweimal derselbe Titel gibt zwei verschiedene Anker", () => {
+      const html = renderMarkdown("## Aufbau\n\n## Aufbau");
+      expect(html).toContain('id="aufbau"');
+      expect(html).toContain('id="aufbau-2"');
+    });
+
+    /**
+     * Der Zähler darf nicht über zwei Dokumente hinweg weiterlaufen - sonst
+     * bekäme das zweite Impressum des Tages „#kontakt-2".
+     */
+    test("der Zähler beginnt bei jedem Dokument von vorn", () => {
+      renderMarkdown("## Aufbau");
+      expect(renderMarkdown("## Aufbau")).toContain('id="aufbau"');
+    });
+
+    test("eine Überschrift ohne brauchbare Zeichen bekommt keine id", () => {
+      expect(renderMarkdown("## ---")).not.toContain("id=");
+    });
+  });
+});
+
+/**
+ * Regression: die erste Bildunterschrift, die je gerendert wurde, endete auf
+ * „(zum Vergrössern anklicken)". Mit einer Titelregel ohne Klammern passte der
+ * ganze Ausdruck nicht mehr, und das Bild kam als der getippte Text heraus –
+ * ein stillschweigend verlorenes Bild.
+ */
+describe("eine Bildunterschrift darf Klammern enthalten", () => {
+  test("das Bild bleibt ein Bild", () => {
+    const html = renderMarkdown('![Aufbau](/a.png "Der Aufbau (zum Vergrössern anklicken)")');
+    expect(html).toContain("<figure");
+    expect(html).toContain("Der Aufbau (zum Vergrössern anklicken)");
+  });
+
+  test("und die Unterschrift endet trotzdem am Anführungszeichen", () => {
+    const html = renderMarkdown('![a](/a.png "eins") und ![b](/b.png "zwei")');
+    expect(html).toContain('title="eins"');
+    expect(html).toContain('title="zwei"');
+  });
+});

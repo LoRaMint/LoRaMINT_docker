@@ -3,11 +3,16 @@ import {
   ALLOWED_TYPES,
   extensionOf,
   formatBytes,
+  isSafePath,
   isSafeStoredName,
+  joinPath,
   MAX_NOTE_LENGTH,
+  MAX_PATH_LENGTH,
   sanitizeFileName,
+  sanitizeFolderName,
   sanitizeNote,
   sanitizeRename,
+  splitPath,
   typeOf,
   uniqueName,
 } from "./uploads";
@@ -46,9 +51,9 @@ describe("was ein gespeicherter Name sein darf", () => {
     }
   });
 
-  /** Führende Punkte halten .hidden und .tmp-… aus Liste und Auslieferung heraus. */
+  /** Führende Punkte halten .released und .tmp-… aus Liste und Auslieferung heraus. */
   test("ein führender Punkt nie", () => {
-    expect(isSafeStoredName(".hidden")).toBe(false);
+    expect(isSafeStoredName(".released")).toBe(false);
     expect(isSafeStoredName(".tmp-abc.py")).toBe(false);
     expect(isSafeStoredName(".htaccess")).toBe(false);
   });
@@ -269,5 +274,101 @@ describe("sanitizeRename", () => {
     const name = to("blatt.pdf", "  Neues BLATT.pdf ");
     expect(name).not.toBeNull();
     expect(isSafeStoredName(name!)).toBe(true);
+  });
+});
+
+/**
+ * The rule that took over from „`/downloads/:name` is one path segment".
+ *
+ * That used to make a sub-directory impossible rather than forbidden, which is
+ * the stronger guarantee - and it is gone, because files live in folders now.
+ * This is what replaced it, and it is the first of two bolts; the second,
+ * `resolveInUploads`, is tested in services/uploads.test.ts.
+ */
+describe("was ein gespeicherter Pfad sein darf", () => {
+  test("ein Name ohne Ordner und ein Pfad mit Ordnern", () => {
+    for (const gut of [
+      "a.py",
+      "bilder/aufbau.png",
+      "kurs/tag-1/blatt.pdf",
+      "a/b/c/d/e/f.txt",
+    ]) {
+      expect(isSafePath(gut)).toBe(true);
+    }
+  });
+
+  /**
+   * Keiner dieser Pfade wird durch eine Regel über ihn abgelehnt, sondern
+   * dadurch, dass eines seiner Segmente nicht in der erlaubten Menge liegt.
+   */
+  test("nichts, was aus dem Verzeichnis herausführt", () => {
+    for (const schlecht of [
+      "..",
+      "../x.py",
+      "a/../../x.py",
+      "a/./x.py",
+      "/a.py",
+      "a.py/",
+      "a//b.py",
+      "",
+      "a\\b.py",
+      `a/b${String.fromCharCode(0)}.py`,
+      "%2e%2e/x.py",
+      "..%2fx.py",
+      "a/ b.py",
+      "a/B.py",
+      "a/.hidden",
+      ".released/x.py",
+    ]) {
+      expect(isSafePath(schlecht)).toBe(false);
+    }
+  });
+
+  test("und nichts Endloses", () => {
+    const tief = Array.from({ length: 40 }, () => "abcde").join("/");
+    expect(tief.length).toBeGreaterThan(MAX_PATH_LENGTH);
+    expect(isSafePath(tief)).toBe(false);
+  });
+
+  test("Zerlegen und Zusammensetzen sind dasselbe von zwei Seiten", () => {
+    expect(splitPath("bilder/tag-1/x.png")).toEqual({
+      folder: "bilder/tag-1",
+      name: "x.png",
+    });
+    expect(splitPath("x.png")).toEqual({ folder: "", name: "x.png" });
+    expect(joinPath("bilder", "x.png")).toBe("bilder/x.png");
+    expect(joinPath("", "x.png")).toBe("x.png");
+  });
+});
+
+describe("Ordnernamen", () => {
+  const ordner = (raw: string): string | null => {
+    const result = sanitizeFolderName(raw);
+    return "name" in result ? result.name : null;
+  };
+
+  test("gewöhnliche Namen, kleingeschrieben und ohne Umlaute", () => {
+    expect(ordner("Arbeitsblätter")).toBe("arbeitsblaetter");
+    expect(ordner("Tag 1")).toBe("tag-1");
+  });
+
+  /** Ein Ordner bekommt keinen Punkt, damit er nicht wie eine Datei aussieht. */
+  test("Punkte fallen weg", () => {
+    expect(ordner("bilder.png")).toBe("bilder-png");
+    expect(ordner(".versteckt")).toBe("versteckt");
+  });
+
+  test("was nichts übrig lässt, wird abgelehnt statt geraten", () => {
+    expect(ordner("..")).toBeNull();
+    expect(ordner("   ")).toBeNull();
+    expect(ordner("...")).toBeNull();
+  });
+
+  /** Die Zusage, die der Sanitizer selbst prüft: nichts Unmögliches kommt heraus. */
+  test("was herauskommt, ist immer ein erlaubtes Segment", () => {
+    for (const raw of ["../raus", "/etc", "a/b", "Grüße!", "  -x-  "]) {
+      const name = ordner(raw);
+      if (name !== null) expect(isSafeStoredName(name)).toBe(true);
+    }
   });
 });

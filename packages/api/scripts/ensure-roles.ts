@@ -154,6 +154,13 @@ const SPECS: RoleSpec[] = [
       { privileges: "SELECT, INSERT", on: "api_token_log" },
       // Which groups a token has been made known to.
       { privileges: "SELECT, INSERT, UPDATE, DELETE", on: "api_token_announcements" },
+      // The written guides and the addresses they used to have. Both get the
+      // full set: a guide is meant to be rewritten, moved and taken down, and a
+      // forwarding address that nobody needs any more should be removable.
+      // Without these two lines the tables exist and cannot be written to - the
+      // empty `defaults` below is why, and it is on purpose.
+      { privileges: "SELECT, INSERT, UPDATE, DELETE", on: "guides" },
+      { privileges: "SELECT, INSERT, UPDATE, DELETE", on: "guide_paths" },
     ],
     // Deliberately empty: a table added by a later migration grants this role
     // nothing until someone adds a line above. A default privilege here would

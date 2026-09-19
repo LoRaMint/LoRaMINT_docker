@@ -2,9 +2,11 @@
  * A small Markdown subset for the written pages, rendered to HTML.
  *
  * Not a Markdown implementation - a documented handful of constructs that an
- * Impressum, a privacy notice or the workshop page actually needs: headings,
- * paragraphs, lists, bold, italic, links, rules, code, images and tables.
- * Anything else is left as the text somebody typed.
+ * Impressum, a privacy notice or a guide actually needs: headings, paragraphs,
+ * lists, bold, italic, links, rules, code, images and tables, plus the four
+ * that a long guide cannot do without - a note box, a captioned picture, a
+ * collapsible section and an anchor on every heading. Anything else is left as
+ * the text somebody typed.
  *
  * **The order is the security property.** Everything is escaped *first*, and the
  * markup is produced afterwards from the escaped text. Raw HTML in the source
@@ -16,9 +18,17 @@
  *
  * Every construct added since then keeps that order, and it costs nothing to
  * keep: `escapeHtml` touches only `& < > "`, while the syntax below is spelled
- * with backticks, pipes, brackets, parentheses and newlines. None of them can be
- * produced or destroyed by escaping, so parsing escaped text finds exactly what
- * parsing the source would have found - minus the ability to emit a tag.
+ * with backticks, pipes, brackets, parentheses, colons, angle-free `>` at the
+ * start of a line and newlines. None of them can be produced or destroyed by
+ * escaping, so parsing escaped text finds exactly what parsing the source would
+ * have found - minus the ability to emit a tag.
+ *
+ * **One consequence is easy to miss and is load-bearing.** A `"` in the source
+ * is already `&quot;` by the time anything below looks at it. The caption in
+ * `![alt](/bild.png "Unterschrift")` is therefore matched as `&quot;…&quot;`
+ * and not as a quotation mark - written the other way round the caption would
+ * simply never be found, which is the sort of bug that looks like a typo in the
+ * document rather than one in the parser.
  *
  * Links carry a second check: only http, https and site-relative paths survive,
  * because `[hier](javascript:…)` is otherwise a working script in a Markdown
@@ -38,6 +48,7 @@ import {
   splitAddress,
 } from "./mail-obfuscation";
 import { TABLE_CLASS, TABLE_FRAME_CLASS } from "./table-style";
+import { foldUmlauts } from "./umlauts";
 
 const escapeHtml = (text: string): string =>
   text
@@ -82,8 +93,35 @@ const CODE_INLINE_CLASS = "bg-base-200 rounded-field px-1 text-sm";
 const CODE_BLOCK_CLASS =
   "bg-neutral text-neutral-content rounded-box p-4 overflow-x-auto text-sm my-4";
 
-/** An image: bounded by a border, never by a shadow (`FORM-05`). */
-const IMAGE_CLASS = "max-w-full h-auto rounded-box border border-base-300 my-4";
+/**
+ * An image: bounded by a border, never by a shadow (`FORM-05`).
+ *
+ * `zoomable` is the hook the guide island looks for - see
+ * frontend/pages/guides/client.ts. It is only a hook: the class that makes the
+ * picture *look* clickable is added by that script when it wires the handler,
+ * so a page without the island - the Impressum, say - does not offer a zoom
+ * cursor over something that will not zoom.
+ */
+const IMAGE_CLASS =
+  "zoomable max-w-full h-auto rounded-box border border-base-300";
+
+/** The same picture standing on its own, with the margin a block needs. */
+const IMAGE_BLOCK_CLASS = `${IMAGE_CLASS} my-4`;
+
+/** The caption under a picture. 70 % is the lowest step the design allows. */
+const CAPTION_CLASS = "text-sm text-base-content/70 mt-1";
+
+/**
+ * A note beside the text: the `Note` component of the old ESP32 guide, as a
+ * class instead of a component, so `> Text` produces the same box the guide
+ * used to build by hand.
+ */
+const NOTE_CLASS =
+  "border-l-4 border-primary bg-base-200 rounded-r-box px-4 py-3 my-4 text-sm";
+
+/** A collapsible section, in the shape daisyUI gives a `<details>`. */
+const COLLAPSE_CLASS =
+  "collapse collapse-arrow border border-base-300 rounded-box bg-base-100 my-4";
 
 /**
  * The inline constructs, applied to text that is already escaped.
@@ -108,6 +146,29 @@ const inline = (escaped: string): string =>
     .join("");
 
 /**
+ * A link or an image, with an optional title after the address.
+ *
+ * `&quot;` and not `"`, because this runs on escaped text - see the note at the
+ * top of the file.
+ *
+ * The title is "anything up to the next quotation mark" rather than "anything
+ * without a parenthesis", and the difference is not theoretical: the first
+ * caption this ever rendered ended on „(zum Vergrössern anklicken)". Under the
+ * narrower rule the whole construct failed to match and the picture came out as
+ * the literal text somebody had typed - a silently lost picture, which is the
+ * worst way for a parser to be strict.
+ *
+ * `(?:(?!&quot;).)*` cannot cross a quotation mark, so the title still ends at
+ * the first one; what follows has to be the closing parenthesis, or the
+ * optional group gives up and the address is read without a title at all.
+ */
+const LINK_OR_IMAGE =
+  /(!?)\[([^\]]*)\]\(([^)\s]+)(?:\s+&quot;((?:(?!&quot;).)*)&quot;)?\)/g;
+
+/** The same thing again, anchored: a picture alone on its line. */
+const IMAGE_ONLY = new RegExp(`^${LINK_OR_IMAGE.source.replace("(!?)", "(!)")}$`);
+
+/**
  * Bold before italic, so `**text**` is not read as an italic `*` wrapping
  * `*text*`.
  */
@@ -124,13 +185,18 @@ const formatInline = (escaped: string): string =>
      * every image becomes that. One scan decides each occurrence once.
      */
     .replace(
-      /(!?)\[([^\]]*)\]\(([^)\s]+)\)/g,
-      (whole, bang: string, label: string, href: string) => {
+      LINK_OR_IMAGE,
+      (whole, bang: string, label: string, href: string, title?: string) => {
+        // Every value here went through escapeHtml, so a quote in any of them
+        // cannot close the attribute it sits in.
+        const titleAttribute = title ? ` title="${title}"` : "";
+
         if (bang === "!") {
           if (!LOCAL_PATH.test(href)) return whole;
-          // Both went through escapeHtml, so a quote in either cannot close the
-          // attribute it sits in.
-          return `<img src="${href}" alt="${label}" loading="lazy" class="${IMAGE_CLASS}">`;
+          return (
+            `<img src="${href}" alt="${label}" loading="lazy"` +
+            `${titleAttribute} class="${IMAGE_CLASS}">`
+          );
         }
 
         // An empty label was never a link and stays text.
@@ -164,7 +230,7 @@ const formatInline = (escaped: string): string =>
 
         const external = /^https?:/i.test(href);
         const rel = external ? ' target="_blank" rel="noopener noreferrer"' : "";
-        return `<a href="${href}" class="link"${rel}>${label}</a>`;
+        return `<a href="${href}" class="link"${rel}${titleAttribute}>${label}</a>`;
       },
     )
     .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
@@ -238,17 +304,91 @@ const table = (lines: string[]): string => {
   );
 };
 
-/** One block: a heading, a rule, a table, a list, or a paragraph. */
-const block = (chunk: string): string => {
+/**
+ * A heading turned into something that may stand in an `id` and be typed into
+ * an address bar, or null when nothing usable is left.
+ *
+ * The text arrives escaped, so the entities `escapeHtml` produced have to go
+ * before the rest - otherwise `Strom &amp; Spannung` would anchor at
+ * `strom-amp-spannung` and the `amp` would look deliberate. The inline markup
+ * characters go the same way, so `**Aufbau**` and `Aufbau` are one anchor.
+ *
+ * `seen` is what keeps two sections of the same name from sharing an anchor.
+ * Both would be legal HTML and the second would simply be unreachable, which is
+ * the worse failure: a link that scrolls to the wrong place looks like a typo in
+ * the link.
+ */
+const anchorId = (escaped: string, seen: Set<string>): string | null => {
+  const base = foldUmlauts(escaped)
+    .replace(/&[a-z]+;|&#\d+;/gi, " ")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 64)
+    .replace(/-+$/, "");
+  if (base.length === 0) return null;
+
+  let id = base;
+  for (let zaehler = 2; seen.has(id); zaehler++) id = `${base}-${zaehler}`;
+  seen.add(id);
+  return id;
+};
+
+/** One block: a heading, a note, a picture, a rule, a table, a list, or a paragraph. */
+const block = (chunk: string, anchors: Set<string>): string => {
   const lines = chunk.split("\n");
 
   const heading = /^(#{1,3})\s+(.*)$/.exec(lines[0] ?? "");
   if (heading && lines.length === 1) {
     const level = heading[1]!.length;
     const size = ["text-xl", "text-lg", "text-base"][level - 1];
-    return `<h${level + 1} class="${size} font-bold mt-6 mb-2">${inline(
+    // Every heading gets an anchor, not only the lower two: in a guide of any
+    // length the top-level section is the one somebody links to.
+    const id = anchorId(heading[2]!, anchors);
+    const idAttribute = id ? ` id="${id}"` : "";
+    return `<h${level + 1}${idAttribute} class="${size} font-bold mt-6 mb-2">${inline(
       heading[2]!,
     )}</h${level + 1}>`;
+  }
+
+  /*
+   * A note box: `> Text`, one or more lines.
+   *
+   * Rendered as the box the ESP32 guide built by hand and not as a
+   * `<blockquote>`, because it is not a quotation - it is an aside the writer
+   * wants noticed, and announcing it to a screen reader as somebody else's
+   * words would be wrong about the one thing the element is for.
+   */
+  if (lines.every((line) => /^&gt;\s?/.test(line))) {
+    const inner = lines.map((line) => line.replace(/^&gt;\s?/, "")).join("\n");
+    return `<div class="${NOTE_CLASS}">${inline(inner).replace(/\n/g, "<br>")}</div>`;
+  }
+
+  /*
+   * A picture alone on its line becomes a block, and with a caption a
+   * `<figure>`.
+   *
+   * It has to be decided here rather than inside the inline pass: `<figure>` is
+   * flow content and may not sit inside a `<p>`, so a browser meeting one there
+   * silently closes the paragraph around it and the document ends up shaped
+   * differently from the way it reads. A picture *inside* a sentence keeps its
+   * caption as a `title` and stays an `<img>`.
+   */
+  const alone = lines.length === 1 ? IMAGE_ONLY.exec(lines[0]!) : null;
+  if (alone) {
+    const [, , label, href, caption] = alone;
+    if (LOCAL_PATH.test(href!)) {
+      // The margin belongs to whichever element is the block: on the picture
+      // when it stands alone, on the `<figure>` when there is one, never on
+      // both - two stacked margins read as a gap somebody left by mistake.
+      const img = (klasse: string) =>
+        `<img src="${href}" alt="${label}" loading="lazy"` +
+        `${caption ? ` title="${caption}"` : ""} class="${klasse}">`;
+      return caption
+        ? `<figure class="my-4">${img(IMAGE_CLASS)}` +
+            `<figcaption class="${CAPTION_CLASS}">${caption}</figcaption></figure>`
+        : img(IMAGE_BLOCK_CLASS);
+    }
   }
 
   if (/^(-{3,}|\*{3,})$/.test(lines[0] ?? "") && lines.length === 1) {
@@ -296,13 +436,18 @@ const block = (chunk: string): string => {
   return `<p class="my-3 leading-relaxed">${formatted}</p>`;
 };
 
-/** A stretch of the document: ordinary text, or the inside of a code fence. */
+/** A stretch of the document: prose, a code fence, or a collapsible section. */
 type Segment =
   | { kind: "prosa"; text: string }
-  | { kind: "code"; sprache: string; text: string };
+  | { kind: "code"; sprache: string; text: string }
+  | { kind: "klapp"; titel: string; inner: Segment[] };
 
 const FENCE_OPEN = /^```(\S*)\s*$/;
 const FENCE_CLOSE = /^```\s*$/;
+
+/** `:::klapp Häufige Probleme` opens one, a bare `:::` closes it. */
+const KLAPP_OPEN = /^:::klapp\s+(\S.*)$/;
+const KLAPP_CLOSE = /^:::\s*$/;
 
 /**
  * A language name, reduced to something that may stand in a class attribute.
@@ -314,35 +459,83 @@ const languageClass = (raw: string): string =>
   /^[a-z0-9+#-]{1,20}$/.test(raw) ? ` class="language-${raw}"` : "";
 
 /**
- * Splits the document into prose and code, keeping the order.
+ * Splits the document into prose, code and collapsible sections, keeping the
+ * order.
  *
  * This exists because a code block may contain a blank line and blank lines are
  * what separate the blocks below. Splitting on them first would tear a Python
- * function in half at every empty line inside it.
+ * function in half at every empty line inside it. A collapsible section is here
+ * for the same reason twice over: it holds several paragraphs *and* it may hold
+ * a code fence.
  *
- * A fence that is never closed ends the document instead of swallowing it. That
- * is a decision, not an oversight: the alternative is that one forgotten pair of
- * backticks makes the rest of somebody's page disappear while they are writing
- * it, which is the worst moment for a page to vanish.
+ * **One pass rather than two, and the reason is the interaction.** Split on
+ * `:::` first and a `:::` typed inside a Python string ends the section; split
+ * on fences first and a section wrapped around a fence has its opening and its
+ * closing line in two different pieces, so neither finds the other. Tracking
+ * both in one scan is the only spelling where a fence inside a section and a
+ * `:::` inside a fence both behave.
+ *
+ * The inside of a section is parsed by calling this again, which is what lets
+ * it hold anything the document can hold - minus another section, because
+ * `KLAPP_CLOSE` would close the outer one first. One level is what the pages
+ * need, and refusing to guess at nesting keeps the rule sayable in a sentence.
+ *
+ * A fence or a section that is never closed ends the document instead of
+ * swallowing it. That is a decision, not an oversight: the alternative is that
+ * one forgotten delimiter makes the rest of somebody's page disappear while they
+ * are writing it, which is the worst moment for a page to vanish.
  */
 const segments = (escaped: string): Segment[] => {
   const out: Segment[] = [];
   let prosa: string[] = [];
   let code: string[] | null = null;
   let sprache = "";
+  let klapp: { titel: string; lines: string[]; inFence: boolean } | null = null;
 
   const flushProsa = () => {
     if (prosa.length > 0) out.push({ kind: "prosa", text: prosa.join("\n") });
     prosa = [];
   };
 
+  const flushKlapp = () => {
+    if (!klapp) return;
+    out.push({ kind: "klapp", titel: klapp.titel, inner: segments(klapp.lines.join("\n")) });
+    klapp = null;
+  };
+
   for (const line of escaped.split("\n")) {
+    if (klapp) {
+      // Inside a section, a fence suspends the search for the closing `:::`.
+      if (klapp.inFence) {
+        if (FENCE_CLOSE.test(line)) klapp.inFence = false;
+        klapp.lines.push(line);
+        continue;
+      }
+      if (FENCE_OPEN.test(line)) {
+        klapp.inFence = true;
+        klapp.lines.push(line);
+        continue;
+      }
+      if (KLAPP_CLOSE.test(line)) {
+        flushKlapp();
+        continue;
+      }
+      klapp.lines.push(line);
+      continue;
+    }
+
     if (code === null) {
       const open = FENCE_OPEN.exec(line);
       if (open) {
         flushProsa();
         code = [];
         sprache = open[1] ?? "";
+        continue;
+      }
+      const section = KLAPP_OPEN.exec(line);
+      if (section) {
+        flushProsa();
+        klapp = { titel: section[1]!, lines: [], inFence: false };
         continue;
       }
       prosa.push(line);
@@ -358,17 +551,51 @@ const segments = (escaped: string): Segment[] => {
   }
 
   if (code !== null) out.push({ kind: "code", sprache, text: code.join("\n") });
+  flushKlapp();
   flushProsa();
   return out;
 };
 
 /** Prose: blocks separated by a blank line. */
-const prosaBlocks = (text: string): string =>
+const prosaBlocks = (text: string, anchors: Set<string>): string =>
   text
     .split(/\n{2,}/)
     .map((chunk) => chunk.trim())
     .filter((chunk) => chunk.length > 0)
-    .map(block)
+    .map((chunk) => block(chunk, anchors))
+    .join("\n");
+
+/**
+ * Segments into HTML.
+ *
+ * `anchors` is threaded through rather than kept in a module variable, and that
+ * is not fussiness: a module variable would be shared between two documents
+ * rendered in the same process, so the second Impressum of the day would get
+ * `#kontakt-2`. One set per call, handed down.
+ */
+const renderSegments = (parts: Segment[], anchors: Set<string>): string =>
+  parts
+    .map((segment) => {
+      if (segment.kind === "code") {
+        // Verbatim: no inline formatting, no trimming of the inside, no <br>.
+        // Indentation is meaning in Python, and a line that starts with four
+        // spaces has to arrive with four spaces.
+        return (
+          `<pre class="${CODE_BLOCK_CLASS}"><code${languageClass(segment.sprache)}>` +
+          `${segment.text}</code></pre>`
+        );
+      }
+      if (segment.kind === "klapp") {
+        return (
+          `<details class="${COLLAPSE_CLASS}">` +
+          `<summary class="collapse-title font-medium">${inline(segment.titel)}</summary>` +
+          `<div class="collapse-content">${renderSegments(segment.inner, anchors)}</div>` +
+          `</details>`
+        );
+      }
+      return prosaBlocks(segment.text, anchors);
+    })
+    .filter((part) => part.length > 0)
     .join("\n");
 
 /**
@@ -400,17 +627,5 @@ export const renderMarkdown = (source: string): string => {
   // the same intent, so both become a line break.
   const text = source.replace(/\\n/g, "\n").replace(/\r\n/g, "\n");
 
-  return segments(escapeHtml(text))
-    .map((segment) =>
-      segment.kind === "code"
-        ? // Verbatim: no inline formatting, no trimming of the inside, no <br>.
-          // Indentation is meaning in Python, and a line that starts with four
-          // spaces has to arrive with four spaces.
-          `<pre class="${CODE_BLOCK_CLASS}"><code${languageClass(
-            segment.sprache,
-          )}>${segment.text}</code></pre>`
-        : prosaBlocks(segment.text),
-    )
-    .filter((part) => part.length > 0)
-    .join("\n");
+  return renderSegments(segments(escapeHtml(text)), new Set<string>());
 };

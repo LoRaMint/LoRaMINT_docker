@@ -7,12 +7,12 @@ import { html, ssr } from "../../config/ssr";
 import {
   config,
   legal,
-  content,
   auth,
   sqlConsole,
   board,
   manage,
   setupAccount,
+  uploads,
 } from "../../config";
 import { verifySetupAccount } from "../../services/setup-account";
 import {
@@ -48,7 +48,8 @@ import BoardPage from "./board/page";
 import * as dashboard from "../../services/dashboard";
 import * as deviceNames from "../../services/device-names";
 import { deviceStates } from "../../lib/device-state";
-import Esp32GuidePage from "./guides/esp32/page";
+import GuidePage, { EmptyGuidesPage } from "./guides/page";
+import NotFoundPage from "./not-found/page";
 import LoginPage from "./login/page";
 import SqlPage from "./sql/page";
 import ProfilePage from "./profile/page";
@@ -66,10 +67,18 @@ import { registerBoardRoutes } from "./management/board-routes";
 import { registerTokenRoutes } from "./management/token-routes";
 import { dataGroupsOf, listDataGroups } from "../../services/data-groups";
 import ImpressumPage from "./impressum/page";
-import WorkshopPage from "./workshop/page";
 import DownloadsPage from "./downloads/page";
-import { registerWorkshopRoutes } from "./management/workshop-routes";
+import { registerGuideRoutes } from "./management/guides-routes";
+import { registerFileRoutes } from "./management/files-routes";
 import { listVisibleFiles } from "../../services/uploads";
+import {
+  allGuides,
+  forwardingFor,
+  guideAt,
+  guideBody,
+  guidePath,
+  guideTree,
+} from "../../services/guides";
 import DatenschutzPage from "./datenschutz/page";
 
 const pages = new Hono();
@@ -169,14 +178,6 @@ if (board.enabled) {
     }),
   );
 }
-
-pages.get(
-  "/guides/esp32",
-  ...ssr((c) => {
-    c.get("page").title = PAGES.guideEsp32.label;
-    return <Esp32GuidePage />;
-  }),
-);
 
 // The login exists as soon as there is any way to sign in - a directory, the
 // local setup account, or both. A deployment with neither keeps working
@@ -601,10 +602,15 @@ if (auth.enabled || setupAccount.enabled) {
   // matters is being in one - see requireGroupMember.
   registerTokenRoutes(pages, { requireGroupMember, sameOrigin });
 
-  // The workshop page and the files on it. Its own role, because looking after
-  // teaching material is neither measurements nor devices - and an editor
-  // should not inherit either.
-  registerWorkshopRoutes(pages, {
+  // The guides and the files they draw on. Their own role, because looking
+  // after teaching material is neither measurements nor devices - and an
+  // editor should not inherit either.
+  registerGuideRoutes(pages, {
+    requireEditor: requireRole("editor"),
+    sameOrigin,
+  });
+
+  registerFileRoutes(pages, {
     requireEditor: requireRole("editor"),
     sameOrigin,
   });
@@ -639,21 +645,6 @@ pages.get(
 );
 
 /**
- * The workshop page, on the same principle as the two above: it exists while
- * there is something on it, decided per request. Writing the first sentence in
- * the editor publishes it, and emptying the box takes it down again - neither
- * needs a restart.
- */
-pages.get(
-  "/workshop",
-  ...ssr((c) => {
-    if (!content.workshop) return c.notFound();
-    c.get("page").title = PAGES.workshop.label;
-    return <WorkshopPage />;
-  }),
-);
-
-/**
  * The uploaded files, listed.
  *
  * Deliberately **not** bound to `content.workshop` the way the page above is:
@@ -675,5 +666,179 @@ pages.get(
     return <DownloadsPage files={files} />;
   }),
 );
+
+//====================================
+// ANLEITUNGEN
+//====================================
+
+/**
+ * The addresses of the guides, and the one trap in this file.
+ *
+ * `/anleitungen/*` matches everything under the prefix, so **it is registered
+ * last**. Hono takes the first route that matches, and anything fixed added
+ * under `/anleitungen/` after this line would never be reached - a failure with
+ * no error in it, on a page that renders perfectly and is simply the wrong one.
+ * `guides-routes.test.ts` checks the order, the same way
+ * `devices-routes.test.ts` checks `/photo` against `/:deviceId`.
+ */
+
+/** May this person see a page that has not been published? */
+const mayEditGuides = () => hasRole(currentUser(), "editor", auth);
+
+/** The slug the written overview lives under, at the root of the tree. */
+const OVERVIEW_SLUG = "uebersicht";
+
+/** The pages directly below this one, as links. Drafts only for an editor. */
+const childLinks = (parentId: string | null, drafts: boolean) => {
+  const level =
+    parentId === null
+      ? guideTree({ drafts })
+      : (function find(nodes): ReturnType<typeof guideTree> {
+          for (const node of nodes) {
+            if (node.id === parentId) return node.children;
+            const deeper = find(node.children);
+            if (deeper.length > 0) return deeper;
+          }
+          return [];
+        })(guideTree({ drafts }));
+
+  return level.map((child) => ({
+    href: `${PAGES.guides.href}/${guidePath(child)}`,
+    label: child.title,
+  }));
+};
+
+pages.get(
+  PAGES.guides.href,
+  ...ssr(async (c) => {
+    c.get("page").title = PAGES.guides.label;
+    const drafts = mayEditGuides();
+
+    /*
+     * The overview is a guide like any other, written in the editor and stored
+     * at the root under `OVERVIEW_SLUG`. There is no special row and no
+     * generated grid of tiles: a written overview can say which guide to read
+     * first, and a generated one can only repeat the menu.
+     *
+     * Until somebody writes it, the root pages are listed instead. That is not
+     * a second design - it is the empty state, and it names the next step for
+     * whoever can take it.
+     */
+    const overview = allGuides().find(
+      (entry) => entry.parentId === null && entry.slug === OVERVIEW_SLUG,
+    );
+    const guide =
+      overview && (overview.published || drafts)
+        ? await guideBody(overview.id)
+        : null;
+
+    if (!guide) {
+      return (
+        <EmptyGuidesPage mayEdit={drafts} roots={childLinks(null, drafts)} />
+      );
+    }
+
+    return (
+      <GuidePage
+        title={guide.title}
+        body={guide.body}
+        below={childLinks(null, drafts).filter(
+          (link) => link.href !== `${PAGES.guides.href}/${OVERVIEW_SLUG}`,
+        )}
+        {...(guide.published ? {} : { draft: true })}
+      />
+    );
+  }),
+);
+
+/**
+ * The two addresses the guides used to live at.
+ *
+ * Three lines, and they are what keeps every printed worksheet and every link
+ * in a sent mail working. The targets are the slugs the two pages are expected
+ * to be re-created under - see packages/api/docs/anleitungen.md, which also
+ * says what to do if they were given different ones.
+ *
+ * Above the wildcard, although neither collides with it: everything that is
+ * not the wildcard belongs above the wildcard, and a rule with an exception is
+ * a rule nobody follows.
+ */
+for (const [alt, neu] of [
+  ["/workshop", "workshop"],
+  ["/guides/esp32", "esp32"],
+] as const) {
+  pages.get(alt, (c) => c.redirect(`${PAGES.guides.href}/${neu}`, 301));
+}
+
+// ---- ZULETZT: der Platzhalter, der alles darunter schluckt ----
+//
+// `{.+}` and not `*`, for two reasons that both bite. A bare `*` matches the
+// empty rest as well, so it would answer `/anleitungen` too and swallow the
+// overview above it. And Hono gives a `*` route no parameter to read the match
+// back from - `c.req.param("*")` is null - so the handler would silently see an
+// empty path and answer 404 for every guide on the site.
+pages.get(
+  `${PAGES.guides.href}/:pfad{.+}`,
+  ...ssr(async (c) => {
+    /*
+     * Taken from the path rather than from the parameter, and not decoded.
+     * Hono hands a named parameter back percent-decoded, and a slug is
+     * `[a-z0-9-]` only - so an encoded request should simply fail to match
+     * rather than be turned into something that might.
+     */
+    const path = c.req.path.slice(`${PAGES.guides.href}/`.length);
+    const drafts = mayEditGuides();
+
+    const entry = guideAt(path);
+    if (!entry) {
+      /*
+       * Not in the tree: it may be an address a page used to have. Only then is
+       * the table asked, so a hit costs nothing and a miss costs one query -
+       * and a printed worksheet keeps working after a rename.
+       */
+      const forwarding = await forwardingFor(path);
+      if (forwarding && forwarding !== path) {
+        return c.redirect(`${PAGES.guides.href}/${forwarding}`, 301);
+      }
+      return c.notFound();
+    }
+
+    // A draft is a 404 for everybody else, not a 403: "this exists but you may
+    // not see it" is more than an anonymous visitor needs to be told.
+    if (!entry.published && !drafts) return c.notFound();
+
+    const guide = await guideBody(entry.id);
+    if (!guide) return c.notFound();
+
+    c.get("page").title = guide.title;
+    const parent = allGuides().find((other) => other.id === entry.parentId);
+
+    return (
+      <GuidePage
+        title={guide.title}
+        body={guide.body}
+        below={childLinks(entry.id, drafts)}
+        parent={
+          parent
+            ? { href: `${PAGES.guides.href}/${guidePath(parent)}`, label: parent.title }
+            : PAGES.guides
+        }
+        {...(guide.published ? {} : { draft: true })}
+      />
+    );
+  }),
+);
+
+/**
+ * The 404 page, as a finished response.
+ *
+ * Exported rather than registered here: a `notFound` handler on this sub-app is
+ * dropped when it is mounted, so index.ts puts it on the root app. The
+ * rendering stays here because that file is `.ts` and cannot hold JSX.
+ */
+export const renderNotFound = async (): Promise<Response> => {
+  const page = await html(<NotFoundPage />, { title: "Seite nicht gefunden" });
+  return new Response(page.body, { status: 404, headers: page.headers });
+};
 
 export default pages;

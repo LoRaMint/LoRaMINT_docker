@@ -10,6 +10,7 @@ import { up as apiTokens } from "./migrations/009-api-tokens"
 import { up as apiTokenAnnouncements } from "./migrations/010-api-token-announcements"
 import { up as deviceLogDelete } from "./migrations/011-device-log-delete"
 import { up as deviceNames } from "./migrations/012-device-names"
+import { up as anleitungen } from "./migrations/013-anleitungen"
 
 // There is no migrations table: every migration runs on every start, so each
 // one has to be idempotent (CREATE ... IF NOT EXISTS). A new file is added here
@@ -27,5 +28,6 @@ await apiTokens()
 await apiTokenAnnouncements()
 await deviceLogDelete()
 await deviceNames()
+await anleitungen()
 console.log("Migrations complete.")
 process.exit(0)

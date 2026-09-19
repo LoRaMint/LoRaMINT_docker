@@ -44,23 +44,38 @@ export const PAGES = {
   boardManage: { href: "/management/board", label: "Dashboard verwalten" },
   tokens: { href: "/management/tokens", label: "API-Token verwalten" },
   tokenLog: { href: "/management/tokens/history", label: "Token-Protokoll" },
-  /** Text *and* files in one place - see frontend/pages/management/workshop-page.tsx. */
-  workshopManage: { href: "/management/workshop", label: "Workshop verwalten" },
+  /** The tree: creating, moving, publishing - see management/guides-routes.tsx. */
+  guidesManage: { href: "/management/anleitungen", label: "Anleitungen verwalten" },
+  /**
+   * One place for every file, with folders.
+   *
+   * Its own page *and* a panel inside every guide editor. The address of a file
+   * is what gets written into a text, so the browser has to be within reach
+   * while somebody is writing - but it is not a part of any one guide, which is
+   * what the separate page says.
+   */
+  filesManage: { href: "/management/dateien", label: "Dateien verwalten" },
 
   //---- System: der Server selbst ----
   groups: { href: "/management/groups", label: "Datengruppen verwalten" },
   config: { href: "/management/config", label: "Konfiguration" },
 
   //---- Anleitungen ----
-  guideEsp32: { href: "/guides/esp32", label: "ESP32" },
-  workshop: { href: "/workshop", label: "Workshop" },
+  /**
+   * The overview, and the root of everything under it.
+   *
+   * Every guide lives at `/anleitungen/<pfad>`, so this is both a page somebody
+   * wrote and the prefix of the whole tree. The wildcard route that resolves
+   * the tree is registered *last* - see frontend/pages/index.tsx, and the test
+   * beside it.
+   */
+  guides: { href: "/anleitungen", label: "Anleitungen" },
   /**
    * The listing, one level above the files themselves.
    *
-   * `/downloads/<name>` serves a single file (index.ts, services/downloads.ts)
-   * and needs exactly one segment after the slash, so this bare path falls
-   * through to the pages and the two do not collide. The address reads as what
-   * it is: the directory to what lies beneath it.
+   * `/downloads/<pfad>` serves a single file and `/paket/<ordner>` a ZIP of
+   * one folder (index.ts, services/downloads.ts). Both are registered on the
+   * root app rather than here, and neither matches this bare path.
    */
   downloads: { href: "/downloads", label: "Downloads" },
 

@@ -8,10 +8,19 @@
  *
  * **The invariant that holds the two ends together:** `sanitizeFileName` never
  * returns a name that `isSafeStoredName` would reject, and the download route
- * serves nothing that `isSafeStoredName` rejects. Neither side has to trust the
- * other, and neither can drift away from it - the last line of the sanitiser
+ * serves nothing that `isSafePath` rejects. Neither side has to trust the
+ * other, and neither can drift away from it - the last line of each sanitiser
  * asserts it rather than assuming it.
+ *
+ * Since files live in folders, the unit the download route checks is a *path*
+ * and not a name. `isSafePath` is `isSafeStoredName` applied to every segment,
+ * which is what carries the old guarantee across: when the route matched a
+ * single segment, a sub-directory was not forbidden but impossible. It is now
+ * possible, so it is checked - twice, here and again against the resolved
+ * directory in services/uploads.ts.
  */
+
+import { foldUmlauts } from "./umlauts";
 
 export type Disposition = "inline" | "attachment";
 
@@ -65,11 +74,57 @@ export const ALLOWED_EXTENSIONS = Object.keys(ALLOWED_TYPES).sort();
  * not because somebody thought of them.
  *
  * The leading character may not be a dot, which is what keeps the bookkeeping
- * files - `.hidden`, `.tmp-…` - out of the listing and out of reach of the
- * download route without a second rule saying so.
+ * files - `.released`, `.notes`, `.tmp-…` - out of the listing and out of reach
+ * of the download route without a second rule saying so. `isSafePath` below
+ * inherits that for free: it is this rule applied to every segment.
  */
 export const isSafeStoredName = (name: string): boolean =>
   /^[a-z0-9][a-z0-9._-]{0,95}$/.test(name);
+
+/**
+ * How long a relative path may be, in characters.
+ *
+ * Not a limit anybody will meet by organising material: five levels of
+ * sensible folder names is well under a hundred. It is there because the path
+ * ends up in a file system call, in a URL and in a ZIP entry, and every one of
+ * those has a ceiling of its own that is worth staying far below.
+ */
+export const MAX_PATH_LENGTH = 200;
+
+/**
+ * The shape of a path inside the upload directory: `bilder/tag-3/aufbau.png`.
+ *
+ * **A path is safe when every one of its segments is.** That is the whole rule,
+ * and it is what carries the guarantee across from the days when
+ * `/downloads/:name` was a single path segment and sub-directories were not
+ * forbidden but impossible.
+ *
+ * `.` and `..` cannot survive it, and not because they are named: a segment may
+ * not begin with a dot, so both fail by not being in the allowed set - together
+ * with every percent- and unicode-encoded spelling of them, an empty segment
+ * from a double slash, a leading slash, a trailing slash and a backslash.
+ *
+ * This is one of two independent bolts on the download route. The other is
+ * `resolve()` against the upload directory - see `resolveInUploads` in
+ * services/uploads.ts. Two, because this single point is what turns "folders
+ * are allowed" into "the file system is public" if it ever gives way.
+ */
+export const isSafePath = (path: string): boolean =>
+  path.length > 0 &&
+  path.length <= MAX_PATH_LENGTH &&
+  path.split("/").every(isSafeStoredName);
+
+/** A folder path and the name inside it. The folder is `""` at the root. */
+export const splitPath = (path: string): { folder: string; name: string } => {
+  const slash = path.lastIndexOf("/");
+  return slash < 0
+    ? { folder: "", name: path }
+    : { folder: path.slice(0, slash), name: path.slice(slash + 1) };
+};
+
+/** A name inside a folder, as one path. `""` as the folder means the root. */
+export const joinPath = (folder: string, name: string): string =>
+  folder.length === 0 ? name : `${folder}/${name}`;
 
 /** The part after the last dot, lowercased. Empty when there is no dot. */
 export const extensionOf = (name: string): string => {
@@ -79,10 +134,6 @@ export const extensionOf = (name: string): string => {
 
 /** What a file is served as, or undefined when it may not be served at all. */
 export const typeOf = (name: string) => ALLOWED_TYPES[extensionOf(name)];
-
-const UMLAUTE: Record<string, string> = {
-  ä: "ae", ö: "oe", ü: "ue", Ä: "ae", Ö: "oe", Ü: "ue", ß: "ss",
-};
 
 /**
  * A name from a browser, reduced to a name this application can store.
@@ -110,11 +161,9 @@ export const sanitizeFileName = (raw: string): { name: string } | { error: strin
   const letzterTrenner = Math.max(raw.lastIndexOf("/"), raw.lastIndexOf("\\"));
   const dateiname = raw.slice(letzterTrenner + 1);
 
-  const bereinigt = dateiname
-    .normalize("NFC")
+  const bereinigt = foldUmlauts(dateiname.normalize("NFC"))
     // eslint-disable-next-line no-control-regex
     .replace(/[\u0000-\u001f\u007f]/g, "")
-    .replace(/[äöüÄÖÜß]/g, (zeichen) => UMLAUTE[zeichen] ?? zeichen)
     .toLowerCase()
     .trim();
 
@@ -157,6 +206,35 @@ export const sanitizeFileName = (raw: string): { name: string } | { error: strin
     return { error: "Aus dem Dateinamen bleibt nichts Brauchbares übrig." };
   }
 
+  return { name };
+};
+
+/**
+ * A folder name somebody typed, reduced to a name this application can store.
+ *
+ * The same steps as `sanitizeFileName`, minus the one about extensions: a
+ * folder has none, and requiring one would be nonsense. Dots are dropped rather
+ * than kept, so a folder cannot be named after a file and `bilder.png/` cannot
+ * exist beside `bilder.png` to confuse anybody reading the listing.
+ */
+export const sanitizeFolderName = (raw: string): { name: string } | { error: string } => {
+  const name = foldUmlauts(raw.normalize("NFC"))
+    // eslint-disable-next-line no-control-regex
+    .replace(/[\u0000-\u001f\u007f]/g, "")
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9_-]/g, "-")
+    .replace(/-{2,}/g, "-")
+    .replace(/^[-_]+|[-_]+$/g, "")
+    .slice(0, 60);
+
+  if (name.length === 0) {
+    return { error: "Aus diesem Ordnernamen bleibt nichts Brauchbares übrig." };
+  }
+  // The same guarantee `sanitizeFileName` gives, checked rather than assumed.
+  if (!isSafeStoredName(name)) {
+    return { error: "Aus diesem Ordnernamen bleibt nichts Brauchbares übrig." };
+  }
   return { name };
 };
 

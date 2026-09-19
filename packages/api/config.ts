@@ -335,26 +335,17 @@ export const legal = {
 };
 
 /**
- * Pages whose text is written in the application rather than deployed with it.
- *
- * Like the legal pages above: no content, no page. The workshop page only
- * exists once somebody has written something on it, so a deployment that does
- * not run workshops shows no empty tab.
- */
-export const content = {
-  get workshop() {
-    return optional("CONTENT_WORKSHOP");
-  },
-};
-
-/**
- * Where the files offered on the workshop page are kept.
+ * Where the uploaded files are kept.
  *
  * A path inside the working directory, which is what lets development and
  * production agree without anybody setting a variable: `/usr/src/app/uploads` in
  * the container, `packages/api/uploads` on a developer's machine. In production
  * that path carries a named volume - without one, every upload lives in the
  * container's writable layer and is gone at the next `docker compose up`.
+ *
+ * It holds a tree now rather than a flat set of names - see
+ * services/uploads.ts - but nothing about the setting changes: it is still one
+ * directory, and everything below it is the application's business.
  *
  * Resolved inside the getter on every call, never memoised at module level: the
  * tests describe a deployment by setting UPLOAD_DIR at runtime, and a value
@@ -616,9 +607,9 @@ export const validateConfig = () => {
 /**
  * Whether the upload directory can be written to.
  *
- * **Warns, never throws.** The workshop page is optional, and a permissions
- * problem in a corner of the application must not take the whole site down -
- * measurements keep arriving whether or not anybody can upload a worksheet.
+ * **Warns, never throws.** Uploading is optional, and a permissions problem in
+ * a corner of the application must not take the whole site down - measurements
+ * keep arriving whether or not anybody can upload a worksheet.
  *
  * It exists because the failure it reports is otherwise invisible until the
  * worst moment. A named volume mounted onto a path the image did not have is
@@ -636,8 +627,8 @@ const checkUploadDir = () => {
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return;
     console.warn(
-      `config: ${uploads.dir} is not writable, so no file can be uploaded for ` +
-        "the workshop page. In the container this usually means the volume was " +
+      `config: ${uploads.dir} is not writable, so no file can be uploaded. ` +
+        "In the container this usually means the volume was " +
         "created before the image had the directory and is owned by root. Repair " +
         "with: docker compose run --rm --user root app chown -R bun:bun " +
         uploads.dir,

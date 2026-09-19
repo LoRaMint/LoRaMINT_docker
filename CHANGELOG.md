@@ -7,6 +7,109 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Anleitungen werden jetzt auf der laufenden Seite geschrieben.** Bis hierher
+  entstanden sie im Code: die Workshop-Seite war *eine* Einstellung, die
+  ESP32-Anleitung 433 Zeilen handgeschriebenes JSX. Eine neue Anleitung hiess
+  damit eine neue Version der Webseite. Künftig ist sie ein Formular.
+
+  Unter `/management/anleitungen` entsteht ein **Baum** – Übersicht, Thema,
+  Unterseite –, und die Adressen sind verschachtelt:
+  `/anleitungen/workshop/tag-3`. Seiten lassen sich anlegen, umbenennen,
+  hoch- und runterschieben, ein- und ausrücken und löschen. **Der ganze Baum
+  steht im Kopfmenü**, verschachtelt, im Kopf- wie im Handy-Menü.
+
+  **Alte Adressen bleiben gültig.** Umbenennen oder Verschieben ändert die
+  Adresse einer Seite *und die jeder Unterseite*; jede davon wird gemerkt und
+  leitet ab sofort dauerhaft (301) auf die neue um. Ein gedrucktes Arbeitsblatt
+  zeigt also nicht ins Leere. Die Liste der alten Adressen steht in der
+  Verwaltung und lässt sich aufräumen.
+
+  **Eine neue Seite ist ein Entwurf.** Sie steht in keinem Menü und antwortet
+  für alle anderen mit 404 – nicht mit 403, denn „gibt es, darfst du aber
+  nicht" ist mehr, als ein anonymer Besucher wissen muss. Sichtbar ist sie nur
+  mit Bearbeitungsrecht, mit einem Hinweis darüber.
+
+  Die Übersichtsseite ist **selbst eine Anleitung** und keine erzeugte
+  Kachelwand: eine gemachte Übersicht kann sagen, welche Anleitung man zuerst
+  liest, eine erzeugte kann nur das Menü wiederholen.
+
+  Höchstens fünf Ebenen. Die Daten liessen mehr zu, das Handy-Menü nicht – die
+  Grenze steht deshalb im Dienst und ist ein Satz unter dem Feld statt einer
+  Seite, die kaputt aussieht. Eine Seite unter eine ihrer eigenen Unterseiten
+  zu hängen wird abgelehnt: der Baum würde zum Ring.
+
+- **Dateien liegen in Ordnern, beliebig tief.** Eine zentrale Verwaltung unter
+  `/management/dateien`, und dieselbe Ansicht noch einmal am Fuss jedes
+  Anleitungs-Editors – die Adresse einer Datei ist das, was in den Text
+  geschrieben wird, also muss die Liste in Reichweite sein. Ordner anlegen,
+  umbenennen, löschen (nur leere), Dateien zwischen Ordnern verschieben.
+
+- **Je Ordner ein ZIP.** Auf der Downloadseite steht neben jedem Ordner ein
+  Knopf; darin liegt genau, was freigeschaltet ist, Unterordner eingeschlossen
+  und mit der Struktur darin. Eine eigene Adresse `/paket/<ordner>` und nicht
+  `/downloads/<ordner>.zip`, weil `loramint.zip` eine echte hochgeladene Datei
+  ist und die beiden sonst kollidierten.
+
+- **Markdown kann, was eine lange Anleitung braucht.** Hinweiskasten
+  (`> Text`), Bildunterschrift (`![alt](/bild.png "Unterschrift")`),
+  Aufklapp-Abschnitt (`:::klapp Titel` … `:::`) und ein Anker auf jeder
+  Überschrift, auf den sich verlinken lässt. Kopier-Knopf an jedem Codeblock
+  und Lightbox an jedem Bild gelten damit auf **jeder** Anleitung statt nur auf
+  der einen, die sie von Hand eingebaut hatte.
+
+- **Eine gestaltete 404-Seite.** Bisher war eine falsche Adresse ein Tippfehler
+  oder ein altes Lesezeichen, und Honos elf Zeichen unformatierter Text waren
+  darauf eine ehrliche Antwort. Anleitungsadressen werden von Menschen
+  geschrieben und auf Blätter gedruckt; wer dort landet, bekommt jetzt einen Weg
+  weiter. Die API antwortet weiterhin mit JSON.
+
+### Changed
+- **Hochgeladene Dateien erscheinen nicht mehr ungefragt öffentlich.** Die
+  Vorgabe hat sich umgedreht: statt „sichtbar, ausser ausgeblendet" gilt
+  „unsichtbar, bis freigeschaltet". Mit einem Ordnerbaum aus Arbeitsmaterial
+  sind Zwischenbilder, Entwürfe und Fotos der Normalfall und ein öffentliches
+  Regal die Ausnahme. **Erreichbar bleibt jede Datei unter ihrer Adresse** –
+  sonst verschwände ein im Text eingebundenes Bild; es geht um die Liste, nicht
+  um den Zugriff.
+
+  Nach dem Update ist die Downloadseite deshalb zunächst leer. Was dort stehen
+  soll, wird einmal freigeschaltet.
+
+- **Die Downloadseite ist nach Ordnern gruppiert**, mit dem Ordnernamen als
+  Überschrift und dem ZIP-Knopf daneben.
+
+- `/downloads/<pfad>` nimmt jetzt mehrere Segmente. Die alte Zusicherung war
+  die Routenform – *ein* Segment, also war ein Unterverzeichnis nicht verboten,
+  sondern unmöglich. An ihrer Stelle stehen drei Prüfungen, die verschieden
+  scheitern: die **Form** des Pfades (jedes Segment im erlaubten Zeichensatz),
+  sein **Ort** (aufgelöst gegen das Upload-Verzeichnis) und seine **Art**
+  (`lstat`, damit ein von Hand ins Volume gelegter Symlink keine fremde Datei
+  ausliefert). Der Pfad wird dabei nicht dekodiert, damit `%2e%2e` gar nicht
+  erst zu `../` werden kann.
+
+### Removed
+- **`CONTENT_WORKSHOP` gibt es nicht mehr**, und mit ihr die Seite
+  `/management/workshop`. Der Text gehört jetzt in eine Anleitungsseite. Eine
+  übrige Zeile in der `settings`-Tabelle stört nicht – sie wird beim Start als
+  unbekannt gemeldet und ignoriert –, tut aber auch nichts mehr.
+
+- Die handgeschriebene ESP32-Seite. `/guides/esp32` und `/workshop` leiten mit
+  301 auf `/anleitungen/esp32` und `/anleitungen/workshop` um.
+
+### Migration
+- `bun run migrate && bun scripts/ensure-roles.ts` – Migration `013` legt
+  `guides` und `guide_paths` an, und ohne den zweiten Schritt sind beide
+  unbeschreibbar.
+- **Die Inhalte werden von Hand übernommen**, es gibt keinen Migrationscode
+  dafür. Für zwei Seiten wäre er teurer als das Einfügen: er liefe genau einmal
+  und stünde danach für immer im Repository. Der alte Workshop-Text lässt sich
+  aus der `settings`-Tabelle holen, die ESP32-Anleitung liegt fertig als
+  Markdown in `packages/api/docs/anleitungen/esp32.md`. Beides beschreibt
+  `packages/api/docs/anleitungen.md`, zusammen mit den Adressen, auf welche die
+  alten umleiten.
+- Neue Abhängigkeit: `fflate` (~30 kB, ohne eigene Abhängigkeiten) für die ZIPs.
+
 ## [1.15.4] - 2026-09-11
 
 ### Added

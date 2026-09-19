@@ -1,6 +1,7 @@
 import type { JSX } from "solid-js";
-import { legal, auth, sqlConsole, board, setupAccount, content } from "../../../config";
+import { legal, auth, sqlConsole, board, setupAccount } from "../../../config";
 import { currentDarkMode, currentPath, currentScope, currentUser, hasRole, PAGES } from "../../../lib";
+import { guidePath, guideTree } from "../../../services/guides";
 
 /**
  * A tab in the header.
@@ -80,6 +81,57 @@ function NavItem(props: { href: string; current?: boolean; children: JSX.Element
       >
         {props.children}
       </a>
+    </li>
+  );
+}
+
+/**
+ * One entry of the navigation: a link, and possibly a level under it.
+ *
+ * The guides are a tree of any shape the editor gives them, so the menu has to
+ * be a tree too. daisyUI's `menu` renders a nested `<ul>` inside an `<li>`
+ * indented and without any work here, which is why the whole tree can go into
+ * the same structure the flat sections use rather than into a second one.
+ */
+type NavEntry = { href: string; label: string; items?: NavEntry[] };
+
+/**
+ * An entry and everything under it, recursively.
+ *
+ * `isCurrent` is passed in rather than imported: it is closed over the request
+ * being rendered, and a module-level version would need the path as a second
+ * argument at every call.
+ */
+function NavBranch(props: {
+  entry: NavEntry;
+  isCurrent: (href: string) => boolean;
+}) {
+  const children = props.entry.items ?? [];
+  if (children.length === 0) {
+    return (
+      <NavItem href={props.entry.href} current={props.isCurrent(props.entry.href)}>
+        {props.entry.label}
+      </NavItem>
+    );
+  }
+  return (
+    <li>
+      <a
+        href={props.entry.href}
+        class={
+          props.isCurrent(props.entry.href)
+            ? "bg-primary text-primary-content"
+            : "hover:bg-base-200"
+        }
+        aria-current={props.isCurrent(props.entry.href) ? "page" : undefined}
+      >
+        {props.entry.label}
+      </a>
+      <ul>
+        {children.map((child) => (
+          <NavBranch entry={child} isCurrent={props.isCurrent} />
+        ))}
+      </ul>
     </li>
   );
 }
@@ -180,7 +232,33 @@ export default function Layout(props: { children: JSX.Element }) {
   const isCurrent = (href: string): boolean =>
     href === "/" ? path === "/" : path === href || path.startsWith(`${href}/`);
 
-  const sections: { label: string; items: { href: string; label: string }[] }[] = [
+  /** True when this entry or anything under it is the page being shown. */
+  const anyCurrent = (entry: NavEntry): boolean =>
+    isCurrent(entry.href) || (entry.items ?? []).some(anyCurrent);
+
+  /**
+   * The guides, as the menu shows them: the whole tree, nested.
+   *
+   * Read out of the module cache rather than queried - `Layout` is a
+   * synchronous Solid component and cannot await anything. That is the whole
+   * reason lib/guide-store.ts exists; see services/guides.ts.
+   *
+   * Drafts only for an editor. `guideTree` drops a page whose parent is
+   * filtered out rather than lifting it to the root, so a published sub-page
+   * cannot put its unpublished topic in the menu.
+   */
+  const guideEntries = (): NavEntry[] => {
+    const branch = (node: ReturnType<typeof guideTree>[number]): NavEntry => ({
+      href: `${PAGES.guides.href}/${guidePath(node)}`,
+      label: node.title,
+      ...(node.children.length > 0
+        ? { items: node.children.map(branch) }
+        : {}),
+    });
+    return guideTree({ drafts: editorUser }).map(branch);
+  };
+
+  const sections: { label: string; items: NavEntry[] }[] = [
     // Looking at data. Public but for the console, and the dashboard belongs
     // here rather than in a section of its own: for most visitors that section
     // held a single link, and its curation page sits with the other curation
@@ -222,9 +300,9 @@ export default function Layout(props: { children: JSX.Element }) {
                 : []),
               // Editors hold nothing else, so without this condition in the
               // gate above they would see no "Verwaltung" at all and could not
-              // reach the one page they exist for. `editorUser` is already true
+              // reach the pages they exist for. `editorUser` is already true
               // for administrators - hasRole says so - so no second term here.
-              ...(editorUser ? [PAGES.workshopManage] : []),
+              ...(editorUser ? [PAGES.guidesManage, PAGES.filesManage] : []),
             ],
           },
         ]
@@ -235,21 +313,23 @@ export default function Layout(props: { children: JSX.Element }) {
     ...(adminUser
       ? [{ label: "System", items: [PAGES.groups, PAGES.config] }]
       : []),
-    // Everything somebody reads to learn how this works, in one section: the
-    // guide, the workshop text, and the files that go with them. The workshop
-    // used to have a tab of its own called "Downloads" while holding the
-    // *workshop* page - a name and a content that did not match.
+    // Everything somebody reads to learn how this works, in one section: every
+    // guide, nested exactly as the tree is, and the files that go with them.
     //
-    // "Workshop" is bound to its text the way the legal links in the footer
-    // are, so a deployment that runs no workshop shows no entry. "Downloads"
-    // always stands: the navigation renders synchronously and cannot ask the
-    // filesystem how many files there are without a readdir on every page, so
-    // the page itself says when the shelf is empty.
+    // This used to be three fixed entries - one hand-written guide, the
+    // workshop text, and the downloads - and a new guide meant a new version of
+    // the application. The whole tree is here now, which is the point of the
+    // rebuild: writing a page publishes it into this menu.
+    //
+    // "Downloads" always stands, at the end. The navigation renders
+    // synchronously and cannot ask the file system how many files there are
+    // without a readdir on every page, so the page itself says when the shelf
+    // is empty.
     {
-      label: "Anleitungen",
+      label: PAGES.guides.label,
       items: [
-        PAGES.guideEsp32,
-        ...(content.workshop ? [PAGES.workshop] : []),
+        { href: PAGES.guides.href, label: "Übersicht" },
+        ...guideEntries(),
         PAGES.downloads,
       ],
     },
@@ -284,12 +364,10 @@ export default function Layout(props: { children: JSX.Element }) {
           {sections.map((section) => (
             <NavDropdown
               label={section.label}
-              current={section.items.some((item) => isCurrent(item.href))}
+              current={section.items.some(anyCurrent)}
             >
               {section.items.map((item) => (
-                <NavItem href={item.href} current={isCurrent(item.href)}>
-                  {item.label}
-                </NavItem>
+                <NavBranch entry={item} isCurrent={isCurrent} />
               ))}
             </NavDropdown>
           ))}
@@ -319,7 +397,7 @@ export default function Layout(props: { children: JSX.Element }) {
               <>
                 <li class="menu-title text-base-content/70">{section.label}</li>
                 {section.items.map((item) => (
-                  <NavItem href={item.href} current={isCurrent(item.href)}>{item.label}</NavItem>
+                  <NavBranch entry={item} isCurrent={isCurrent} />
                 ))}
               </>
             ))}
