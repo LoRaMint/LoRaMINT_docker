@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.16.2] - 2026-09-21
+
 ### Fixed
 - **Nach dem Umbenennen eines Ordners stand die Dateiverwaltung in einem
   Ordner, den es nicht mehr gab.** Jedes Formular des Dateibrowsers trägt die
@@ -1953,7 +1955,8 @@ reach its own configuration, and the ones the security model rests on.
 
 Releases up to and including [0.1.8] (2026-05-12) predate this changelog.
 
-[Unreleased]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.16.1...HEAD
+[Unreleased]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.16.2...HEAD
+[1.16.2]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.16.1...v1.16.2
 [1.16.1]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.16.0...v1.16.1
 [1.16.0]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.15.4...v1.16.0
 [1.15.4]: https://github.com/LoRaMint/LoRaMINT_docker/compare/v1.15.3...v1.15.4
