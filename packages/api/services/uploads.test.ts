@@ -540,12 +540,51 @@ describe("Ordner", () => {
    */
   test("ein Name, der hinausführen soll, wird eingedampft statt befolgt", async () => {
     expect(await createFolder("", "../raus")).toEqual({ ok: true, path: "raus" });
-    expect(await createFolder("", "a/b")).toEqual({ ok: true, path: "a-b" });
-    expect(await listFolders()).toEqual(["a-b", "raus"]);
+    expect(await listFolders()).toEqual(["raus"]);
 
     // Und was gar nichts übrig lässt, wird abgelehnt statt geraten.
     expect((await createFolder("", "..")).ok).toBe(false);
     expect((await createFolder("", "...")).ok).toBe(false);
+  });
+
+  /**
+   * Der Schrägstrich ist das eine Zeichen, das nicht zu einem Bindestrich
+   * wird. Vorher hiess „esp32/lightsleep" ein Ordner namens
+   * `esp32-lightsleep`, und die Meldung sagte trotzdem Erfolg.
+   */
+  test("ein Pfad legt die Ebenen nacheinander an", async () => {
+    expect(await createFolder("", "esp32/lightsleep")).toEqual({
+      ok: true,
+      path: "esp32/lightsleep",
+    });
+    expect(await listFolders()).toEqual(["esp32", "esp32/lightsleep"]);
+  });
+
+  test("ein Pfad unter einem vorhandenen Ordner", async () => {
+    await createFolder("", "kurs");
+    expect(await createFolder("kurs", "tag-1/blaetter")).toEqual({
+      ok: true,
+      path: "kurs/tag-1/blaetter",
+    });
+    expect(await listFolders()).toEqual([
+      "kurs",
+      "kurs/tag-1",
+      "kurs/tag-1/blaetter",
+    ]);
+  });
+
+  /** Jede Ebene wird für sich bereinigt, wie ein einzelner Name. */
+  test("die Ebenen eines Pfades werden einzeln bereinigt", async () => {
+    expect(await createFolder("", "Arbeitsblätter 2026!/Tag 1")).toEqual({
+      ok: true,
+      path: "arbeitsblaetter-2026/tag-1",
+    });
+  });
+
+  test("eine Zwischenebene darf schon dastehen, die letzte nicht", async () => {
+    await createFolder("", "a/b");
+    expect(await createFolder("", "a/c")).toEqual({ ok: true, path: "a/c" });
+    expect((await createFolder("", "a/b")).ok).toBe(false);
   });
 
   test("ein Elternordner, der hinausführt, wird abgelehnt", async () => {

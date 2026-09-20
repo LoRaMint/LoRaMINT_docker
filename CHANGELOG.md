@@ -21,6 +21,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Formular als Elternteil mitschickte, war der alte. Die Weiterleitung zeigt
   jetzt auf den neuen Namen, Unterordner eingeschlossen.
 
+### Changed
+- **Ein Pfad im Feld „Neuer Ordner hier" legt jetzt mehrere Ebenen an.**
+  `esp32/lightsleep` ergab bis hierher einen Ordner namens
+  `esp32-lightsleep`: der Schrägstrich ist nicht in `[a-z0-9_-]`, und alles
+  andere wird zu einem Bindestrich. Die Meldung sagte trotzdem „Der Ordner
+  wurde angelegt", und angelegt war etwas anderes als das Getippte.
+
+  Jede Ebene wird weiterhin einzeln bereinigt, es kann also nach wie vor nichts
+  aus dem Verzeichnis hinausführen: `../raus` bleibt `raus`. Nach einem Pfad
+  springt die Ansicht in den untersten angelegten Ordner, nach einem einzelnen
+  Namen bleibt sie stehen – mehrere Ordner nacheinander sind so ein Feld und
+  ein Knopf.
+
 ## [1.16.1] - 2026-09-20
 
 ### Removed

@@ -675,10 +675,34 @@ export const createFolder = async (
     return { ok: false, error: "Diesen Ordner gibt es hier nicht." };
   }
 
-  const cleaned = sanitizeFolderName(typed);
-  if ("error" in cleaned) return { ok: false, error: cleaned.error };
+  /*
+   * A path creates its levels one after another: „esp32/lightsleep" makes both.
+   *
+   * It used to make one folder called `esp32-lightsleep`, because the slash is
+   * not in `[a-z0-9_-]` and every other character becomes a dash. That is the
+   * right rule for a *name* and the wrong one for what somebody typed here:
+   * the field sits in a browser built around nested folders, the message said
+   * „Der Ordner wurde angelegt", and the folder that appeared was not the one
+   * that had been asked for.
+   *
+   * Each segment still goes through `sanitizeFolderName`, so nothing here can
+   * point outside the directory. A segment that survives it as nothing - `..`
+   * is the one that matters - is dropped rather than refused, which keeps the
+   * promise the single name always made: a typed name is cleaned up, not
+   * rejected. `../raus` therefore still makes `raus`, and a name that is
+   * nothing *but* such segments is refused below.
+   */
+  const names: string[] = [];
+  for (const piece of typed.split("/")) {
+    const cleaned = sanitizeFolderName(piece);
+    if ("error" in cleaned) continue;
+    names.push(cleaned.name);
+  }
+  if (names.length === 0) {
+    return { ok: false, error: "Aus diesem Ordnernamen bleibt nichts Brauchbares übrig." };
+  }
 
-  const path = joinPath(parent, cleaned.name);
+  const path = names.reduce((carry, name) => joinPath(carry, name), parent);
   const absolute = resolveInUploads(path);
   if (!absolute) return { ok: false, error: "Dieser Pfad wäre zu lang." };
 
@@ -687,7 +711,15 @@ export const createFolder = async (
     return { ok: false, error: `Den Ordner „${parent}" gibt es nicht.` };
   }
   if (existing.includes(path)) {
-    return { ok: false, error: `„${cleaned.name}" gibt es hier schon.` };
+    // The whole path when there is more than one level: „gibt es hier schon"
+    // is about „hier", and with a path the folder is not here.
+    return {
+      ok: false,
+      error:
+        names.length === 1
+          ? `„${names[0]}" gibt es hier schon.`
+          : `„${path}" gibt es schon.`,
+    };
   }
 
   try {

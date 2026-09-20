@@ -172,6 +172,10 @@ const FileBrowser = (props: {
           <button type="submit" class="btn btn-sm btn-outline">
             anlegen
           </button>
+          <span class="text-sm text-base-content/70 pb-2">
+            Mehrere Ebenen auf einmal mit{" "}
+            <code class="bg-base-200 rounded-field px-1 text-sm">/</code>.
+          </span>
         </form>
 
         {props.folder.length > 0 && here.length === 0 && below.length === 0 && (
