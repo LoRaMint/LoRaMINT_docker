@@ -68,6 +68,43 @@ const text = (form: Record<string, unknown>, key: string) =>
 export const folderFrom = (raw: string | undefined): string =>
   raw && isSafePath(raw) ? raw : "";
 
+/**
+ * The same address, but showing the folder under its new name.
+ *
+ * Every form carries a hidden `back` field saying which page and which folder
+ * it was posted from, and renaming is the one action that makes that field
+ * wrong about itself: the browser was showing `?ordner=alt`, and by the time
+ * it is read there is no `alt` any more. `folderFrom` waves it through -
+ * `isSafePath` judges the spelling of a path, not whether it exists - so the
+ * page came back showing a folder that was gone: no files, no sub-folders,
+ * the old name in the breadcrumbs, and an offer to delete "this empty folder".
+ *
+ * Only the `ordner` parameter is touched, and only when it really names the
+ * renamed folder or something inside it. The browser is shown on two pages
+ * with two different addresses, so the rest of the URL has to survive
+ * untouched, and a `back` that was pointing somewhere else entirely is left
+ * alone rather than redirected into a folder nobody asked for.
+ *
+ * `showingFolder` is the same rewrite without the condition, for the case
+ * where the page is *meant* to move: a path typed into „Neuer Ordner hier"
+ * makes several levels at once, and staying put would show the topmost of them
+ * and leave the rest to be believed.
+ */
+export const showingFolder = (to: string, folder: string): string => {
+  const [base, existing] = to.split("?");
+  const query = new URLSearchParams(existing ?? "");
+  if (folder.length === 0) query.delete("ordner");
+  else query.set("ordner", folder);
+  const suffix = query.toString();
+  return suffix ? `${base}?${suffix}` : base!;
+};
+
+export const folderRenamed = (to: string, from: string, into: string): string => {
+  const shown = new URLSearchParams(to.split("?")[1] ?? "").get("ordner") ?? "";
+  if (shown !== from && !shown.startsWith(`${from}/`)) return to;
+  return showingFolder(to, into + shown.slice(from.length));
+};
+
 export const registerFileRoutes = (
   pages: Hono,
   guards: { requireEditor: MiddlewareHandler; sameOrigin: MiddlewareHandler },
@@ -195,15 +232,27 @@ export const registerFileRoutes = (
       form: Record<string, unknown>,
     ) => Promise<{ ok: true; path: string } | { ok: false; error: string }>,
     message: (form: Record<string, unknown>) => string,
+    /**
+     * Where to land when the action made the form's own `back` field wrong.
+     *
+     * Only on success, and only ever a correction of it: on an error the page
+     * has to come back as it was, because that is where the message belongs
+     * and where the field still holds what somebody typed.
+     */
+    landing?: (
+      to: string,
+      form: Record<string, unknown>,
+      result: { ok: true; path: string },
+    ) => string,
   ) => {
     pages.post(`${PATH}${suffix}`, guards.requireEditor, guards.sameOrigin, async (c) => {
       const form = await c.req.parseBody();
       const to = safeBack(text(form, "back"));
       const result = await run(form);
-      return c.redirect(
-        result.ok ? back(to, { msg: message(form) }) : back(to, { error: result.error }),
-        303,
-      );
+      if (!result.ok) return c.redirect(back(to, { error: result.error }), 303);
+
+      const target = landing ? safeBack(landing(to, form, result)) : to;
+      return c.redirect(back(target, { msg: message(form) }), 303);
     });
   };
 
@@ -241,11 +290,19 @@ export const registerFileRoutes = (
     "/folder",
     (form) => createFolder(text(form, "parent"), text(form, "name")),
     () => "foldercreated",
+    /*
+     * One folder: stay, so several in a row is one field and one button. A
+     * path: follow it down, because the browser would otherwise show the first
+     * level and nothing of what was actually made.
+     */
+    (to, form, result) =>
+      text(form, "name").includes("/") ? showingFolder(to, result.path) : to,
   );
   action(
     "/folder/rename",
     (form) => renameFolder(text(form, "path"), text(form, "name")),
     () => "folderrenamed",
+    (to, form, result) => folderRenamed(to, text(form, "path"), result.path),
   );
   action(
     "/folder/delete",

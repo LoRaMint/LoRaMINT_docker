@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Nach dem Umbenennen eines Ordners stand die Dateiverwaltung in einem
+  Ordner, den es nicht mehr gab.** Jedes Formular des Dateibrowsers trägt die
+  Adresse mit, von der es abgeschickt wurde, samt `?ordner=` – und Umbenennen
+  ist die eine Aktion, die dieses Feld über sich selbst falsch macht. Die
+  Prüfung liess es durch, weil `isSafePath` die Schreibweise eines Pfades
+  beurteilt und nicht seine Existenz. Die Seite kam mit dem alten Namen zurück:
+  keine Dateien, keine Unterordner, und ein Knopf, der anbot, „diesen leeren
+  Ordner" zu löschen.
+
+  Wer dort weiterarbeitete, konnte nichts mehr anlegen – der Ordner, den das
+  Formular als Elternteil mitschickte, war der alte. Die Weiterleitung zeigt
+  jetzt auf den neuen Namen, Unterordner eingeschlossen.
+
 ## [1.16.1] - 2026-09-20
 
 ### Removed
