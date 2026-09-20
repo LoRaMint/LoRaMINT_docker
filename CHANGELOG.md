@@ -22,6 +22,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   kann dafür nicht veralten, steht nur einmal im Menü und braucht niemanden,
   der sie pflegt.
 
+### Changed
+- **Der Einführungssatz der Downloadseite sagt jetzt, was dort steht.**
+  „Unterlagen zum Mitnehmen" war ein Bild; „zum Download bereit" ist der
+  Vorgang, um den es geht.
+
 ### Fixed
 - **Zwei Integrationstests der Messwert-Löschung schlugen sporadisch fehl.**
   Sie verglichen eine Grenze aus `new Date()` – der Uhr des Testlaufs – gegen

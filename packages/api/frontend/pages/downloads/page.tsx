@@ -113,7 +113,7 @@ const DownloadsPage = (props: { files: StoredFile[] }) => {
     <Layout>
       <PageHeading
         title={PAGES.downloads.label}
-        intro="Dateien zum Herunterladen – Programme, Vorlagen und Unterlagen zum Mitnehmen."
+        intro="Dateien zum Herunterladen – Hier stehen Programme, Vorlagen und Unterlagen zum Download bereit."
       />
 
       {groups.length === 0 ? (
