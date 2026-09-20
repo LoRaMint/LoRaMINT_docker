@@ -21,6 +21,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Formular als Elternteil mitschickte, war der alte. Die Weiterleitung zeigt
   jetzt auf den neuen Namen, Unterordner eingeschlossen.
 
+### Removed
+- **Unter einer Anleitung steht nichts mehr, was sie nicht selbst geschrieben
+  hat.** Am Fuss jeder Seite standen zwei erzeugte Blöcke: „Auf dieser Seite
+  weiter" mit den Unterseiten, und eine Zeile, die auf die Downloads zeigte.
+  Beide wiederholten, was das Kopfmenü ohnehin trägt – den ganzen Baum,
+  verschachtelt, mit „Downloads" am Ende –, und beide standen auf jeder Seite,
+  auch wenn der Text schon selbst weitergeführt hatte. Womit eine Anleitung
+  endet, ist jetzt das, womit ihr Verfasser sie beendet hat. Dieselbe Zeile
+  fällt auf der Themenliste unter `/anleitungen` weg.
+
 ### Changed
 - **Ein Pfad im Feld „Neuer Ordner hier" legt jetzt mehrere Ebenen an.**
   `esp32/lightsleep` ergab bis hierher einen Ordner namens

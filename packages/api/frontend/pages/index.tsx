@@ -685,23 +685,6 @@ pages.get(
 /** May this person see a page that has not been published? */
 const mayEditGuides = () => hasRole(currentUser(), "editor", auth);
 
-/** The pages directly below this one, as links. Drafts only for an editor. */
-const childLinks = (parentId: string, drafts: boolean) => {
-  const level = (function find(nodes): ReturnType<typeof guideTree> {
-    for (const node of nodes) {
-      if (node.id === parentId) return node.children;
-      const deeper = find(node.children);
-      if (deeper.length > 0) return deeper;
-    }
-    return [];
-  })(guideTree({ drafts }));
-
-  return level.map((child) => ({
-    href: `${PAGES.guides.href}/${guidePath(child)}`,
-    label: child.title,
-  }));
-};
-
 /**
  * `/anleitungen`: the themes, two levels deep.
  *
@@ -802,7 +785,6 @@ pages.get(
       <GuidePage
         title={guide.title}
         body={guide.body}
-        below={childLinks(entry.id, drafts)}
         parent={
           parent
             ? { href: `${PAGES.guides.href}/${guidePath(parent)}`, label: parent.title }

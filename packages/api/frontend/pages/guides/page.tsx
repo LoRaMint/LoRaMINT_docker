@@ -55,14 +55,6 @@ const GuidePage = (props: {
   body: string;
   /** The way back up, for a sub-page. Absent on a root guide. */
   parent?: { href: string; label: string };
-  /**
-   * The pages below this one, as links. Empty on a leaf.
-   *
-   * Called `below` and not `children`: Solid gives `props.children` a meaning
-   * of its own, and a prop that is sometimes the JSX inside a tag and
-   * sometimes an array of links is one that will eventually be both.
-   */
-  below: { href: string; label: string }[];
   /** True while the page is a draft - only an editor ever sees this. */
   draft?: boolean;
 }) => (
@@ -86,39 +78,17 @@ const GuidePage = (props: {
         </Notice>
       )}
 
-      <div class="text-base" innerHTML={renderMarkdown(props.body)} />
-
       {/*
-        * The pages below, listed at the foot.
+        * The text, and nothing under it.
         *
-        * Generated here although the text above is written by hand, and the two
-        * are not in conflict: the menu already knows the tree, so leaving the
-        * way down to be typed means one forgotten link is a page nobody on a
-        * phone can reach. A writer who lists them in the text as well gets them
-        * twice, which is a nuisance rather than a dead end.
+        * Two things used to stand at the foot of every guide: a generated list
+        * of the pages below, and a line pointing at the downloads. Both said
+        * again what the menu says - it carries the whole tree, nested, with
+        * „Downloads" at the end of it - and both said it on every page,
+        * whether or not the text had already led somewhere itself. What a
+        * guide ends with is now what its writer ended it with.
         */}
-      {props.below.length > 0 && (
-        <nav class="mt-8 border-t border-base-300 pt-4">
-          <h2 class="text-lg font-semibold mb-2">Auf dieser Seite weiter</h2>
-          <ul class="list-disc pl-6 space-y-1">
-            {props.below.map((child) => (
-              <li>
-                <a href={child.href} class="link">
-                  {child.label}
-                </a>
-              </li>
-            ))}
-          </ul>
-        </nav>
-      )}
-
-      <p class="mt-8 text-base-content/70">
-        Die zentralen Dateien zu den Anleitungen liegen unter{" "}
-        <a href={PAGES.downloads.href} class="link">
-          {PAGES.downloads.label}
-        </a>
-        .
-      </p>
+      <div class="text-base" innerHTML={renderMarkdown(props.body)} />
     </article>
 
     {/* Island: copy buttons on the code blocks, lightbox on the pictures. */}
@@ -203,14 +173,6 @@ export const GuidesIndexPage = (props: {
           .
         </p>
       )}
-
-      <p class="mt-8 text-base-content/70">
-        Die zentralen Dateien zu den Anleitungen liegen unter{" "}
-        <a href={PAGES.downloads.href} class="link">
-          {PAGES.downloads.label}
-        </a>
-        .
-      </p>
     </article>
   </Layout>
 );
