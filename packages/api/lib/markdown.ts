@@ -161,9 +161,45 @@ const inline = (escaped: string): string =>
  * `(?:(?!&quot;).)*` cannot cross a quotation mark, so the title still ends at
  * the first one; what follows has to be the closing parenthesis, or the
  * optional group gives up and the address is read without a title at all.
+ *
+ * A picture may carry a size in front of the title: `=400`, `=400x300`,
+ * `=x300`. Spelled out as four alternatives rather than as one loose pattern,
+ * because the digits end up in a `style` attribute and the narrowest rule that
+ * describes them is the one worth having - see `sizeStyle`.
  */
 const LINK_OR_IMAGE =
-  /(!?)\[([^\]]*)\]\(([^)\s]+)(?:\s+&quot;((?:(?!&quot;).)*)&quot;)?\)/g;
+  /(!?)\[([^\]]*)\]\(([^)\s]+)(?:\s+=(\d{1,4}x\d{1,4}|\d{1,4}x|x\d{1,4}|\d{1,4}))?(?:\s+&quot;((?:(?!&quot;).)*)&quot;)?\)/g;
+
+/**
+ * A size from the source, as the one declaration it is allowed to become.
+ *
+ * **Both numbers are an upper bound, never a stretch.** `=200x400` on a
+ * photograph that is not 1:2 fits it inside 200 by 400 and keeps its
+ * proportions; it does not squash it. A squashed screenshot is never what
+ * anybody meant, and unlike a picture that came out too small it cannot be
+ * recognised as a mistake by looking at it.
+ *
+ * The `min(…,100%)` is what keeps the picture responsive. Without it an inline
+ * `max-width` would beat the `max-w-full` in the class and a 600px screenshot
+ * would hang off the side of a phone - the one thing the class was there to
+ * prevent.
+ *
+ * **The value is rebuilt from digits, never passed through.** A `style`
+ * attribute is the one place in this file where escaped text would still be
+ * dangerous: `escapeHtml` leaves parentheses and colons alone, and CSS is a
+ * language. The pattern above admits at most four digits and an `x`, and what
+ * comes out below is a template with numbers in it - there is no path from the
+ * document into the declaration.
+ */
+const sizeStyle = (size: string | undefined): string => {
+  if (!size) return "";
+  const [width, height] = size.split("x");
+  const rules = [
+    width ? `max-width:min(${Number(width)}px,100%)` : "",
+    height ? `max-height:${Number(height)}px` : "",
+  ].filter((rule) => rule.length > 0);
+  return rules.length > 0 ? ` style="${rules.join(";")}"` : "";
+};
 
 /** The same thing again, anchored: a picture alone on its line. */
 const IMAGE_ONLY = new RegExp(`^${LINK_OR_IMAGE.source.replace("(!?)", "(!)")}$`);
@@ -186,7 +222,14 @@ const formatInline = (escaped: string): string =>
      */
     .replace(
       LINK_OR_IMAGE,
-      (whole, bang: string, label: string, href: string, title?: string) => {
+      (
+        whole,
+        bang: string,
+        label: string,
+        href: string,
+        size?: string,
+        title?: string,
+      ) => {
         // Every value here went through escapeHtml, so a quote in any of them
         // cannot close the attribute it sits in.
         const titleAttribute = title ? ` title="${title}"` : "";
@@ -195,9 +238,11 @@ const formatInline = (escaped: string): string =>
           if (!LOCAL_PATH.test(href)) return whole;
           return (
             `<img src="${href}" alt="${label}" loading="lazy"` +
-            `${titleAttribute} class="${IMAGE_CLASS}">`
+            `${titleAttribute} class="${IMAGE_CLASS}"${sizeStyle(size)}>`
           );
         }
+
+        // A size on a link means nothing and is dropped rather than printed.
 
         // An empty label was never a link and stays text.
         if (label.length === 0) return whole;
@@ -376,16 +421,19 @@ const block = (chunk: string, anchors: Set<string>): string => {
    */
   const alone = lines.length === 1 ? IMAGE_ONLY.exec(lines[0]!) : null;
   if (alone) {
-    const [, , label, href, caption] = alone;
+    const [, , label, href, size, caption] = alone;
     if (LOCAL_PATH.test(href!)) {
       // The margin belongs to whichever element is the block: on the picture
       // when it stands alone, on the `<figure>` when there is one, never on
       // both - two stacked margins read as a gap somebody left by mistake.
       const img = (klasse: string) =>
         `<img src="${href}" alt="${label}" loading="lazy"` +
-        `${caption ? ` title="${caption}"` : ""} class="${klasse}">`;
+        `${caption ? ` title="${caption}"` : ""} class="${klasse}"${sizeStyle(size)}>`;
       return caption
-        ? `<figure class="my-4">${img(IMAGE_CLASS)}` +
+        ? // `w-fit` so the figure hugs the picture: a caption running the full
+          // width of the page under a 200px screenshot belongs to nothing the
+          // eye can see.
+          `<figure class="my-4 w-fit max-w-full">${img(IMAGE_CLASS)}` +
             `<figcaption class="${CAPTION_CLASS}">${caption}</figcaption></figure>`
         : img(IMAGE_BLOCK_CLASS);
     }

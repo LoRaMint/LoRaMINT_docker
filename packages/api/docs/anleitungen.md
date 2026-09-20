@@ -120,6 +120,7 @@ Sicherheitseigenschaft, und jeder Baustein hält sich daran.
 | Tabelle | `\| a \| b \|` mit `\|---\|---\|` darunter |
 | Bild | `![Beschreibung](/downloads/bild.png)` |
 | Bildunterschrift | `![alt](/downloads/bild.png "Die Unterschrift")` |
+| Bildgrösse | `![alt](/bild.png =400)`, `=x300`, `=200x400` — vor der Unterschrift |
 | Hinweiskasten | `> Text` |
 | Aufklapp-Abschnitt | `:::klapp Häufige Probleme` … `:::` |
 | Anker auf jeder Überschrift | `## Aufbau` → `[dorthin](#aufbau)` |
@@ -131,6 +132,15 @@ Ein paar Feinheiten, die man sonst selbst herausfinden müsste:
   Grund: `<figure>` darf nicht in einem `<p>` stehen, und ein Browser schliesst
   den Absatz sonst still – das Dokument bekäme eine andere Form, als es gelesen
   wird.
+- **Die Grösse ist eine Obergrenze, kein Zerren.** `=200x400` passt das Bild in
+  einen Rahmen von 200 × 400 px ein und behält sein Seitenverhältnis. Es wird
+  nicht auf genau dieses Mass gezogen: ein verzerrter Screenshot ist nie
+  gemeint gewesen, und anders als ein zu klein geratenes Bild sieht man ihm den
+  Fehler nicht an. Auf einem schmalen Schirm bleibt das Bild schmal, auch wenn
+  eine grössere Zahl dasteht.
+- **Eine unverständliche Grösse macht kein Bild.** `=abc` lässt die ganze Zeile
+  als Text stehen, statt die Angabe still zu verschlucken – in der Vorschau
+  sofort zu sehen.
 - **Der Aufklapp-Abschnitt überlebt Leerzeilen und Codeblöcke.** Ein `:::` *in*
   einem Codeblock beendet ihn nicht.
 - **Bilder nur von diesem Server.** Ein `<img>` wird ohne Klick geladen, eine

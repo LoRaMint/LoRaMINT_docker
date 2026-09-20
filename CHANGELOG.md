@@ -51,6 +51,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `/downloads/<ordner>.zip`, weil `loramint.zip` eine echte hochgeladene Datei
   ist und die beiden sonst kollidierten.
 
+- **Bilder lassen sich in der Grösse begrenzen:**
+  `![alt](/bild.png =400)` für höchstens 400 px breit, `=x300` für höchstens
+  300 px hoch, `=200x400` für beides. Die Angabe steht vor der Unterschrift.
+
+  **Es ist eine Obergrenze, kein Zerren.** Das Bild passt sich in den Rahmen
+  ein und behält sein Seitenverhältnis; es wird nicht auf genau dieses Mass
+  gezogen. Ein verzerrter Screenshot ist nie gemeint gewesen, und anders als
+  ein zu klein geratenes Bild sieht man ihm den Fehler nicht an. Auf einem
+  schmalen Schirm bleibt das Bild schmal, auch wenn eine grössere Zahl
+  dasteht – sonst hinge ein 600-px-Screenshot auf einem Telefon über den Rand.
+
 - **Markdown kann, was eine lange Anleitung braucht.** Hinweiskasten
   (`> Text`), Bildunterschrift (`![alt](/bild.png "Unterschrift")`),
   Aufklapp-Abschnitt (`:::klapp Titel` … `:::`) und ein Anker auf jeder

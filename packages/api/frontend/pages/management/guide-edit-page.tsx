@@ -157,6 +157,15 @@ const GuideEditPage = (props: {
               eingebunden.
             </li>
             <li>
+              Eine Grösse kommt vor die Unterschrift:{" "}
+              <code>=400</code> für höchstens 400 px breit,{" "}
+              <code>=x300</code> für höchstens 300 px hoch,{" "}
+              <code>=200x400</code> für beides. Das Bild wird{" "}
+              <strong>nie verzerrt</strong> – es passt sich in diesen Rahmen
+              ein – und auf einem schmalen Schirm bleibt es schmal, auch wenn
+              hier eine grössere Zahl steht.
+            </li>
+            <li>
               <code>:::klapp Häufige Probleme</code> … <code>:::</code> für
               einen Abschnitt zum Aufklappen.
             </li>

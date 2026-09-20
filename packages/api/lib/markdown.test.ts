@@ -609,3 +609,116 @@ describe("eine Bildunterschrift darf Klammern enthalten", () => {
     expect(html).toContain('title="zwei"');
   });
 });
+
+describe("Bilder dürfen eine Grösse mitbringen", () => {
+  const style = (md: string): string | null => {
+    const found = /style="([^"]*)"/.exec(renderMarkdown(md));
+    return found ? found[1]! : null;
+  };
+
+  test("Breite allein", () => {
+    expect(style("![x](/a.png =400)")).toBe("max-width:min(400px,100%)");
+    expect(style("![x](/a.png =400x)")).toBe("max-width:min(400px,100%)");
+  });
+
+  test("Höhe allein", () => {
+    expect(style("![x](/a.png =x300)")).toBe("max-height:300px");
+  });
+
+  test("beides", () => {
+    expect(style("![x](/a.png =200x400)")).toBe(
+      "max-width:min(200px,100%);max-height:400px",
+    );
+  });
+
+  /**
+   * Beides ist eine Obergrenze, kein Zerren. Ein verzerrter Screenshot ist nie
+   * gemeint gewesen, und anders als ein zu klein geratenes Bild sieht man ihm
+   * den Fehler nicht an.
+   */
+  test("es ist eine Schranke, keine feste Grösse", () => {
+    const html = renderMarkdown("![x](/a.png =200x400)");
+    expect(html).not.toContain("width:200px;");
+    expect(html).not.toContain("height:400px;");
+    expect(html).toContain("max-width");
+    expect(html).toContain("max-height");
+    // h-auto bleibt in der Klasse: das Seitenverhältnis entscheidet die Datei.
+    expect(html).toContain("h-auto");
+  });
+
+  /**
+   * Ohne das `min(…,100%)` schlüge das Inline-Mass die Klasse `max-w-full`,
+   * und ein 600px breiter Screenshot hinge auf einem Telefon über den Rand -
+   * genau das, wogegen die Klasse da war.
+   */
+  test("auf einem schmalen Schirm bleibt es beschnitten", () => {
+    expect(style("![x](/a.png =900)")).toContain("100%");
+  });
+
+  test("mit Unterschrift zusammen, und die Figur umschliesst das Bild", () => {
+    const html = renderMarkdown('![x](/a.png =400 "Die Unterschrift")');
+    expect(html).toStartWith("<figure");
+    expect(html).toContain("w-fit");
+    expect(html).toContain("max-width:min(400px,100%)");
+    expect(html).toContain("Die Unterschrift");
+  });
+
+  test("auch mitten im Satz", () => {
+    const html = renderMarkdown("Ein ![x](/a.png =120) Satz.");
+    expect(html).toStartWith("<p");
+    expect(html).toContain("max-width:min(120px,100%)");
+  });
+
+  test("ohne Angabe steht kein style da", () => {
+    expect(style("![x](/a.png)")).toBeNull();
+  });
+
+  /** Ein Link hat keine Grösse; die Angabe wird verworfen, nicht gedruckt. */
+  test("an einem Link bedeutet sie nichts", () => {
+    const html = renderMarkdown("[Ziel](/ziel =400)");
+    expect(html).toContain('href="/ziel"');
+    expect(html).not.toContain("400");
+  });
+
+  /**
+   * Das `style`-Attribut ist die einzige Stelle in dieser Datei, an der
+   * escapter Text noch gefährlich wäre: escapeHtml lässt Klammern und
+   * Doppelpunkte stehen, und CSS ist eine Sprache. Deshalb wird die Angabe aus
+   * Ziffern neu gebaut und nie durchgereicht.
+   */
+  test("nichts ausser Ziffern kommt in das style-Attribut", () => {
+    // Die erlaubte Form, vollständig: mehr kann dort nicht stehen.
+    const ERLAUBT = /^(max-width:min\(\d{1,4}px,100%\))?;?(max-height:\d{1,4}px)?$/;
+
+    for (const böse of [
+      "![x](/a.png =400;background:url(javascript:alert(1)))",
+      "![x](/a.png =400)all:initial)",
+      "![x](/a.png =expression(alert(1)))",
+      "![x](/a.png =4e3)",
+      "![x](/a.png =-400)",
+      "![x](/a.png =400\u0022 onload=\u0022alert(1))",
+    ]) {
+      const html = renderMarkdown(böse);
+      for (const [, wert] of html.matchAll(/style="([^"]*)"/g)) {
+        expect(wert).toMatch(ERLAUBT);
+      }
+      /*
+       * Und nichts davon ist in irgendein Tag geraten. Der Rest darf sehr wohl
+       * als Text im Absatz stehen - `=400)all:initial)` etwa ergibt ein
+       * gültiges Bild und danach vier Zeichen Text, was genau richtig ist.
+       * Gefährlich wäre nur, was innerhalb der spitzen Klammern landet.
+       */
+      for (const [tag] of html.matchAll(/<[^>]*>/g)) {
+        expect(tag).not.toContain("javascript:");
+        expect(tag).not.toContain("expression(");
+        expect(tag).not.toContain("onload");
+        expect(tag).not.toContain("background");
+      }
+    }
+  });
+
+  /** Eine unverständliche Angabe bleibt sichtbar Text, statt still zu wirken. */
+  test("was nicht als Grösse taugt, macht kein Bild", () => {
+    expect(renderMarkdown("![x](/a.png =abc)")).not.toContain("<img");
+  });
+});
