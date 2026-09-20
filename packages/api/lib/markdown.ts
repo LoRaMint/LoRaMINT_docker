@@ -124,26 +124,53 @@ const COLLAPSE_CLASS =
   "collapse collapse-arrow border border-base-300 rounded-box bg-base-100 my-4";
 
 /**
+ * Stands in for a code span while the rest of the line is formatted.
+ *
+ * A character from the private use area: it has no meaning anywhere, no
+ * keyboard produces it, and none of the constructs below can create or destroy
+ * one. Any that somehow arrives in the source is dropped before the
+ * placeholders are made, so a document cannot forge one.
+ */
+const CODE_SLOT = "\uE000";
+
+/**
  * The inline constructs, applied to text that is already escaped.
  *
- * Code spans are taken out first and the rest is formatted around them, rather
- * than being one more `.replace()` in the chain. As a link in the chain they
- * would not work: a later pass would still rewrite the *inside* of the code
- * element, so `` `**nicht fett**` `` came out bold.
+ * Code spans are taken out first and put back at the end, rather than being
+ * one more `.replace()` in the chain. As a link in the chain they would not
+ * work: a later pass would still rewrite the *inside* of the code element, so
+ * `` `**nicht fett**` `` came out bold.
  *
- * The capturing `split` puts the code spans at the odd indices, which is what
- * makes "format everything except these" a two-line rule instead of a parser.
- * An unmatched backtick never lands in an odd slot and stays what it is.
+ * **They are replaced by a placeholder, not split on**, and that is the whole
+ * of this function's history. Splitting the line at each code span and
+ * formatting the pieces separately looks equivalent and is not: emphasis
+ * opened before a span and closed after it has its two halves in two different
+ * pieces, and neither piece contains a pair. ``**Aus dem Ordner `lightsleep`
+ * ?**`` came out with its asterisks showing.
+ *
+ * That is the same mistake `block` documents about line breaks, on a second
+ * axis - formatting a part of a line can only ever find what fits inside that
+ * part. A placeholder keeps the line whole: one string goes through
+ * `formatInline`, and the code comes back afterwards, never having been
+ * exposed to it.
  */
-const inline = (escaped: string): string =>
-  escaped
-    .split(/(`[^`\n]+`)/)
-    .map((part, index) =>
-      index % 2 === 1
-        ? `<code class="${CODE_INLINE_CLASS}">${part.slice(1, -1)}</code>`
-        : formatInline(part),
-    )
-    .join("");
+const inline = (escaped: string): string => {
+  const spans: string[] = [];
+  const marked = escaped
+    .replaceAll(CODE_SLOT, "")
+    .replace(/`[^`\n]+`/g, (span) => {
+      spans.push(
+        `<code class="${CODE_INLINE_CLASS}">${span.slice(1, -1)}</code>`,
+      );
+      return `${CODE_SLOT}${spans.length - 1}${CODE_SLOT}`;
+    });
+
+  // An unmatched backtick matches nothing above and stays the character it is.
+  return formatInline(marked).replace(
+    new RegExp(`${CODE_SLOT}(\\d+)${CODE_SLOT}`, "g"),
+    (_, index: string) => spans[Number(index)]!,
+  );
+};
 
 /**
  * A link or an image, with an optional title after the address.

@@ -764,3 +764,74 @@ describe("Bilder dürfen eine Grösse mitbringen", () => {
     expect(renderMarkdown("![x](/a.png =abc)")).not.toContain("<img");
   });
 });
+
+/**
+ * Auszeichnung darf einen Code-Abschnitt umschliessen.
+ *
+ * Gefunden auf der ESP32-Seite: „**Warum aus dem Ordner `lightsleep`?**" kam
+ * mit sichtbaren Sternchen heraus. Die Zeile wurde an jedem Code-Abschnitt
+ * zerteilt und stückweise formatiert, also lagen die beiden Hälften des
+ * Fettdrucks in zwei verschiedenen Stücken und keines enthielt ein Paar.
+ */
+describe("Auszeichnung über einen Code-Abschnitt hinweg", () => {
+  test("fett umschliesst Code", () => {
+    const html = renderMarkdown("**fett mit `code` drin**");
+    expect(html).toContain("<strong>");
+    expect(html).toContain("<code");
+    expect(html).not.toContain("**");
+  });
+
+  test("kursiv ebenso", () => {
+    expect(renderMarkdown("*kursiv mit `code` drin*")).toContain("<em>");
+  });
+
+  test("auch über mehrere Abschnitte", () => {
+    const html = renderMarkdown("**vor `a` mitte `b` nach**");
+    expect(html.match(/<code/g)).toHaveLength(2);
+    expect(html.match(/<strong>/g)).toHaveLength(1);
+    expect(html).not.toContain("**");
+  });
+
+  /** Der gemeldete Fall, im Hinweiskasten, in dem er auffiel. */
+  test("der Fall aus der ESP32-Anleitung", () => {
+    const html = renderMarkdown(
+      "> 💡 **Warum aus dem Ordner `lightsleep`?** Jedes Beispiel gibt es zweimal.",
+    );
+    expect(html).toContain("<strong>Warum aus dem Ordner ");
+    expect(html).toContain("</code>?</strong>");
+    expect(html).not.toContain("**");
+  });
+
+  /** Und die Zusage, die das Zerteilen einmal erkauft hat, gilt weiter. */
+  test("im Code selbst wird weiterhin nichts ausgezeichnet", () => {
+    const html = renderMarkdown("`**nicht fett**`");
+    expect(html).not.toContain("<strong>");
+    expect(html).toContain("**nicht fett**");
+  });
+
+  test("ein Link darf Code in seiner Beschriftung tragen", () => {
+    const html = renderMarkdown("[Text mit `code`](/ziel)");
+    expect(html).toContain('<a href="/ziel"');
+    expect(html).toContain("<code");
+  });
+
+  test("ein einzelner Backtick bleibt ein Backtick", () => {
+    expect(renderMarkdown("ein `unbalancierter Backtick")).toContain(
+      "ein `unbalancierter",
+    );
+  });
+
+  /**
+   * Der Platzhalter stammt aus dem privaten Bereich von Unicode. Käme er im
+   * Dokument vor, liesse sich ein fremder Code-Abschnitt hineinschreiben -
+   * deshalb wird er vorher entfernt und ist damit nicht fälschbar.
+   */
+  test("ein Platzhalter aus dem Dokument wird nicht eingelöst", () => {
+    const slot = String.fromCharCode(0xe000);
+    const html = renderMarkdown(`vorher ${slot}0${slot} nachher \`echt\``);
+    expect(html).toContain("<code");
+    expect(html).toContain("echt");
+    expect(html).toContain("vorher 0 nachher");
+    expect(html).not.toContain(slot);
+  });
+});
