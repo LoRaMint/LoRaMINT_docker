@@ -835,3 +835,45 @@ describe("Auszeichnung über einen Code-Abschnitt hinweg", () => {
     expect(html).not.toContain(slot);
   });
 });
+
+/**
+ * Was Fliesstext ist, und was breiter laufen darf.
+ *
+ * Die Seite engt den Fliesstext auf ein Lesemass ein und lässt Bilder,
+ * Codeblöcke und Tabellen breiter laufen. Sie kann das nur, indem sie die
+ * Elemente benennt – und genau daran ging es schief: ein Hinweiskasten und der
+ * Rahmen um eine Tabelle sind beide ein `<div>`, also engte eine Regel auf
+ * `div` auch die Tabellen ein, direkt unter einem Kommentar, der sagt, dass
+ * das nicht passieren darf. `lm-prose` ist die Unterscheidung, die der
+ * Elementname nicht hergibt.
+ */
+describe("lm-prose trennt Fliesstext von dem, was breiter darf", () => {
+  test("Hinweiskasten und Aufklapp-Abschnitt tragen es", () => {
+    expect(renderMarkdown("> Hinweis")).toContain("lm-prose");
+    expect(renderMarkdown(":::klapp T\ndrin\n:::")).toContain("lm-prose");
+  });
+
+  test("der Tabellenrahmen nicht", () => {
+    const html = renderMarkdown("| a | b |\n|---|---|\n| 1 | 2 |");
+    expect(html).toStartWith("<div");
+    expect(html).not.toContain("lm-prose");
+  });
+
+  test("Codeblock und Bild auch nicht", () => {
+    expect(renderMarkdown("```\nx\n```")).not.toContain("lm-prose");
+    expect(renderMarkdown("![x](/a.png)")).not.toContain("lm-prose");
+  });
+
+  /**
+   * Die beiden Dateien müssen sich einig sein, und nichts ausser diesem Test
+   * erzwingt das: die Klasse entsteht in lib/markdown.ts, eingeengt wird sie
+   * in der Seite. Grob als Text gelesen, wie die Routentests.
+   */
+  test("die Seite engt lm-prose ein und nicht mehr div", async () => {
+    const page = await Bun.file(
+      new URL("../frontend/pages/guides/page.tsx", import.meta.url),
+    ).text();
+    expect(page).toContain("[&>.lm-prose]:max-w-[65ch]");
+    expect(page).not.toContain("[&>div]:max-w-[65ch]");
+  });
+});

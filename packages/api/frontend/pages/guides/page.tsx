@@ -28,12 +28,24 @@ import type { GuideEntry } from "../../../lib/guide-store";
  * and scrolling it sideways inside a page that has room to spare is worse. So
  * the container is full width and the running-text elements are narrowed
  * individually.
+ *
+ * **Which is why the note box and the collapsible are picked by a class and
+ * not by their tag.** Both are a `<div>`, and so is the scrolling frame that
+ * `renderMarkdown` puts around a table - a rule aimed at `div` narrowed the
+ * tables as well, exactly what the paragraph above says must not happen, and
+ * it did so silently. `lm-prose` is set in lib/markdown.ts on the things that
+ * are running text; the element name alone cannot tell them apart.
  */
 
+/*
+ * Written out one by one, and it has to be: Tailwind finds classes by reading
+ * this file as text, so a list run through `.map()` produces a tidy-looking
+ * string and no stylesheet at all. Every class here is a literal on purpose.
+ */
 const PROSE_WIDTH =
   "[&>p]:max-w-[65ch] [&>ul]:max-w-[65ch] [&>ol]:max-w-[65ch] " +
   "[&>h2]:max-w-[65ch] [&>h3]:max-w-[65ch] [&>h4]:max-w-[65ch] " +
-  "[&>div]:max-w-[65ch] [&>details]:max-w-[65ch]";
+  "[&>.lm-prose]:max-w-[65ch]";
 
 const GuidePage = (props: {
   title: string;
