@@ -89,27 +89,37 @@ const widePanel = "min-w-56 w-max max-w-[min(24rem,calc(100vw-2rem))]";
  * says where it goes. (One word - `right-full` to `left-full`, and the chevron
  * - flips it, if a deployment wants the other side.)
  *
- * **It hangs off the panel, not off the entry.** An absolutely positioned
- * element measures from its nearest positioned ancestor, and daisyUI already
- * makes the panel one - so `-top-px` is the panel's own top edge rather than
- * the hovered row's, and the two panels line up along the top the way the
- * panel lines up under its tab.
+ * **It starts level with the entry that opens it**, the way a sub-menu has
+ * always done: the first row of the panel sits at the same height as the row
+ * one is pointing at. Hence the odd-looking `top`: the panel's own border and
+ * padding are lifted out of the way so the two *rows* line up, not the two
+ * boxes.
  *
- * That needs `static` on the entry and not merely the absence of `relative`:
- * daisyUI positions every `li` in a menu itself. Dropping the class looked
- * right and changed nothing, because the rule was never ours.
+ * Horizontally it does not measure from the entry but from the panel around
+ * it, and the `+1px` is what crosses the panel's border. The entry already
+ * reaches the panel's inner edge - see `flyoutBridge` - so one border width
+ * is all that is left between them.
  *
  * They join rather than float: square corners on the touching side, and no
  * border there at all, so one line runs between them instead of two. That is
  * the same trick the open tab plays on its bottom edge.
+ *
+ * **Physical `r`/`l`, not logical `e`/`s`, for the corners and that border.**
+ * The logical spellings are what a direction-agnostic layout wants, and this
+ * is not one - the side a panel opens to is decided in physical pixels a few
+ * lines down. Worse, `rounded-e-box` compiles to the two *top* corners twice
+ * and never the bottom ones, so the flipped panel came out with one rounded
+ * corner and three square. Two spellings for one axis is how that goes
+ * unnoticed.
  *
  * The `:where()` daisyUI wraps its own `li ul` rules in gives them no
  * specificity at all, so these plain utilities override the indentation, the
  * relative positioning and the little guide line without an `!important`.
  */
 const flyoutPanel =
-  `${panelSurface} hidden absolute -top-px right-full z-20 ms-0 me-0 ` +
-  "space-y-1 rounded-box rounded-e-none border-e-0 " +
+  `${panelSurface} hidden absolute z-20 ms-0 me-0 space-y-1 ` +
+  "top-[calc(-0.375rem-1px)] right-[calc(100%+1px)] " +
+  "rounded-box rounded-r-none border-r-0 " +
   "min-w-52 w-max max-w-[min(20rem,60vw)] whitespace-normal before:hidden";
 
 /**
@@ -141,10 +151,14 @@ const flyoutOpens = "[&:hover>ul]:block [&:focus-within>ul]:block";
  * where the panel begins, and the matching padding puts its contents back
  * where they were. Nothing moves, and the hover area is continuous.
  *
+ * It doubles as the horizontal anchor: because the entry now reaches the
+ * panel's inner edge, the panel beside it is one border width away and
+ * nothing has to know how much padding the parent has.
+ *
  * It flips with the panel, because the strip is on whichever side the panel
  * is - see `flyoutFlips`.
  */
-const flyoutBridge = "static -ms-1.5 ps-1.5";
+const flyoutBridge = "relative -ms-1.5 ps-1.5";
 
 /**
  * The other side, for when the script below has measured room for it.
@@ -163,9 +177,9 @@ const flyoutBridge = "static -ms-1.5 ps-1.5";
  * goes the other is worse than no mark at all.
  */
 const flyoutFlips =
-  "[&[data-side=right]>ul]:left-full [&[data-side=right]>ul]:right-auto " +
-  "[&[data-side=right]>ul]:rounded-e-box [&[data-side=right]>ul]:rounded-s-none " +
-  "[&[data-side=right]>ul]:border-e [&[data-side=right]>ul]:border-s-0 " +
+  "[&[data-side=right]>ul]:right-auto [&[data-side=right]>ul]:left-[calc(100%+1px)] " +
+  "[&[data-side=right]>ul]:rounded-r-box [&[data-side=right]>ul]:rounded-l-none " +
+  "[&[data-side=right]>ul]:border-r [&[data-side=right]>ul]:border-l-0 " +
   "data-[side=right]:ms-0 data-[side=right]:ps-0 " +
   "data-[side=right]:-me-1.5 data-[side=right]:pe-1.5 " +
   "[&[data-side=right]>a>svg]:rotate-180";
