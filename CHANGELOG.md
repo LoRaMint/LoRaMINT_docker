@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Zwei Integrationstests der Messwert-Löschung schlugen sporadisch fehl.**
+  Sie verglichen eine Grenze aus `new Date()` – der Uhr des Testlaufs – gegen
+  `created_at`, das Postgres mit `now()` schreibt. Zwei Uhren, und behauptet
+  wurden Zahlen auf die Millisekunde genau. Wenige Millisekunden Versatz, wie
+  er für eine Datenbank in einer virtuellen Maschine normal ist, und die
+  Zählung kam eins zu hoch heraus – oder, bei vorauseilender Datenbank, null.
+  Nachgestellt mit 50 ms Versatz: genau diese beiden Zahlen.
+
+  Die Grenze wird jetzt als jüngstes `created_at` zurückgelesen und ist damit
+  eine Eigenschaft der Daten statt des Augenblicks, in dem der Test lief.
+
+  **Am Betrieb ändert sich nichts, und das ist Absicht.** Dort vergleicht die
+  Löschvorschau ebenfalls die Uhr des Servers gegen die der Datenbank – die
+  Grenze bedeutet dort „Zeilen, die seit dem Hinsehen dazugekommen sind", und
+  eine Millisekunde in die eine oder andere Richtung ist keine Frage, die
+  jemand stellt. Ein Test, der exakte Zahlen behauptet, stellt sie.
+
+
 ## [1.16.0] - 2026-09-20
 
 ### Added

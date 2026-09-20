@@ -95,6 +95,34 @@ const seed = async (value: string, location = "Labor") => {
   return (row as { id: string }).id;
 };
 
+/**
+ * The preview bound, taken from the clock that stamped the rows.
+ *
+ * **Not `new Date()`.** `created_at` is written by Postgres with `now()`, so a
+ * bound made here would be a *host* timestamp compared against a *database*
+ * one - two clocks, and the assertions below are exact to the millisecond. A
+ * few milliseconds of drift between the two, which is ordinary for a database
+ * in a virtual machine, and the count comes out one too high or, if the
+ * database is ahead, zero. Both were seen; the second looks like the feature
+ * is broken rather than like the test is.
+ *
+ * Reading the newest `created_at` back instead makes the boundary a property
+ * of the data rather than of the moment the test ran.
+ *
+ * The production path *does* compare its own clock against the database's -
+ * see frontend/pages/management/routes.tsx - and that is fine there: the bound
+ * means "rows that arrived since somebody looked", and a millisecond either
+ * way is not a question anybody is asking. A test asserting exact counts is,
+ * which is why it needs a sharper instrument than the feature does.
+ */
+const previewAfter = async (location: string): Promise<Date> => {
+  const [row] = await app`
+    SELECT max(created_at) AS at FROM measurements
+     WHERE device_eui = ${deviceEui} AND location = ${location}
+  `;
+  return new Date((row as { at: Date }).at);
+};
+
 const valueOf = async (id: string) => {
   const [row] = await app`SELECT value, location FROM measurements WHERE id = ${id}`;
   return row as { value: string; location: string } | undefined;
@@ -459,9 +487,11 @@ describe.skipIf(!reachable)("counting what is left to delete", () => {
 
     await seed("91", "Blockzaehlung");
     await seed("92", "Blockzaehlung");
-    const previewAt = new Date();
+    const previewAt = await previewAfter("Blockzaehlung");
 
-    // Arrives through the webhook a moment after the preview was taken.
+    // Arrives through the webhook a moment after the preview was taken. Ten
+    // milliseconds, because the bound carries a millisecond of tolerance for
+    // the microseconds a `timestamptz` has and a `Date` does not.
     await new Promise((resolve) => setTimeout(resolve, 10));
     await seed("93", "Blockzaehlung");
 
@@ -501,7 +531,7 @@ describe.skipIf(!reachable)("counting what is left to delete", () => {
     await seed("94", "Blockabbau");
     await seed("95", "Blockabbau");
     await seed("96", "Blockabbau");
-    const previewAt = new Date();
+    const previewAt = await previewAfter("Blockabbau");
 
     // One block of two, exactly as the route asks for it.
     const block = await asDataRole(() => measurements.idsMatching(filter, 2, previewAt));
