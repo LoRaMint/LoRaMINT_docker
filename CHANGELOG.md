@@ -51,9 +51,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `/downloads/<ordner>.zip`, weil `loramint.zip` eine echte hochgeladene Datei
   ist und die beiden sonst kollidierten.
 
-- **Bilder lassen sich in der Grösse begrenzen:**
-  `![alt](/bild.png =400)` für höchstens 400 px breit, `=x300` für höchstens
-  300 px hoch, `=200x400` für beides. Die Angabe steht vor der Unterschrift.
+- **Bilder lassen sich in der Grösse begrenzen:** `![alt](/bild.png =50%)` für
+  die halbe Spaltenbreite, `=400` für höchstens 400 px breit, `=x300` für
+  höchstens 300 px hoch, `=200x400` für beides. Die Angabe steht vor der
+  Unterschrift.
+
+  **Ein Anteil ist der bessere erste Griff:** er stimmt auf jedem Bildschirm,
+  eine Pixelzahl nur auf dem, an dem sie gewählt wurde. Bezug ist die
+  Inhaltsspalte – die Breite, die ein Bild auf der Seite überhaupt haben kann –,
+  nicht das 65-Zeichen-Mass des Fliesstextes; Bilder dürfen hier ausdrücklich
+  breiter laufen als die Prosa.
 
   **Es ist eine Obergrenze, kein Zerren.** Das Bild passt sich in den Rahmen
   ein und behält sein Seitenverhältnis; es wird nicht auf genau dieses Mass

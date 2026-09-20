@@ -158,12 +158,14 @@ const GuideEditPage = (props: {
             </li>
             <li>
               Eine Grösse kommt vor die Unterschrift:{" "}
+              <code>=50%</code> für die halbe Spaltenbreite,{" "}
               <code>=400</code> für höchstens 400 px breit,{" "}
               <code>=x300</code> für höchstens 300 px hoch,{" "}
               <code>=200x400</code> für beides. Das Bild wird{" "}
-              <strong>nie verzerrt</strong> – es passt sich in diesen Rahmen
-              ein – und auf einem schmalen Schirm bleibt es schmal, auch wenn
-              hier eine grössere Zahl steht.
+              <strong>nie verzerrt</strong> – es passt sich in den Rahmen ein –
+              und auf einem schmalen Schirm bleibt es schmal, auch wenn hier
+              eine grössere Zahl steht. Ein Anteil ist der beste erste Griff:
+              er stimmt auf jedem Bildschirm.
             </li>
             <li>
               <code>:::klapp Häufige Probleme</code> … <code>:::</code> für

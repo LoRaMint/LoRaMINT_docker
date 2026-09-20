@@ -120,7 +120,7 @@ Sicherheitseigenschaft, und jeder Baustein hält sich daran.
 | Tabelle | `\| a \| b \|` mit `\|---\|---\|` darunter |
 | Bild | `![Beschreibung](/downloads/bild.png)` |
 | Bildunterschrift | `![alt](/downloads/bild.png "Die Unterschrift")` |
-| Bildgrösse | `![alt](/bild.png =400)`, `=x300`, `=200x400` — vor der Unterschrift |
+| Bildgrösse | `![alt](/bild.png =50%)`, `=400`, `=x300`, `=200x400` — vor der Unterschrift |
 | Hinweiskasten | `> Text` |
 | Aufklapp-Abschnitt | `:::klapp Häufige Probleme` … `:::` |
 | Anker auf jeder Überschrift | `## Aufbau` → `[dorthin](#aufbau)` |
@@ -138,6 +138,15 @@ Ein paar Feinheiten, die man sonst selbst herausfinden müsste:
   gemeint gewesen, und anders als ein zu klein geratenes Bild sieht man ihm den
   Fehler nicht an. Auf einem schmalen Schirm bleibt das Bild schmal, auch wenn
   eine grössere Zahl dasteht.
+- **`=50%` ist der bessere erste Griff.** Ein Anteil stimmt auf jedem
+  Bildschirm, eine Pixelzahl nur auf dem, an dem sie gewählt wurde. Bezug ist
+  die **Inhaltsspalte** – die Breite, die ein Bild auf dieser Seite überhaupt
+  haben kann –, nicht das 65-Zeichen-Mass des Fliesstextes: Bilder, Tabellen
+  und Codeblöcke dürfen hier ausdrücklich breiter laufen als die Prosa
+  (`frontend/pages/guides/page.tsx`). `=100%` ist deshalb dasselbe wie gar
+  keine Angabe.
+- **Mehr als 100 % gibt es nicht.** `=150%` bleibt Text stehen, statt
+  stillschweigend auf 100 % zurechtgestutzt zu werden.
 - **Eine unverständliche Grösse macht kein Bild.** `=abc` lässt die ganze Zeile
   als Text stehen, statt die Angabe still zu verschlucken – in der Vorschau
   sofort zu sehen.

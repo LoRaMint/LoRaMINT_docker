@@ -162,22 +162,28 @@ const inline = (escaped: string): string =>
  * the first one; what follows has to be the closing parenthesis, or the
  * optional group gives up and the address is read without a title at all.
  *
- * A picture may carry a size in front of the title: `=400`, `=400x300`,
- * `=x300`. Spelled out as four alternatives rather than as one loose pattern,
+ * A picture may carry a size in front of the title: `=50%`, `=400`, `=400x300`,
+ * `=x300`. Spelled out as alternatives rather than as one loose pattern,
  * because the digits end up in a `style` attribute and the narrowest rule that
  * describes them is the one worth having - see `sizeStyle`.
+ *
+ * The percentage is bounded in the pattern itself (`100` or one to two digits,
+ * so 1 to 100) rather than clamped afterwards. `=150%` is not a picture that
+ * wants to be half again as wide as the page; it is a typo, and it comes out
+ * as the text somebody typed instead of silently becoming something else.
  */
 const LINK_OR_IMAGE =
-  /(!?)\[([^\]]*)\]\(([^)\s]+)(?:\s+=(\d{1,4}x\d{1,4}|\d{1,4}x|x\d{1,4}|\d{1,4}))?(?:\s+&quot;((?:(?!&quot;).)*)&quot;)?\)/g;
+  /(!?)\[([^\]]*)\]\(([^)\s]+)(?:\s+=((?:100|[1-9]\d?)%|\d{1,4}x\d{1,4}|\d{1,4}x|x\d{1,4}|\d{1,4}))?(?:\s+&quot;((?:(?!&quot;).)*)&quot;)?\)/g;
 
 /**
  * A size from the source, as the one declaration it is allowed to become.
  *
- * **Both numbers are an upper bound, never a stretch.** `=200x400` on a
+ * **Every number is an upper bound, never a stretch.** `=200x400` on a
  * photograph that is not 1:2 fits it inside 200 by 400 and keeps its
  * proportions; it does not squash it. A squashed screenshot is never what
  * anybody meant, and unlike a picture that came out too small it cannot be
- * recognised as a mistake by looking at it.
+ * recognised as a mistake by looking at it. The height always follows from the
+ * width and the file - `h-auto` in the class is what says so.
  *
  * The `min(…,100%)` is what keeps the picture responsive. Without it an inline
  * `max-width` would beat the `max-w-full` in the class and a 600px screenshot
@@ -193,6 +199,18 @@ const LINK_OR_IMAGE =
  */
 const sizeStyle = (size: string | undefined): string => {
   if (!size) return "";
+
+  /*
+   * A share of the column rather than a measurement.
+   *
+   * No `min(…,100%)` here and none needed: a percentage is already relative to
+   * the space the picture has, so it shrinks with the page on its own. The
+   * pattern caps it at 100, so it cannot ask for more room than there is.
+   */
+  if (size.endsWith("%")) {
+    return ` style="max-width:${Number(size.slice(0, -1))}%"`;
+  }
+
   const [width, height] = size.split("x");
   const rules = [
     width ? `max-width:min(${Number(width)}px,100%)` : "",

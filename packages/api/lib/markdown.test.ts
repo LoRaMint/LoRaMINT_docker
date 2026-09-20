@@ -669,6 +669,45 @@ describe("Bilder dürfen eine Grösse mitbringen", () => {
     expect(html).toContain("max-width:min(120px,100%)");
   });
 
+  describe("als Anteil der Spalte", () => {
+    test("=50% wird zu max-width:50%", () => {
+      expect(style("![x](/a.png =50%)")).toBe("max-width:50%");
+      expect(style("![x](/a.png =100%)")).toBe("max-width:100%");
+      expect(style("![x](/a.png =1%)")).toBe("max-width:1%");
+    });
+
+    /**
+     * Kein `min(…,100%)` wie bei den Pixeln, und keines nötig: ein Anteil ist
+     * schon auf den vorhandenen Platz bezogen und schrumpft von allein mit.
+     */
+    test("ein Anteil braucht keine zweite Schranke", () => {
+      expect(style("![x](/a.png =50%)")).not.toContain("min(");
+    });
+
+    test("das Seitenverhältnis bleibt, wie bei den Pixeln", () => {
+      const html = renderMarkdown("![x](/a.png =50%)");
+      expect(html).toContain("h-auto");
+      expect(html).not.toContain("height:");
+    });
+
+    test("mit Unterschrift zusammen", () => {
+      const html = renderMarkdown('![x](/a.png =50% "Die Unterschrift")');
+      expect(html).toStartWith("<figure");
+      expect(html).toContain("max-width:50%");
+    });
+
+    /**
+     * Über 100 % begrenzt schon das Muster, nicht erst eine Rechnung dahinter:
+     * `=150%` ist kein Bild, das anderthalb Spalten breit sein will, sondern
+     * ein Vertipper - und der bleibt sichtbar stehen.
+     */
+    test("mehr als 100 % und 0 % ergeben kein Bild", () => {
+      for (const daneben of ["=150%", "=0%", "=999%", "=05%", "=-50%"]) {
+        expect(renderMarkdown(`![x](/a.png ${daneben})`)).not.toContain("<img");
+      }
+    });
+  });
+
   test("ohne Angabe steht kein style da", () => {
     expect(style("![x](/a.png)")).toBeNull();
   });
@@ -688,7 +727,8 @@ describe("Bilder dürfen eine Grösse mitbringen", () => {
    */
   test("nichts ausser Ziffern kommt in das style-Attribut", () => {
     // Die erlaubte Form, vollständig: mehr kann dort nicht stehen.
-    const ERLAUBT = /^(max-width:min\(\d{1,4}px,100%\))?;?(max-height:\d{1,4}px)?$/;
+    const ERLAUBT =
+      /^(max-width:(\d{1,3}%|min\(\d{1,4}px,100%\)))?;?(max-height:\d{1,4}px)?$/;
 
     for (const böse of [
       "![x](/a.png =400;background:url(javascript:alert(1)))",
@@ -696,6 +736,8 @@ describe("Bilder dürfen eine Grösse mitbringen", () => {
       "![x](/a.png =expression(alert(1)))",
       "![x](/a.png =4e3)",
       "![x](/a.png =-400)",
+      "![x](/a.png =50%;position:fixed)",
+      "![x](/a.png =50%)}body{display:none)",
       "![x](/a.png =400\u0022 onload=\u0022alert(1))",
     ]) {
       const html = renderMarkdown(böse);
