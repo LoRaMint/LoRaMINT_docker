@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+- **Die geschriebene Übersichtsseite unter `/anleitungen` ist weg.** Sie war
+  eine Anleitung wie jede andere, gespeichert auf oberster Ebene unter der
+  Adresse `uebersicht` – und das Menü führt für diese Adresse ohnehin einen
+  festen Eintrag „Übersicht". Wer der Aufforderung im Leerzustand folgte und
+  sie anlegte, hatte sie danach **zweimal im Menü**, unter zwei Adressen, und
+  hervorgehoben war die zweite.
+
+  `/anleitungen` listet jetzt die Themen auf, erzeugt aus dem Baum, zwei Ebenen
+  tief. Diese Ansicht gab es schon, sie war bisher nur der Leerzustand. Was
+  dabei verlorengeht, sei offen gesagt: eine geschriebene Übersicht konnte
+  sagen, welche Anleitung man zuerst liest, eine erzeugte kann das nicht. Sie
+  kann dafür nicht veralten, steht nur einmal im Menü und braucht niemanden,
+  der sie pflegt.
+
 ### Fixed
 - **Zwei Integrationstests der Messwert-Löschung schlugen sporadisch fehl.**
   Sie verglichen eine Grenze aus `new Date()` – der Uhr des Testlaufs – gegen

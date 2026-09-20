@@ -48,7 +48,7 @@ import BoardPage from "./board/page";
 import * as dashboard from "../../services/dashboard";
 import * as deviceNames from "../../services/device-names";
 import { deviceStates } from "../../lib/device-state";
-import GuidePage, { EmptyGuidesPage } from "./guides/page";
+import GuidePage, { GuidesIndexPage } from "./guides/page";
 import NotFoundPage from "./not-found/page";
 import LoginPage from "./login/page";
 import SqlPage from "./sql/page";
@@ -685,22 +685,16 @@ pages.get(
 /** May this person see a page that has not been published? */
 const mayEditGuides = () => hasRole(currentUser(), "editor", auth);
 
-/** The slug the written overview lives under, at the root of the tree. */
-const OVERVIEW_SLUG = "uebersicht";
-
 /** The pages directly below this one, as links. Drafts only for an editor. */
-const childLinks = (parentId: string | null, drafts: boolean) => {
-  const level =
-    parentId === null
-      ? guideTree({ drafts })
-      : (function find(nodes): ReturnType<typeof guideTree> {
-          for (const node of nodes) {
-            if (node.id === parentId) return node.children;
-            const deeper = find(node.children);
-            if (deeper.length > 0) return deeper;
-          }
-          return [];
-        })(guideTree({ drafts }));
+const childLinks = (parentId: string, drafts: boolean) => {
+  const level = (function find(nodes): ReturnType<typeof guideTree> {
+    for (const node of nodes) {
+      if (node.id === parentId) return node.children;
+      const deeper = find(node.children);
+      if (deeper.length > 0) return deeper;
+    }
+    return [];
+  })(guideTree({ drafts }));
 
   return level.map((child) => ({
     href: `${PAGES.guides.href}/${guidePath(child)}`,
@@ -708,46 +702,37 @@ const childLinks = (parentId: string | null, drafts: boolean) => {
   }));
 };
 
+/**
+ * `/anleitungen`: the themes, two levels deep.
+ *
+ * **Made from the tree, not written.** There was a written overview here - a
+ * page like any other, stored at the root under the slug `uebersicht` - and it
+ * cost more than it gave: the menu already carries a fixed „Übersicht" entry
+ * pointing at this address, so the written page stood in the menu a second
+ * time, under a second address, and the second one was the one that
+ * highlighted. Keeping both meant teaching four places that one row in
+ * `guides` is not an ordinary row. A list that is derived cannot drift from
+ * the tree and needs nobody to maintain it.
+ *
+ * Two levels and not the whole tree: this is the way in, and a page that
+ * repeats the entire menu underneath it is the menu with a heading on top.
+ */
+const themesFor = (drafts: boolean) =>
+  guideTree({ drafts }).map((node) => ({
+    href: `${PAGES.guides.href}/${guidePath(node)}`,
+    label: node.title,
+    unter: node.children.map((child) => ({
+      href: `${PAGES.guides.href}/${guidePath(child)}`,
+      label: child.title,
+    })),
+  }));
+
 pages.get(
   PAGES.guides.href,
   ...ssr(async (c) => {
     c.get("page").title = PAGES.guides.label;
     const drafts = mayEditGuides();
-
-    /*
-     * The overview is a guide like any other, written in the editor and stored
-     * at the root under `OVERVIEW_SLUG`. There is no special row and no
-     * generated grid of tiles: a written overview can say which guide to read
-     * first, and a generated one can only repeat the menu.
-     *
-     * Until somebody writes it, the root pages are listed instead. That is not
-     * a second design - it is the empty state, and it names the next step for
-     * whoever can take it.
-     */
-    const overview = allGuides().find(
-      (entry) => entry.parentId === null && entry.slug === OVERVIEW_SLUG,
-    );
-    const guide =
-      overview && (overview.published || drafts)
-        ? await guideBody(overview.id)
-        : null;
-
-    if (!guide) {
-      return (
-        <EmptyGuidesPage mayEdit={drafts} roots={childLinks(null, drafts)} />
-      );
-    }
-
-    return (
-      <GuidePage
-        title={guide.title}
-        body={guide.body}
-        below={childLinks(null, drafts).filter(
-          (link) => link.href !== `${PAGES.guides.href}/${OVERVIEW_SLUG}`,
-        )}
-        {...(guide.published ? {} : { draft: true })}
-      />
-    );
+    return <GuidesIndexPage mayEdit={drafts} themes={themesFor(drafts)} />;
   }),
 );
 

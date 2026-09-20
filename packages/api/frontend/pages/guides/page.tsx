@@ -113,7 +113,7 @@ const GuidePage = (props: {
       )}
 
       <p class="mt-8 text-base-content/70">
-        Die Dateien zu den Anleitungen liegen unter{" "}
+        Die zentralen Dateien zu den Anleitungen liegen unter{" "}
         <a href={PAGES.downloads.href} class="link">
           {PAGES.downloads.label}
         </a>
@@ -129,54 +129,89 @@ const GuidePage = (props: {
 export default GuidePage;
 
 /**
- * The overview before anybody has written one.
+ * `/anleitungen`: the way into the guides, made from the tree.
  *
- * Not a second design for the same page: the written overview is the page, and
- * this is what stands there until it exists. It still lists whatever guides
- * there are, because a visitor who followed a link to „Anleitungen" should not
- * meet a dead end just because nobody has written the introduction yet.
+ * There was a written page here once - an ordinary row in `guides` under the
+ * slug `uebersicht` - and the menu carries a fixed „Übersicht" entry for this
+ * address anyway, so the written one stood in the menu a second time under a
+ * second address. Deriving the list instead cannot drift from the tree and
+ * needs nobody to keep it up to date; what it cannot do is say which guide to
+ * read first, and that turned out to be worth less than the confusion cost.
+ *
+ * Two levels: themes, and what sits directly under them. Deeper would be the
+ * menu again, printed into the page.
  */
-export const EmptyGuidesPage = (props: {
+export const GuidesIndexPage = (props: {
   mayEdit: boolean;
-  roots: { href: string; label: string }[];
+  themes: {
+    href: string;
+    label: string;
+    unter: { href: string; label: string }[];
+  }[];
 }) => (
   <Layout>
-    <PageHeading
-      title={PAGES.guides.label}
-      intro={
-        props.roots.length > 0
-          ? "Die Anleitungen zu LoRaMINT."
-          : "Hier stehen die Anleitungen zu LoRaMINT – sobald die erste geschrieben ist."
-      }
-    />
+    <article class="max-w-[65ch]">
+      {/*
+        * Written for somebody who has never heard of LoRaMINT: this address is
+        * where „Workshop" and the rest hang, so it is the first thing a
+        * visitor following the menu reads. „Nach und nach" is not filler - a
+        * list of two entries otherwise reads like the whole of it.
+        */}
+      <PageHeading
+        title={PAGES.guides.label}
+        intro={
+          props.themes.length > 0
+            ? "Anleitungen und Tutorials zum LoRaMINT-System:"
+            : "Hier entsteht der Anleitungsbereich. Sobald die erste Anleitung geschrieben ist, steht sie hier."
+        }
+      />
 
-    {props.roots.length > 0 && (
-      <ul class="list-disc pl-6 space-y-1 max-w-[65ch] mb-6">
-        {props.roots.map((root) => (
-          <li>
-            <a href={root.href} class="link">
-              {root.label}
-            </a>
-          </li>
-        ))}
-      </ul>
-    )}
+      {props.themes.length > 0 && (
+        <ul class="space-y-3">
+          {props.themes.map((theme) => (
+            <li>
+              <a href={theme.href} class="link font-semibold">
+                {theme.label}
+              </a>
+              {theme.unter.length > 0 && (
+                <ul class="list-disc pl-6 mt-1 space-y-1 text-base-content/80">
+                  {theme.unter.map((child) => (
+                    <li>
+                      <a href={child.href} class="link">
+                        {child.label}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
 
-    {/*
-      * An empty state that names the next step, for whoever can take it
-      * (`TAB-07`). For everybody else it stays a sentence, because a link into
-      * a page they may not open is not help.
-      */}
-    {props.mayEdit && (
-      <p class="max-w-[65ch] text-base-content/80">
-        Diese Übersichtsseite wird selbst geschrieben – als Anleitung mit der
-        Adresse <code>uebersicht</code> auf oberster Ebene. Anzulegen unter{" "}
-        <a href={PAGES.guidesManage.href} class="link">
-          {PAGES.guidesManage.label}
+      {/*
+        * An empty state that names the next step, for whoever can take it
+        * (`TAB-07`). For everybody else it stays a sentence, because a link
+        * into a page they may not open is not help.
+        */}
+      {props.themes.length === 0 && props.mayEdit && (
+        <p class="text-base-content/80">
+          Geschrieben werden sie unter{" "}
+          <a href={PAGES.guidesManage.href} class="link">
+            {PAGES.guidesManage.label}
+          </a>
+          .
+        </p>
+      )}
+
+      <p class="mt-8 text-base-content/70">
+        Die zentralen Dateien zu den Anleitungen liegen unter{" "}
+        <a href={PAGES.downloads.href} class="link">
+          {PAGES.downloads.label}
         </a>
         .
       </p>
-    )}
+    </article>
   </Layout>
 );
 

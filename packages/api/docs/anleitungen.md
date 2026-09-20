@@ -95,13 +95,20 @@ Seite freigeben will, entfernt sie dort.
 
 ### Die Übersichtsseite
 
-`/anleitungen` ist **selbst eine Anleitung**, angelegt auf oberster Ebene mit
-der Adresse `uebersicht`. Keine erzeugten Kacheln: eine gemachte Übersicht kann
-sagen, welche Anleitung man zuerst liest, eine erzeugte kann nur das Menü
-wiederholen.
+`/anleitungen` **listet die Themen auf**, zwei Ebenen tief, erzeugt aus dem
+Baum. Es gibt dort nichts zu schreiben und nichts zu pflegen.
 
-Solange es sie nicht gibt, listet `/anleitungen` die Themen und sagt
-Bearbeitern, wie die Seite entsteht.
+Das war einmal anders: Die Seite war selbst eine Anleitung, angelegt auf
+oberster Ebene mit der Adresse `uebersicht`. Eine geschriebene Übersicht kann
+sagen, welche Anleitung man zuerst liest, und das ist mehr, als eine erzeugte
+kann. Sie stand dafür **zweimal im Menü** – einmal als fester Eintrag
+„Übersicht" auf `/anleitungen`, einmal als Baumeintrag unter
+`/anleitungen/uebersicht` – und das ließ sich nur beheben, indem vier Stellen
+lernen, dass eine Zeile in `guides` keine gewöhnliche Zeile ist. Der Tausch war
+das nicht wert.
+
+Wer eine geschriebene Einleitung will, legt sie als gewöhnliche Anleitung an
+und verlinkt sie aus den Themen heraus.
 
 ---
 
@@ -123,7 +130,7 @@ Sicherheitseigenschaft, und jeder Baustein hält sich daran.
 | Bildgrösse | `![alt](/bild.png =50%)`, `=400`, `=x300`, `=200x400` — vor der Unterschrift |
 | Hinweiskasten | `> Text` |
 | Aufklapp-Abschnitt | `:::klapp Häufige Probleme` … `:::` |
-| Anker auf jeder Überschrift | `## Aufbau` → `[dorthin](#aufbau)` |
+| Anker auf jeder Überschrift | `## Aufbau` → `[dorthin](/anleitungen/thema#aufbau)` |
 
 Ein paar Feinheiten, die man sonst selbst herausfinden müsste:
 
@@ -147,6 +154,12 @@ Ein paar Feinheiten, die man sonst selbst herausfinden müsste:
 - **Eine unverständliche Grösse macht kein Bild.** `=abc` lässt die ganze Zeile
   als Text stehen, statt die Angabe still zu verschlucken – in der Vorschau
   sofort zu sehen.
+- **Ein Sprung braucht den ganzen Pfad.** Jede Überschrift bekommt ein `id`,
+  aber `[dorthin](#aufbau)` allein wird **kein Link**: `SAFE_SCHEME` lässt nur
+  `http`, `https`, `mailto` und Adressen ab `/` durch, eine reine Sprungmarke
+  fällt als Text heraus. Also `/anleitungen/howto/esp32#aufbau` schreiben.
+  Innerhalb derselben Seite sieht das umständlich aus und ist der Preis dafür,
+  dass `[hier](javascript:…)` an einer Stelle abgewiesen wird statt an vieren.
 - **Der Aufklapp-Abschnitt überlebt Leerzeilen und Codeblöcke.** Ein `:::` *in*
   einem Codeblock beendet ihn nicht.
 - **Bilder nur von diesem Server.** Ein `<img>` wird ohne Klick geladen, eine
@@ -319,6 +332,8 @@ statt zu einem Index darauf.
 werden von Hand als Anleitungsseiten neu angelegt. Für eine Handvoll Seiten ist
 Migrationscode, der genau einmal läuft und danach für immer im Repository
 steht, der teurere Weg.
+
+Die Übersichtsseite gehört nicht dazu: `/anleitungen` ist erzeugt, siehe oben.
 
 Empfohlene Adressen, weil die alten Adressen genau dorthin umleiten:
 
