@@ -89,20 +89,28 @@ const widePanel = "min-w-56 w-max max-w-[min(24rem,calc(100vw-2rem))]";
  * says where it goes. (One word - `right-full` to `left-full`, and the chevron
  * - flips it, if a deployment wants the other side.)
  *
- * `-me-1.5` is not a nudge for looks. `right-full` would put the panel's edge
- * exactly at the entry's edge, with the parent panel's own padding in between -
- * a strip that belongs to neither, so the pointer crossing it leaves `:hover`
- * and the sub-menu shuts in the user's face. The negative margin overlaps that
- * strip, and the two panels become one continuous hover area.
+ * **It hangs off the panel, not off the entry.** An absolutely positioned
+ * element measures from its nearest positioned ancestor, and daisyUI already
+ * makes the panel one - so `-top-px` is the panel's own top edge rather than
+ * the hovered row's, and the two panels line up along the top the way the
+ * panel lines up under its tab.
+ *
+ * That needs `static` on the entry and not merely the absence of `relative`:
+ * daisyUI positions every `li` in a menu itself. Dropping the class looked
+ * right and changed nothing, because the rule was never ours.
+ *
+ * They join rather than float: square corners on the touching side, and no
+ * border there at all, so one line runs between them instead of two. That is
+ * the same trick the open tab plays on its bottom edge.
  *
  * The `:where()` daisyUI wraps its own `li ul` rules in gives them no
  * specificity at all, so these plain utilities override the indentation, the
  * relative positioning and the little guide line without an `!important`.
  */
 const flyoutPanel =
-  `${panelSurface} hidden absolute top-0 right-full -me-1.5 z-20 ms-0 ` +
-  "space-y-1 rounded-box min-w-52 w-max max-w-[min(20rem,60vw)] " +
-  "whitespace-normal before:hidden";
+  `${panelSurface} hidden absolute -top-px right-full z-20 ms-0 me-0 ` +
+  "space-y-1 rounded-box rounded-e-none border-e-0 " +
+  "min-w-52 w-max max-w-[min(20rem,60vw)] whitespace-normal before:hidden";
 
 /**
  * What opens it: hover for a pointer, focus for a keyboard.
@@ -118,6 +126,49 @@ const flyoutPanel =
  * Without it they would be `display: none` and invisible to a screen reader.
  */
 const flyoutOpens = "[&:hover>ul]:block [&:focus-within>ul]:block";
+
+/**
+ * The strip between an entry and the panel beside it, made hoverable.
+ *
+ * Between the entry's edge and the outside of the panel lies the panel's own
+ * padding - six pixels that belong to neither. A pointer travelling across it
+ * is over neither the entry nor the sub-menu, `:hover` drops, and the panel
+ * shuts in the face of whoever was reaching for it. This is the single most
+ * annoying way for a menu to be broken, and it is invisible in a screenshot.
+ *
+ * The fix is not a gap-closing offset - the two must not overlap. The entry is
+ * stretched over the strip instead: a negative margin moves its edge out to
+ * where the panel begins, and the matching padding puts its contents back
+ * where they were. Nothing moves, and the hover area is continuous.
+ *
+ * It flips with the panel, because the strip is on whichever side the panel
+ * is - see `flyoutFlips`.
+ */
+const flyoutBridge = "static -ms-1.5 ps-1.5";
+
+/**
+ * The other side, for when the script below has measured room for it.
+ *
+ * `data-side="right"` is set on the entry by the script at the foot of this
+ * file; **without JavaScript the attribute is never there and the menu opens
+ * left**, which always fits. So this is an improvement on a working menu, not
+ * a crutch holding one up.
+ *
+ * Written as `[&[data-side=right]>ul]` rather than as a Tailwind `group`, for
+ * the same reason `flyoutOpens` is: a named group matches any ancestor
+ * carrying it, so a flipped topic would flip its grandchildren too. The
+ * direct-child selector speaks about one level and no other.
+ *
+ * The chevron turns with the panel. A mark pointing one way while the menu
+ * goes the other is worse than no mark at all.
+ */
+const flyoutFlips =
+  "[&[data-side=right]>ul]:left-full [&[data-side=right]>ul]:right-auto " +
+  "[&[data-side=right]>ul]:rounded-e-box [&[data-side=right]>ul]:rounded-s-none " +
+  "[&[data-side=right]>ul]:border-e [&[data-side=right]>ul]:border-s-0 " +
+  "data-[side=right]:ms-0 data-[side=right]:ps-0 " +
+  "data-[side=right]:-me-1.5 data-[side=right]:pe-1.5 " +
+  "[&[data-side=right]>a>svg]:rotate-180";
 
 /** A no-JS nav dropdown (daisyUI `<details>` menu) with a chevron indicator. */
 function NavDropdown(props: {
@@ -286,7 +337,7 @@ function NavBranch(props: {
   }
 
   return (
-    <li class={`relative ${flyoutOpens}`}>
+    <li class={`${flyoutBridge} ${flyoutOpens} ${flyoutFlips}`} data-flyout>
       <NavLink
         href={props.entry.href}
         current={props.isCurrent(props.entry.href)}
@@ -690,7 +741,8 @@ export default function Layout(props: { children: JSX.Element }) {
       </footer>
 
       {/* Keep the nav dropdowns mutually exclusive so their panels never
-          overlap, and close them on outside click / Escape. */}
+          overlap, close them on outside click / Escape - and open a sub-menu
+          to the right where there is room for it. */}
       <script>{`
         (function () {
           var menus = Array.prototype.slice.call(
@@ -698,7 +750,10 @@ export default function Layout(props: { children: JSX.Element }) {
           );
           menus.forEach(function (d) {
             d.addEventListener("toggle", function () {
-              if (d.open) menus.forEach(function (o) { if (o !== d) o.open = false; });
+              if (d.open) {
+                menus.forEach(function (o) { if (o !== d) o.open = false; });
+                place(d);
+              }
             });
           });
           document.addEventListener("click", function (e) {
@@ -706,6 +761,91 @@ export default function Layout(props: { children: JSX.Element }) {
           });
           document.addEventListener("keydown", function (e) {
             if (e.key === "Escape") menus.forEach(function (d) { d.open = false; });
+          });
+
+          /*
+           * Which side a sub-menu opens to.
+           *
+           * The stylesheet can only pick one side and has to pick the one that
+           * always fits, which is the left: the navigation sits at the
+           * right-hand end of the bar, and what stands to the right of it -
+           * the last tab, the sign-in control, the page margin - is the same
+           * few hundred pixels whatever the window is doing. A panel of any
+           * length runs past the edge from there. CSS cannot measure that;
+           * anchor positioning could, and only one browser has it.
+           *
+           * So this measures. Where the panel fits to the right it goes there,
+           * because that is where a menu is expected to open; otherwise it
+           * stays where the stylesheet put it. Remove this script and every
+           * sub-menu still opens - leftwards, every time.
+           */
+          var GAP = 8;
+
+          /*
+           * The width a panel *would* have. It is display:none until hovered,
+           * and a hidden element measures zero, so it is laid out behind
+           * visibility:hidden for the length of one synchronous read. Reverted
+           * before the browser paints, so nothing flickers.
+           */
+          function widthOf(panel) {
+            if (panel.offsetParent !== null) return panel.offsetWidth;
+            var display = panel.style.display;
+            var visibility = panel.style.visibility;
+            panel.style.visibility = "hidden";
+            panel.style.display = "block";
+            var width = panel.offsetWidth;
+            panel.style.display = display;
+            panel.style.visibility = visibility;
+            return width;
+          }
+
+          function placeOne(entry) {
+            var panel = entry.querySelector(":scope > ul");
+            if (!panel) return;
+
+            /*
+             * Measured from the panel the entry sits in, not from the entry.
+             * The sub-menu hangs off the panel's edge - that is the whole
+             * point of the entry being statically positioned - so the entry's
+             * own right edge is six pixels of padding short of where the
+             * sub-menu would actually start.
+             */
+            var host = entry.parentElement;
+            if (!host) return;
+
+            /*
+             * It has to be on screen. An entry in a panel that is still shut
+             * measures as a box of zeros in the top left corner, and every
+             * answer about it would be about a place it is not - so it is left
+             * alone until its own turn comes below.
+             */
+            var box = host.getBoundingClientRect();
+            if (box.width === 0) return;
+
+            var width = widthOf(panel);
+            // A zero means the measurement did not work. Leaving the attribute
+            // alone keeps whichever side the stylesheet chose, which works.
+            if (width === 0) return;
+
+            var room =
+              box.right + width + GAP <= document.documentElement.clientWidth;
+            entry.dataset.side = room ? "right" : "left";
+          }
+
+          function place(root) {
+            if (root.matches && root.matches("[data-flyout]")) placeOne(root);
+            root.querySelectorAll("[data-flyout]").forEach(placeOne);
+          }
+
+          /*
+           * Again on the way in, and that is where the deeper levels are
+           * settled: a sub-menu two levels down is not where it will end up
+           * until the one above it is open, and when the dropdown itself
+           * opened it was still shut inside the first panel.
+           */
+          document.querySelectorAll("header [data-flyout]").forEach(function (entry) {
+            entry.addEventListener("mouseenter", function () { place(entry); });
+            entry.addEventListener("focusin", function () { place(entry); });
           });
         })();
       `}</script>
