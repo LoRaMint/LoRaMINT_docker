@@ -11,7 +11,7 @@ Mit dieser Anleitung bringst du einen **ESP32** dazu, mit dem Funkmodul **Dragin
 - ein paar Steckkabel (Jumperkabel)
 - BME280-Sensor (für Temperatur-, Luftfeuchte- und Luftdruckmessung)
 
-![Die Bauteile im Überblick](/public/guides/esp32/parts.jpg "Die Bauteile im Überblick")
+![Die Bauteile im Überblick](/downloads/esp32/parts.jpg "Die Bauteile im Überblick")
 
 > **Das erledigt vorab eure Lehrkraft / euer Projektbetreuer**, du musst dich nicht darum kümmern: Das Funkmodul (LA66) muss in der **TTN-Konsole** angemeldet sein (Schlüssel DevEUI/AppEUI/AppKey registrieren).
 
@@ -35,12 +35,12 @@ Damit das Board Python „versteht", spielst du ihm einmalig **MicroPython** auf
 
 > **Board wird nicht gefunden?** Dann fehlt der **USB-Treiber** (CP210x oder CH340). Installiere ihn und probiere ein anderes USB-Kabel (manche Kabel können nur laden, nicht Daten übertragen).
 
-![Interpreter wählen und Port setzen](/public/guides/esp32/thonny_interpreter.png "Interpreter wählen und Port setzen")
+![Interpreter wählen und Port setzen](/downloads/esp32/thonny_interpreter.png "Interpreter wählen und Port setzen")
 
 5. Klicke unten auf **„MicroPython installieren oder aktualisieren"** (②).
 6. Im Dialog **Family** und **Variant** passend zum Board wählen und auf **Installieren** klicken. Kommt ein Verbindungsfehler, halte die **BOOT-Taste** am Board gedrückt, während die Installation startet.
 
-![MicroPython installieren](/public/guides/esp32/thonny_flash.png "MicroPython installieren")
+![MicroPython installieren](/downloads/esp32/thonny_flash.png "MicroPython installieren")
 
 7. Danach den Dialog schliessen und mit **OK** bestätigen.
 
@@ -61,7 +61,7 @@ Erscheint `Hallo ESP32`, klappt die Verbindung. 🎉
 
 Damit ESP32 und Funkmodul miteinander reden können, verbindest du sie mit vier Kabeln (das nennt man **UART** – eine einfache serielle Verbindung). Wichtig: **TX geht immer auf RX** und umgekehrt (Senden ↔ Empfangen), sonst hören beide nicht zu. Die folgende Skizze zeigt die **komplette Verkabelung inklusive BME280-Sensor**.
 
-![Verkabelung von ESP32, LA66 und BME280](/public/guides/esp32/esp32_wiring.png "Verkabelung von ESP32, LA66 und BME280 (zum Vergrössern anklicken)")
+![Verkabelung von ESP32, LA66 und BME280](/downloads/esp32/esp32_wiring.png "Verkabelung von ESP32, LA66 und BME280 (zum Vergrössern anklicken)")
 
 **ESP32 ↔ LA66 (Funkmodul)**
 
@@ -76,12 +76,12 @@ Damit ESP32 und Funkmodul miteinander reden können, verbindest du sie mit vier 
 
 `loramint` ist unsere fertige Programm-Bibliothek. Sie übernimmt das komplizierte Funken, damit dein Code kurz bleibt. Du kopierst den Ordner `loramint/` auf das Board:
 
-1. Lade die [loramint-Bibliothek (ZIP)](/public/guides/esp32/downloads/loramint.zip) herunter und aktiviere in Thonny **Ansicht → Dateien**. Es erscheinen zwei Bereiche: oben **dein Computer**, unten das **„MicroPython device"** (das Board).
+1. Lade die [loramint-Bibliothek (ZIP)](/downloads/esp32/loramint.zip) herunter und aktiviere in Thonny **Ansicht → Dateien**. Es erscheinen zwei Bereiche: oben **dein Computer**, unten das **„MicroPython device"** (das Board).
 2. Entpacke die ZIP und gehe im oberen Bereich in den Ordner mit den Dateien.
 3. **Rechtsklick** auf den Ordner `loramint` → **„Upload nach /"**.
 4. Unten (auf dem Gerät) muss danach der Ordner `loramint` auftauchen.
 
-![loramint-Ordner in Thonny hochladen](/public/guides/esp32/thonny_upload.png "loramint-Ordner in Thonny hochladen")
+![loramint-Ordner in Thonny hochladen](/downloads/esp32/thonny_upload.png "loramint-Ordner in Thonny hochladen")
 
 # 4. Verbindung zum LA66 testen
 
@@ -117,9 +117,9 @@ In der Shell siehst du:
 
 > 💡 **Warum aus dem Ordner `lightsleep`?** Jedes Beispiel gibt es zweimal. Die Fassungen in `deepsleep/` sind sparsamer, dafür **startet der ESP32 zwischen den Messungen neu** – die Verbindung zu Thonny bricht dann ab und du siehst nichts mehr. Die Fassungen in `lightsleep/` laufen einfach weiter, die Shell bleibt verbunden. Zum Ausprobieren also `lightsleep/`, und wenn das Gerät später allein irgendwo hängt, `deepsleep/`.
 
-Zum Ausprobieren: [send_bme280.py](/public/guides/esp32/downloads/lightsleep/send_bme280.py), [send_ds18b20.py](/public/guides/esp32/downloads/lightsleep/send_ds18b20.py), [main.py (ohne Sensor)](/public/guides/esp32/downloads/lightsleep/main.py).
+Zum Ausprobieren: [send_bme280.py](/downloads/esp32/lightsleep/send_bme280.py), [send_ds18b20.py](/downloads/esp32/lightsleep/send_ds18b20.py), [main.py (ohne Sensor)](/downloads/esp32/lightsleep/main.py).
 
-Für den Dauerbetrieb dieselben drei Programme in der sparsamen Fassung: [send_bme280.py](/public/guides/esp32/downloads/deepsleep/send_bme280.py), [send_ds18b20.py](/public/guides/esp32/downloads/deepsleep/send_ds18b20.py), [main.py](/public/guides/esp32/downloads/deepsleep/main.py) (Deep Sleep).
+Für den Dauerbetrieb dieselben drei Programme in der sparsamen Fassung: [send_bme280.py](/downloads/esp32/deepsleep/send_bme280.py), [send_ds18b20.py](/downloads/esp32/deepsleep/send_ds18b20.py), [main.py](/downloads/esp32/deepsleep/main.py) (Deep Sleep).
 
 Klappt die Anmeldung nicht (`txTimeout`), wurde zwar gefunkt, aber kein Gateway hat geantwortet – Schlüssel in TTN und die Antenne prüfen.
 

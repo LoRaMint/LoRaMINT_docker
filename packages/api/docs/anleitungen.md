@@ -335,10 +335,46 @@ Die ESP32-Anleitung liegt als Markdown in
 JSX-Seite, in der erweiterten Markdown-Syntax. Zum Einfügen in den Editor
 gedacht, nicht zum Ausliefern.
 
-Die Bilder und Beispielprogramme der ESP32-Anleitung liegen weiterhin unter
-`/public/guides/esp32/` und werden von `bun run sync-guide-assets` aus
-`packages/esp32` erzeugt. Sie müssen **nicht** hochgeladen werden – die
-Anleitung verlinkt sie unter ihren bisherigen Adressen.
+### Die Dateien der ESP32-Anleitung
+
+Bilder, Beispielprogramme und die Bibliotheks-ZIP lagen bis 1.16.0 unter
+`/public/guides/esp32/` im Repository und wurden von dort ausgeliefert. Sie
+sind jetzt Inhalte wie jede andere Datei: sie gehören ins Upload-Volume und
+werden als `/downloads/esp32/…` verlinkt. Im Repository liegt keine Kopie mehr.
+
+Erzeugt werden sie weiter aus `packages/esp32`, denn `loramint.zip` von Hand zu
+packen ist, was einmal eine Bibliotheksfassung ausgeliefert hat, die nicht
+senden konnte:
+
+```bash
+cd packages/api && bun run sync-guide-assets
+```
+
+Das legt sie unter `temp/upload/esp32/` ab – gitignoriert – und nennt zu jeder
+Datei den Ordner, in den sie gehört. Hochgeladen wird unter
+`/management/dateien`, Ordner für Ordner:
+
+| Von | Nach |
+|---|---|
+| `temp/upload/esp32/*.jpg,png,zip` | `esp32` |
+| `temp/upload/esp32/lightsleep/*.py` | `esp32/lightsleep` |
+| `temp/upload/esp32/deepsleep/*.py` | `esp32/deepsleep` |
+
+Die Ordnernamen sind nicht Geschmackssache: die Anleitung verlinkt absolute
+Adressen. Der fertige Text liegt in
+[`anleitungen/esp32.md`](anleitungen/esp32.md) und zeigt genau dorthin.
+
+**Freischalten nur, was auf die Downloadseite gehört.** Die Bilder im Text
+brauchen keine Freischaltung, um angezeigt zu werden – die Programme und die
+ZIP wollen dagegen wahrscheinlich dort stehen.
+
+> **Was dabei an Zusicherung verlorengeht, offen gesagt.** Bisher liess CI das
+> Skript laufen und scheiterte, wenn das Ergebnis von der eingecheckten Kopie
+> abwich – eine veraltete Kopie konnte damit kein Release erreichen. Es gibt
+> nichts Eingechecktes mehr zum Vergleichen, und die Kopie, auf die es ankommt,
+> liegt in einem Volume auf einem Server. CI merkt jetzt nur noch, wenn eine
+> *Quelle* verschwindet oder umbenannt wird; dass nach einer Änderung an der
+> Bibliothek niemand neu hochgeladen hat, kann nur ein Mensch bemerken.
 
 ---
 

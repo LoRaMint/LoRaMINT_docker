@@ -107,6 +107,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   erst zu `../` werden kann.
 
 ### Removed
+- **Die Dateien der ESP32-Anleitung liegen nicht mehr im Repository.** Bilder,
+  Beispielprogramme und `loramint.zip` standen als eingecheckte Kopien unter
+  `packages/api/public/guides/esp32/` und wurden von dort ausgeliefert. Sie
+  sind Inhalte wie jede andere Datei: sie gehören ins Upload-Volume und werden
+  als `/downloads/esp32/…` verlinkt.
+
+  `bun run sync-guide-assets` erzeugt sie weiterhin aus `packages/esp32` –
+  `loramint.zip` von Hand zu packen ist, was einmal eine Bibliotheksfassung
+  ausgeliefert hat, die nicht senden konnte – legt sie aber jetzt unter
+  `temp/upload/esp32/` zum Hochladen bereit und nennt zu jeder Datei den
+  Zielordner.
+
+  **Dabei geht eine Zusicherung verloren, und das sei gesagt:** CI scheiterte
+  bisher, wenn das Ergebnis von der eingecheckten Kopie abwich, sodass eine
+  veraltete Kopie kein Release erreichen konnte. Es gibt nichts Eingechecktes
+  mehr zum Vergleichen. CI merkt jetzt nur noch, wenn eine *Quelle* umbenannt
+  wird oder verschwindet; dass nach einer Änderung an der Bibliothek niemand
+  neu hochgeladen hat, kann nur ein Mensch bemerken.
+
 - **`CONTENT_WORKSHOP` gibt es nicht mehr**, und mit ihr die Seite
   `/management/workshop`. Der Text gehört jetzt in eine Anleitungsseite. Eine
   übrige Zeile in der `settings`-Tabelle stört nicht – sie wird beim Start als

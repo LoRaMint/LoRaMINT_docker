@@ -1,24 +1,49 @@
-// Regenerates the guide assets under public/guides/esp32/ from their sources in
+// Lays out the ESP32 guide's files ready to be uploaded, from their sources in
 // packages/esp32.
 //
-// The API image is built with packages/api as its Docker context, so it cannot
-// reach packages/esp32 at build time - the images, examples and the library ZIP
-// offered on /guides/esp32 have to be committed copies. Copying them by hand is
-// what let the shipped loramint.zip go stale and hand out a library version that
-// could not transmit. Run this script instead:
+// **What changed, and why this script still exists.** The images, the example
+// programs and the library ZIP used to be committed copies under
+// public/guides/esp32 and were served from there. They are content now like
+// every other file: they live in the upload volume, they are linked from the
+// guide as /downloads/esp32/…, and no copy of them belongs in the repository.
+//
+// What does not change is the reason this was ever a script. `loramint.zip` is
+// built from packages/esp32/loramint, and it was assembling it by hand that
+// once shipped a library version which could not transmit. The archive is still
+// written here with fixed timestamps and stored (uncompressed) entries rather
+// than by shelling out to `zip`, so the same sources always produce the same
+// bytes and "did anything actually change?" is a question with an answer.
 //
 //     bun run sync-guide-assets
 //
-// CI runs it too and fails when the result differs from what is committed, so
-// the copies cannot drift again. That requires byte-identical output, which is
-// why the ZIP is written here with fixed timestamps and stored (uncompressed)
-// entries rather than shelling out to `zip`.
+// It writes into temp/upload/, which is ignored by git, and prints the folder
+// each file belongs in. Uploading is a deliberate step under
+// /management/dateien - see packages/api/docs/anleitungen.md.
+//
+// **The guarantee that got weaker, said plainly.** CI used to run this and fail
+// when the result differed from what was committed, so a stale copy could not
+// reach a release. There is nothing committed to compare against any more, and
+// the copies that matter now sit in a volume on a server that CI cannot see.
+// What CI still catches is a source that moved or was renamed - the script
+// refuses to run - and that is worth keeping. What nobody but a person can
+// catch is an upload that was never repeated after the library changed.
 
 import { readdir } from "node:fs/promises";
+import { relative, resolve } from "node:path";
 
-const root = `${import.meta.dir}/../../..`;
+// Resolved, so the listing at the end reads as a path and not as a trail of
+// `..` segments through the package it was started from.
+const root = resolve(import.meta.dir, "../../..");
 const esp32 = `${root}/packages/esp32`;
-const guide = `${root}/packages/api/public/guides/esp32`;
+
+/**
+ * Where the files are laid out, mirroring the addresses they will have.
+ *
+ * `temp/upload/esp32/parts.jpg` becomes `/downloads/esp32/parts.jpg`. One shape
+ * for both, so what has to be uploaded where can be read off the folder instead
+ * of worked out from a list in a document.
+ */
+const guide = `${root}/temp/upload/esp32`;
 
 const IMAGES = [
   "parts.jpg",
@@ -28,8 +53,8 @@ const IMAGES = [
   "thonny_upload.png",
 ];
 
-// Paths relative to packages/esp32/examples, mirrored one to one under
-// downloads/ - the two folders hold files of the same name.
+// Paths relative to packages/esp32/examples, mirrored one to one - the two
+// folders hold files of the same name.
 const EXAMPLES = [
   "deepsleep/main.py",
   "deepsleep/send_bme280.py",
@@ -163,7 +188,7 @@ for (const name of IMAGES) {
 }
 
 for (const name of EXAMPLES) {
-  await copy(`${esp32}/examples/${name}`, `${guide}/downloads/${name}`);
+  await copy(`${esp32}/examples/${name}`, `${guide}/${name}`);
 }
 
 // The library ZIP: every .py in packages/esp32/loramint, sorted so the archive
@@ -177,11 +202,33 @@ for (const name of libFiles) {
   const data = new Uint8Array(await Bun.file(`${esp32}/loramint/${name}`).arrayBuffer());
   zipEntries.push({ name: `loramint/${name}`, data });
 }
-await write(`${guide}/downloads/loramint.zip`, buildZip(zipEntries));
+await write(`${guide}/loramint.zip`, buildZip(zipEntries));
 
-if (changed.length === 0) {
-  console.log("Guide assets are up to date.");
-} else {
-  console.log(`Updated ${changed.length} guide asset(s):`);
-  for (const path of changed) console.log(`  ${path}`);
-}
+//====================================
+// WHAT TO DO WITH IT
+//====================================
+
+/*
+ * The listing is the instruction. A sentence saying "upload these somewhere
+ * sensible" is how the folders end up different on every deployment, and the
+ * guide links absolute addresses - so the folder is not a matter of taste.
+ */
+const target = relative(process.cwd(), `${root}/temp/upload`) || "temp/upload";
+const folders = [...new Set(EXAMPLES.map((name) => name.split("/")[0]!))].sort();
+
+console.log(
+  changed.length === 0
+    ? "Guide assets unchanged - temp/upload/esp32 already holds this version."
+    : `Wrote ${changed.length} file(s) into temp/upload/esp32:`,
+);
+for (const path of changed) console.log(`  ${path}`);
+
+console.log(`
+Ready to upload under /management/dateien, folder by folder:
+
+  ${target}/esp32/*.{jpg,png,zip}   ->  esp32
+${folders.map((folder) => `  ${target}/esp32/${folder}/*.py${" ".repeat(Math.max(1, 14 - folder.length))}->  esp32/${folder}`).join("\n")}
+
+The guide links them as /downloads/esp32/… , so the folder names decide whether
+its pictures appear. Release only what belongs on the public download page -
+the pictures in the text need no release to be shown (services/uploads.ts).`);

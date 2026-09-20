@@ -97,12 +97,21 @@ jobs:
           DB_TESTS_REQUIRED: "1"
         run: bun test
 
-      # The guide assets under public/guides/esp32 are committed copies of files
-      # in packages/esp32 (the API image cannot reach that package at build
-      # time). Regenerate them and fail if the result differs from what is
-      # committed, so the copies cannot silently go stale.
-      - name: Guide assets in sync
-        run: bun run sync-guide-assets && git diff --exit-code
+      # The ESP32 guide's files are built from packages/esp32 by this script.
+      #
+      # It used to end in `git diff --exit-code`: the output was committed under
+      # public/guides/esp32, so a stale copy could not reach a release. Those
+      # files are content now - they live in the upload volume and are linked as
+      # /downloads/esp32/… - and there is nothing committed left to compare
+      # against.
+      #
+      # So this asserts less than it did, and it is worth being precise about
+      # what: it catches a source that was renamed or removed, because the
+      # script refuses to run without it. It cannot catch an upload that was
+      # never repeated after the library changed - that copy sits on a server,
+      # and no workflow can see it.
+      - name: Guide assets still buildable
+        run: bun run sync-guide-assets
 
       # Build the image without pushing it.
       #
