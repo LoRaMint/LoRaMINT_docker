@@ -57,10 +57,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Unterschrift.
 
   **Ein Anteil ist der bessere erste Griff:** er stimmt auf jedem Bildschirm,
-  eine Pixelzahl nur auf dem, an dem sie gewählt wurde. Bezug ist die
-  Inhaltsspalte – die Breite, die ein Bild auf der Seite überhaupt haben kann –,
-  nicht das 65-Zeichen-Mass des Fliesstextes; Bilder dürfen hier ausdrücklich
-  breiter laufen als die Prosa.
+  eine Pixelzahl nur auf dem, an dem sie gewählt wurde. Bezug ist die Spalte,
+  und die ist für alles in einer Anleitung dieselbe.
 
   **Es ist eine Obergrenze, kein Zerren.** Das Bild passt sich in den Rahmen
   ein und behält sein Seitenverhältnis; es wird nicht auf genau dieses Mass
@@ -68,6 +66,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ein zu klein geratenes Bild sieht man ihm den Fehler nicht an. Auf einem
   schmalen Schirm bleibt das Bild schmal, auch wenn eine grössere Zahl
   dasteht – sonst hinge ein 600-px-Screenshot auf einem Telefon über den Rand.
+
+- **Eine Anleitung ist eine Spalte:** 65 Zeichen für alles darin – Absätze,
+  Hinweiskästen, Tabellen, Codeblöcke, Bilder, Überschrift und Fusszeile.
+
+  `FORM-04` verlangt die 65 Zeichen für den Fliesstext und *erlaubt* Tabellen
+  und Diagrammen, breiter zu laufen; diese Erlaubnis wird nicht genutzt. Eine
+  Spalte Text mit Kästen in drei Breiten darin lässt das Auge die ganze Seite
+  lang nach der Kante suchen. Verloren geht dabei nichts: eine lange Codezeile
+  und eine breite Tabelle scrollen seitwärts in sich, so wie auf einem Telefon
+  ohnehin.
 
 - **Markdown kann, was eine lange Anleitung braucht.** Hinweiskasten
   (`> Text`), Bildunterschrift (`![alt](/bild.png "Unterschrift")`),

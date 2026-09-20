@@ -20,32 +20,35 @@ import type { GuideEntry } from "../../../lib/guide-store";
  * because this text is written by the editor role rather than only by an
  * administrator - see lib/markdown.ts.
  *
- * **Why the prose is narrowed one element at a time.** Running text belongs in
- * a measure of about 65 characters, and the Impressum gets that from a wrapper.
- * Here the same wrapper would also squeeze the tables, the pictures and the
- * code blocks, which the design explicitly lets run wider - a three-column
- * table or a line of Python at 90 characters is unreadable in a narrow column,
- * and scrolling it sideways inside a page that has room to spare is worse. So
- * the container is full width and the running-text elements are narrowed
- * individually.
- *
- * **Which is why the note box and the collapsible are picked by a class and
- * not by their tag.** Both are a `<div>`, and so is the scrolling frame that
- * `renderMarkdown` puts around a table - a rule aimed at `div` narrowed the
- * tables as well, exactly what the paragraph above says must not happen, and
- * it did so silently. `lm-prose` is set in lib/markdown.ts on the things that
- * are running text; the element name alone cannot tell them apart.
+ * **One column, one width - see `MEASURE`.**
  */
 
-/*
- * Written out one by one, and it has to be: Tailwind finds classes by reading
- * this file as text, so a list run through `.map()` produces a tidy-looking
- * string and no stylesheet at all. Every class here is a literal on purpose.
+/**
+ * How wide a guide is: 65 characters, for everything in it.
+ *
+ * `FORM-04` asks for 65 characters of running text and *permits* tables and
+ * diagrams to be wider. It was read as an instruction for a while, and the
+ * page narrowed the prose element by element while code blocks and tables ran
+ * the full width of the article. On a screen that is one column of text with
+ * things sticking out of it at three different widths, and the eye spends the
+ * page looking for the edge.
+ *
+ * Declining a permission costs nothing here. A code block and the frame around
+ * a table both scroll sideways already (`overflow-x-auto`), which is what
+ * happens on a phone anyway - so the wide line is still readable, it is just
+ * read by scrolling instead of by turning the head. The Impressum has been one
+ * column since it was written; this is the same.
+ *
+ * On the `<article>` rather than on the text, so the heading and its rule, the
+ * list of sub-pages and the note about the downloads all end on the same line.
+ * A measure that half the page keeps is not a measure.
+ *
+ * It also fixes something no rule would have caught: the note box is
+ * `text-sm`, and `ch` is relative to *its own* font - narrowed on its own it
+ * came out at 561px against the paragraph's 641px, visibly short of a line it
+ * was supposed to share.
  */
-const PROSE_WIDTH =
-  "[&>p]:max-w-[65ch] [&>ul]:max-w-[65ch] [&>ol]:max-w-[65ch] " +
-  "[&>h2]:max-w-[65ch] [&>h3]:max-w-[65ch] [&>h4]:max-w-[65ch] " +
-  "[&>.lm-prose]:max-w-[65ch]";
+const MEASURE = "max-w-[65ch]";
 
 const GuidePage = (props: {
   title: string;
@@ -64,7 +67,7 @@ const GuidePage = (props: {
   draft?: boolean;
 }) => (
   <Layout>
-    <article class="max-w-4xl">
+    <article class={MEASURE}>
       <PageHeading
         title={props.title}
         {...(props.parent ? { back: props.parent } : {})}
@@ -83,7 +86,7 @@ const GuidePage = (props: {
         </Notice>
       )}
 
-      <div class={`text-base ${PROSE_WIDTH}`} innerHTML={renderMarkdown(props.body)} />
+      <div class="text-base" innerHTML={renderMarkdown(props.body)} />
 
       {/*
         * The pages below, listed at the foot.
@@ -97,7 +100,7 @@ const GuidePage = (props: {
       {props.below.length > 0 && (
         <nav class="mt-8 border-t border-base-300 pt-4">
           <h2 class="text-lg font-semibold mb-2">Auf dieser Seite weiter</h2>
-          <ul class="list-disc pl-6 space-y-1 max-w-[65ch]">
+          <ul class="list-disc pl-6 space-y-1">
             {props.below.map((child) => (
               <li>
                 <a href={child.href} class="link">
@@ -109,7 +112,7 @@ const GuidePage = (props: {
         </nav>
       )}
 
-      <p class="mt-8 max-w-[65ch] text-base-content/70">
+      <p class="mt-8 text-base-content/70">
         Die Dateien zu den Anleitungen liegen unter{" "}
         <a href={PAGES.downloads.href} class="link">
           {PAGES.downloads.label}

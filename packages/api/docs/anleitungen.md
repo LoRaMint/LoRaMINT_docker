@@ -140,11 +140,8 @@ Ein paar Feinheiten, die man sonst selbst herausfinden müsste:
   eine grössere Zahl dasteht.
 - **`=50%` ist der bessere erste Griff.** Ein Anteil stimmt auf jedem
   Bildschirm, eine Pixelzahl nur auf dem, an dem sie gewählt wurde. Bezug ist
-  die **Inhaltsspalte** – die Breite, die ein Bild auf dieser Seite überhaupt
-  haben kann –, nicht das 65-Zeichen-Mass des Fliesstextes: Bilder, Tabellen
-  und Codeblöcke dürfen hier ausdrücklich breiter laufen als die Prosa
-  (`frontend/pages/guides/page.tsx`). `=100%` ist deshalb dasselbe wie gar
-  keine Angabe.
+  die Spalte, und die ist für alles dieselbe – siehe unten. `=100%` ist
+  deshalb dasselbe wie gar keine Angabe.
 - **Mehr als 100 % gibt es nicht.** `=150%` bleibt Text stehen, statt
   stillschweigend auf 100 % zurechtgestutzt zu werden.
 - **Eine unverständliche Grösse macht kein Bild.** `=abc` lässt die ganze Zeile
@@ -161,6 +158,24 @@ Ein paar Feinheiten, die man sonst selbst herausfinden müsste:
 Der **Kopier-Knopf** an Codeblöcken und die **Lightbox** an Bildern kommen von
 `/public/guides.js` und gelten auf jeder Anleitung, auch in der Vorschau. Ohne
 JavaScript fehlt beides und sonst nichts.
+
+### Eine Spalte, eine Breite
+
+Eine Anleitung ist **65 Zeichen breit — alles darin**: Absätze, Hinweiskästen,
+Tabellen, Codeblöcke, Bilder, die Überschrift samt Linie und die Liste der
+Unterseiten am Fuss.
+
+`FORM-04` im Designsystem verlangt die 65 Zeichen für den Fliesstext und
+*erlaubt* Tabellen und Diagrammen, breiter zu laufen. Diese Erlaubnis wird
+nicht genutzt, und das ist eine Entscheidung: eine Spalte Text mit Kästen in
+drei verschiedenen Breiten darin lässt das Auge die ganze Seite lang nach der
+Kante suchen. Eine lange Codezeile oder eine breite Tabelle geht nicht
+verloren — beide scrollen seitwärts in sich (`overflow-x-auto`), so wie auf
+einem Telefon ohnehin.
+
+Die Zahl steht einmal, in `frontend/pages/guides/page.tsx` als `MEASURE`, und
+die Vorschau im Editor benutzt dieselbe — sonst bräche sie die Zeilen woanders
+als die Seite.
 
 ### Vorschau
 

@@ -39,14 +39,6 @@
  *
  * The classes are the ones the rest of the application uses, so a table typed
  * into the box looks like a table built from a component - see lib/table-style.ts.
- *
- * **`lm-prose` marks what is running text.** A page narrows prose to a reading
- * measure and lets pictures, code and tables run wider, and it can only do
- * that by naming the elements - which is where it went wrong: a note box and
- * the frame around a table are both a `<div>`, so a rule aimed at `div`
- * squeezed the tables too, directly under a comment saying it must not. The
- * distinction is not visible in the element name, so it is written down here,
- * where the element is made.
  */
 
 import {
@@ -125,11 +117,11 @@ const CAPTION_CLASS = "text-sm text-base-content/70 mt-1";
  * used to build by hand.
  */
 const NOTE_CLASS =
-  "lm-prose border-l-4 border-primary bg-base-200 rounded-r-box px-4 py-3 my-4 text-sm";
+  "border-l-4 border-primary bg-base-200 rounded-r-box px-4 py-3 my-4 text-sm";
 
 /** A collapsible section, in the shape daisyUI gives a `<details>`. */
 const COLLAPSE_CLASS =
-  "lm-prose collapse collapse-arrow border border-base-300 rounded-box bg-base-100 my-4";
+  "collapse collapse-arrow border border-base-300 rounded-box bg-base-100 my-4";
 
 /**
  * Stands in for a code span while the rest of the line is formatted.

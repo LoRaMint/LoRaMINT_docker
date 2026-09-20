@@ -198,10 +198,17 @@ const GuideEditPage = (props: {
           <p class="text-sm text-base-content/70 mb-2">
             So sähe die Seite aus. Gespeichert ist noch nichts.
           </p>
-          <div
-            class="rounded-box border border-base-300 p-4 mb-4"
-            innerHTML={renderMarkdown(props.preview)}
-          />
+          {/*
+            * The inner width is the guide's own measure, so the preview breaks
+            * its lines where the page will. A preview that is wider than the
+            * page answers a question nobody asked.
+            */}
+          <div class="rounded-box border border-base-300 p-4 mb-4 w-fit max-w-full">
+            <div
+              class="text-base max-w-[65ch]"
+              innerHTML={renderMarkdown(props.preview)}
+            />
+          </div>
         </>
       )}
 
