@@ -33,11 +33,91 @@ const tabOpen = "group-open:bg-base-100 group-open:text-base-content " +
 /** The page one is on, marked under the tab rather than by lifting it. */
 const tabCurrent = "text-primary font-medium border-b-2 border-b-primary";
 
-/** The panel, flush under its tab: no top-left round, no gap, one shadow. */
+/**
+ * What every menu panel looks like. The surface, not the size.
+ *
+ * **No width and no overflow here**, deliberately: the wide menu and the phone
+ * menu need different ones, and putting a value here plus an override in the
+ * caller relies on which Tailwind class lands later in the stylesheet rather
+ * than on which one is written later. That is a coin toss, so each panel says
+ * its own.
+ */
+const panelSurface =
+  "p-1.5 bg-base-100 text-base-content border border-base-300 shadow-raised";
+
+/**
+ * The panel hanging off a tab: flush underneath it, so the two read as one.
+ *
+ * `menu` lives here and **not** in `panelSurface`, although a fly-out looks
+ * the same. Two reasons, and the second is the one that bites: the entries
+ * inside a fly-out are descendants of *this* `.menu` and are styled by it
+ * either way, so the class would be redundant - and `.menu` sets
+ * `display: flex`, which is a direct fight with the `hidden` a closed fly-out
+ * depends on. Tailwind emits its utilities after daisyUI's components so
+ * `hidden` happens to win, but a panel whose whole job is to stay shut should
+ * not rest its case on the order of a stylesheet.
+ */
 const panelClass =
-  "menu dropdown-content z-10 mt-0 w-56 gap-1 p-1.5 " +
-  "bg-base-100 text-base-content border border-base-300 " +
-  "rounded-b-box rounded-tr-box shadow-raised";
+  `menu ${panelSurface} gap-1 dropdown-content z-10 mt-0 ` +
+  "rounded-b-box rounded-tr-box [&_li_ul]:whitespace-normal";
+
+/**
+ * Wide screens: as wide as the longest entry needs, within reason.
+ *
+ * `w-max` rather than a fixed width, because the titles are written by whoever
+ * writes the guides and nobody can pick a number that fits them all. Past the
+ * cap the titles wrap instead of being cut off at the edge.
+ *
+ * **No `overflow` and no height cap**, and that is not an oversight: a
+ * sub-menu is positioned outside this panel, and an ancestor with
+ * `overflow: auto` clips exactly that. Since the depth of the tree now goes
+ * sideways rather than downwards, this panel only ever holds the topics - a
+ * short list - so there is nothing left for a scrollbar to solve. The phone
+ * menu, which has no fly-outs, keeps its scrolling.
+ */
+const widePanel = "min-w-56 w-max max-w-[min(24rem,calc(100vw-2rem))]";
+
+/**
+ * A sub-menu, opening beside its parent instead of indented underneath it.
+ *
+ * **It opens to the left**, and that is the one decision here worth a
+ * sentence. The header navigation sits at the right-hand end of the bar, so a
+ * panel opening rightwards runs off the window on anything narrower than a
+ * large desktop - and CSS cannot measure that at render time. Opening left
+ * always has the whole page width available. It is what a menu near the right
+ * edge does on any desktop anyway; the chevron points that way, so the entry
+ * says where it goes. (One word - `right-full` to `left-full`, and the chevron
+ * - flips it, if a deployment wants the other side.)
+ *
+ * `-me-1.5` is not a nudge for looks. `right-full` would put the panel's edge
+ * exactly at the entry's edge, with the parent panel's own padding in between -
+ * a strip that belongs to neither, so the pointer crossing it leaves `:hover`
+ * and the sub-menu shuts in the user's face. The negative margin overlaps that
+ * strip, and the two panels become one continuous hover area.
+ *
+ * The `:where()` daisyUI wraps its own `li ul` rules in gives them no
+ * specificity at all, so these plain utilities override the indentation, the
+ * relative positioning and the little guide line without an `!important`.
+ */
+const flyoutPanel =
+  `${panelSurface} hidden absolute top-0 right-full -me-1.5 z-20 ms-0 ` +
+  "space-y-1 rounded-box min-w-52 w-max max-w-[min(20rem,60vw)] " +
+  "whitespace-normal before:hidden";
+
+/**
+ * What opens it: hover for a pointer, focus for a keyboard.
+ *
+ * `[&:hover>ul]` and not a Tailwind `group`, because a named group matches
+ * *any* hovered ancestor carrying it - so hovering a topic would open its
+ * grandchildren too. The direct-child selector opens one level, and the levels
+ * below stay open on their own because a pointer inside a sub-menu is still
+ * inside the entry that owns it.
+ *
+ * `focus-within` is what makes the sub-pages reachable without a mouse at all:
+ * tabbing onto the topic reveals its panel, and the next Tab walks into it.
+ * Without it they would be `display: none` and invisible to a screen reader.
+ */
+const flyoutOpens = "[&:hover>ul]:block [&:focus-within>ul]:block";
 
 /** A no-JS nav dropdown (daisyUI `<details>` menu) with a chevron indicator. */
 function NavDropdown(props: {
@@ -65,7 +145,7 @@ function NavDropdown(props: {
           <path d="m6 9 6 6 6-6" />
         </svg>
       </summary>
-      <ul class={panelClass}>{props.children}</ul>
+      <ul class={`${panelClass} ${widePanel}`}>{props.children}</ul>
     </details>
   );
 }
@@ -74,14 +154,70 @@ function NavDropdown(props: {
 function NavItem(props: { href: string; current?: boolean; children: JSX.Element }) {
   return (
     <li>
-      <a
-        href={props.href}
-        class={props.current ? "bg-primary text-primary-content" : "hover:bg-base-200"}
-        aria-current={props.current ? "page" : undefined}
-      >
+      <NavLink href={props.href} current={props.current}>
         {props.children}
-      </a>
+      </NavLink>
     </li>
+  );
+}
+
+/**
+ * The link itself, so an entry with children and one without cannot drift
+ * apart. They did for one afternoon: the branch version grew an `aria-current`
+ * and the leaf version a different hover colour, and nothing said which was
+ * right.
+ *
+ * Three states, and they are three because two would not be enough once the
+ * sub-pages are behind a fly-out. `current` is "you are here" and is filled.
+ * `leadsTo` is "the page you are on is in here" - the topic of the page one is
+ * reading, whose own entry is hidden until the panel opens. Without it the
+ * open menu would mark nothing at all and say nothing about where one is.
+ * Weight *and* colour, never colour alone (`GRUND-03`).
+ */
+function NavLink(props: {
+  href: string;
+  current?: boolean;
+  /** The page being shown lies below this entry, but is not this entry. */
+  leadsTo?: boolean;
+  children: JSX.Element;
+}) {
+  const state = props.current
+    ? "bg-primary text-primary-content"
+    : props.leadsTo
+      ? "text-primary font-medium hover:bg-base-200"
+      : "hover:bg-base-200";
+  return (
+    <a
+      href={props.href}
+      class={state}
+      aria-current={props.current ? "page" : undefined}
+    >
+      {props.children}
+    </a>
+  );
+}
+
+/**
+ * The mark on an entry that opens a panel beside it.
+ *
+ * It points the way the panel actually opens - see `flyoutPanel`. A chevron
+ * that points one way while the menu goes the other is worse than none.
+ */
+function SubChevron() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2.5"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      class="h-3 w-3 justify-self-end opacity-60"
+      aria-hidden="true"
+    >
+      <path d="m15 18-6-6 6-6" />
+    </svg>
   );
 }
 
@@ -96,15 +232,28 @@ function NavItem(props: { href: string; current?: boolean; children: JSX.Element
 type NavEntry = { href: string; label: string; items?: NavEntry[] };
 
 /**
- * An entry and everything under it, recursively.
+ * An entry and everything under it, recursively - in one of two shapes.
  *
- * `isCurrent` is passed in rather than imported: it is closed over the request
- * being rendered, and a module-level version would need the path as a second
- * argument at every call.
+ * **`flyout`** is the wide header: a topic opens its sub-pages in a panel
+ * beside it, the way a desktop menu has always done it. The panel is only
+ * ever as deep as one level at a time, so the width of the menu stops being a
+ * function of how deep somebody nested their guides.
+ *
+ * **Without it** the sub-pages are indented underneath, which is what the
+ * phone menu uses. Not a lesser version: a fly-out needs hover, a phone has
+ * none, and a panel opening sideways out of a 20rem sheet would open into
+ * nothing. Two shapes for two inputs, from one tree.
+ *
+ * `isCurrent` and `leadsTo` are passed in rather than imported: both are
+ * closed over the request being rendered, and a module-level version would
+ * need the path as a second argument at every call.
  */
 function NavBranch(props: {
   entry: NavEntry;
   isCurrent: (href: string) => boolean;
+  leadsTo: (entry: NavEntry) => boolean;
+  /** Open the children beside this entry instead of indented under it. */
+  flyout?: boolean;
 }) {
   const children = props.entry.items ?? [];
   if (children.length === 0) {
@@ -114,24 +263,39 @@ function NavBranch(props: {
       </NavItem>
     );
   }
+
+  const below = () =>
+    children.map((child) => (
+      <NavBranch
+        entry={child}
+        isCurrent={props.isCurrent}
+        leadsTo={props.leadsTo}
+        flyout={props.flyout}
+      />
+    ));
+
+  if (!props.flyout) {
+    return (
+      <li>
+        <NavLink href={props.entry.href} current={props.isCurrent(props.entry.href)}>
+          {props.entry.label}
+        </NavLink>
+        <ul>{below()}</ul>
+      </li>
+    );
+  }
+
   return (
-    <li>
-      <a
+    <li class={`relative ${flyoutOpens}`}>
+      <NavLink
         href={props.entry.href}
-        class={
-          props.isCurrent(props.entry.href)
-            ? "bg-primary text-primary-content"
-            : "hover:bg-base-200"
-        }
-        aria-current={props.isCurrent(props.entry.href) ? "page" : undefined}
+        current={props.isCurrent(props.entry.href)}
+        leadsTo={props.leadsTo(props.entry)}
       >
         {props.entry.label}
-      </a>
-      <ul>
-        {children.map((child) => (
-          <NavBranch entry={child} isCurrent={props.isCurrent} />
-        ))}
-      </ul>
+        <SubChevron />
+      </NavLink>
+      <ul class={flyoutPanel}>{below()}</ul>
     </li>
   );
 }
@@ -223,18 +387,22 @@ export default function Layout(props: { children: JSX.Element }) {
    * again for itself.
    */
   /**
-   * Whether a menu entry is the page being shown.
+   * Whether the page being shown lies at this address or under it.
    *
-   * Prefix rather than equality, so a sub-page still marks the section it
-   * belongs to - /management/devices/3 is still "Geräte verwalten". "/" is
-   * matched exactly, because otherwise it would be the prefix of everything.
+   * Prefix rather than equality, so a sub-page without an entry of its own
+   * still marks the section it belongs to - /management/devices/3 is still
+   * "Geräte verwalten". "/" is matched exactly, because otherwise it would be
+   * the prefix of everything.
+   *
+   * This is *not* the same question as "is this the current page" - see
+   * `isCurrent` below, which is defined once the entries are known.
    */
-  const isCurrent = (href: string): boolean =>
+  const covers = (href: string): boolean =>
     href === "/" ? path === "/" : path === href || path.startsWith(`${href}/`);
 
-  /** True when this entry or anything under it is the page being shown. */
+  /** True when this entry or anything under it holds the page being shown. */
   const anyCurrent = (entry: NavEntry): boolean =>
-    isCurrent(entry.href) || (entry.items ?? []).some(anyCurrent);
+    covers(entry.href) || (entry.items ?? []).some(anyCurrent);
 
   /**
    * The guides, as the menu shows them: the whole tree, nested.
@@ -339,6 +507,49 @@ export default function Layout(props: { children: JSX.Element }) {
     },
   ];
 
+  /**
+   * Whether this entry *is* the page being shown - exactly one of them can be.
+   *
+   * The longest address that covers the path wins. That single rule serves
+   * both shapes the menu has: where a page has no entry of its own,
+   * `/management/devices` is the longest match for `/management/devices/3` and
+   * marks it, exactly as before; where every level has an entry, the deepest
+   * one wins and its ancestors do not.
+   *
+   * It matters more than it looks. `aria-current="page"` announces "this is
+   * where you are", and on /anleitungen/workshop/tag-1 the prefix rule put it
+   * on three entries at once - „Übersicht", „Workshop" and „Tag 1" all filled
+   * in primary, with nothing to say which was meant. A tree makes an ancestor
+   * a real entry, and an ancestor is not where you are.
+   *
+   * Defined here rather than beside `covers`, because it needs the finished
+   * list of entries to know what "longest" means.
+   */
+  const reachable = (entries: NavEntry[]): string[] =>
+    entries.flatMap((entry) => [entry.href, ...reachable(entry.items ?? [])]);
+
+  const bestMatch = Math.max(
+    0,
+    ...sections
+      .flatMap((section) => reachable(section.items))
+      .filter(covers)
+      .map((href) => href.length),
+  );
+
+  const isCurrent = (href: string): boolean =>
+    covers(href) && href.length === bestMatch;
+
+  /**
+   * The page being shown is somewhere below this entry, but is not this entry.
+   *
+   * What the fly-out needs and the indented menu did not: with the sub-pages
+   * hidden until a panel opens, the topic is the only thing on screen that can
+   * say where one is.
+   */
+  const leadsTo = (entry: NavEntry): boolean =>
+    !isCurrent(entry.href) && anyCurrent(entry);
+
+
   return (
     <div class="min-h-screen flex flex-col">
       {/* Header */}
@@ -367,7 +578,12 @@ export default function Layout(props: { children: JSX.Element }) {
               current={section.items.some(anyCurrent)}
             >
               {section.items.map((item) => (
-                <NavBranch entry={item} isCurrent={isCurrent} />
+                <NavBranch
+                  entry={item}
+                  isCurrent={isCurrent}
+                  leadsTo={leadsTo}
+                  flyout
+                />
               ))}
             </NavDropdown>
           ))}
@@ -392,12 +608,12 @@ export default function Layout(props: { children: JSX.Element }) {
               <path d="M6 6l12 12M18 6L6 18" class="hidden group-open:block" />
             </svg>
           </summary>
-          <ul class={`${panelClass} w-[min(18rem,calc(100vw-1.5rem))] max-h-[calc(100vh-5rem)] overflow-y-auto`}>
+          <ul class={`${panelClass} w-[min(20rem,calc(100vw-1.5rem))] max-h-[calc(100vh-5rem)] overflow-y-auto`}>
             {sections.map((section) => (
               <>
                 <li class="menu-title text-base-content/70">{section.label}</li>
                 {section.items.map((item) => (
-                  <NavBranch entry={item} isCurrent={isCurrent} />
+                  <NavBranch entry={item} isCurrent={isCurrent} leadsTo={leadsTo} />
                 ))}
               </>
             ))}
